@@ -1,0 +1,22 @@
+# Secrets — ห้าม push เด็ดขาด
+.env
+*.env
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Database
+*.db
+*.sqlite
+
+# Logs
+*.log
+logs/
+
+# Build artifacts
+*.egg-info/
+dist/
+build/

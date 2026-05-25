@@ -1,0 +1,43 @@
+# วางไฟล์นี้ที่: /opt/webchat/compose/docker-compose.yml
+# รัน: docker compose -f /opt/webchat/compose/docker-compose.yml up -d
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: webchat-postgres
+    environment:
+      POSTGRES_DB: webchat
+      POSTGRES_USER: webchat
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - /data/webchat/db/postgres:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - webchat-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U webchat"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  webchat:
+    image: webchat-app:latest
+    container_name: webchat-app
+    env_file:
+      - /opt/webchat/env/.env
+    environment:
+      DATABASE_URL: postgresql://webchat:${POSTGRES_PASSWORD}@postgres:5432/webchat
+    volumes:
+      - /opt/webchat/logs:/app/logs
+    ports:
+      - "80:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - webchat-net
+
+networks:
+  webchat-net:
+    driver: bridge

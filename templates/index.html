@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>I-SAVE - Power BI API Connector</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background: #f8fafc;
+            background-attachment: fixed;
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #0096ff 0%, #00bfff 100%);
+            box-shadow: 0 4px 20px rgba(0, 150, 255, 0.2);
+        }
+        .card-shadow {
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+        }
+        .hover-scale {
+            transition: all 0.3s ease;
+        }
+        .hover-scale:hover {
+            transform: scale(1.02);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+        .loading-spinner {
+            border: 3px solid #e2e8f0;
+            border-top: 3px solid #0096ff;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .json-viewer {
+            background: #f8fafc;
+            color: #1e293b;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            border-radius: 8px;
+            padding: 16px;
+            overflow-x: auto;
+            border: 1px solid #e2e8f0;
+        }
+        .tab-active {
+            border-bottom: 3px solid #0096ff;
+            color: #0096ff;
+            background: rgba(0, 150, 255, 0.05);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="gradient-bg text-white shadow-lg">
+        <div class="container mx-auto px-4 py-6">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-chart-line text-3xl"></i>
+                    <div>
+                        <h1 class="text-2xl font-bold">Power BI API Connector</h1>
+                        <p class="text-blue-100 text-sm">เชื่อมต่อและจัดการข้อมูล Power BI ผ่าน API</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span id="connection-status" class="bg-red-500 px-3 py-1 rounded-full text-sm">
+                        <i class="fas fa-circle text-xs mr-1"></i> ยังไม่เชื่อมต่อ
+                    </span>
+                    <span id="current-time" class="text-sm"></span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container mx-auto px-4 py-8">
+        <!-- Connection Section -->
+        <div id="connection-section" class="mb-8">
+            <div class="rounded-lg card-shadow p-6">
+                <h2 class="text-xl font-bold mb-4 flex items-center text-gray-800">
+                    <i class="fas fa-plug mr-2 text-blue-500"></i>
+                    เชื่อมต่อกับ Power BI
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tenant ID</label>
+                        <input type="text" id="tenant-id" class="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800 placeholder-gray-400" placeholder="กรอก Tenant ID">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Client ID</label>
+                        <input type="text" id="client-id" class="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800 placeholder-gray-400" placeholder="กรอก Client ID">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Client Secret</label>
+                        <input type="password" id="client-secret" class="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800 placeholder-gray-400" placeholder="กรอก Client Secret">
+                    </div>
+                </div>
+                <button onclick="connect()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-all">
+                    <i class="fas fa-link mr-2"></i>เชื่อมต่อ
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content (Hidden until connected) -->
+        <div id="main-content" class="hidden">
+            <!-- Tabs -->
+            <div class="rounded-t-lg card-shadow">
+                <div class="flex border-b">
+                    <button onclick="switchTab('workspaces')" class="tab-btn px-6 py-3 font-medium tab-active" data-tab="workspaces">
+                        <i class="fas fa-folder mr-2"></i>Workspaces
+                    </button>
+                    <button onclick="switchTab('query')" class="tab-btn px-6 py-3 font-medium" data-tab="query">
+                        <i class="fas fa-database mr-2"></i>DAX Query
+                    </button>
+                    <button onclick="switchTab('refresh')" class="tab-btn px-6 py-3 font-medium" data-tab="refresh">
+                        <i class="fas fa-sync mr-2"></i>Refresh
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="rounded-b-lg card-shadow p-6">
+                <!-- Workspaces Tab -->
+                <div id="workspaces-tab" class="tab-content">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold text-gray-800">Workspaces</h3>
+                        <button onclick="loadWorkspaces()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-all">
+                            <i class="fas fa-refresh mr-2"></i>รีเฟรช
+                        </button>
+                    </div>
+                    <div id="workspaces-list" class="space-y-3">
+                        <div class="text-center text-gray-400 py-8">
+                            <i class="fas fa-folder-open text-4xl mb-3"></i>
+                            <p>กดปุ่มรีเฟรชเพื่อโหลดข้อมูล Workspaces</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DAX Query Tab -->
+                <div id="query-tab" class="tab-content hidden">
+                    <h3 class="text-lg font-semibold mb-4 text-gray-800">DAX Query</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Workspace</label>
+                            <select id="query-workspace" class="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800">
+                                <option value="">เลือก Workspace</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Dataset</label>
+                            <select id="query-dataset" class="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800">
+                                <option value="">เลือก Dataset</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">DAX Query</label>
+                        <textarea id="dax-query" rows="4" class="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800 placeholder-gray-400" placeholder="EVALUATE TOPN(10, Sales)"></textarea>
+                    </div>
+                    <button onclick="executeQuery()" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors">
+                        <i class="fas fa-play mr-2"></i>รัน Query
+                    </button>
+                    <div id="query-result" class="mt-4 hidden">
+                        <h4 class="font-semibold mb-2">ผลลัพธ์:</h4>
+                        <div id="query-result-content" class="json-viewer"></div>
+                    </div>
+                </div>
+
+                <!-- Refresh Tab -->
+                <div id="refresh-tab" class="tab-content hidden">
+                    <h3 class="text-lg font-semibold mb-4 text-gray-800">Refresh Dataset</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Workspace</label>
+                            <select id="refresh-workspace" class="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800">
+                                <option value="">เลือก Workspace</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Dataset</label>
+                            <select id="refresh-dataset" class="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800">
+                                <option value="">เลือก Dataset</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button onclick="refreshDataset()" class="bg-orange-600 text-white px-6 py-2 rounded-lg hover:bg-orange-700 transition-colors">
+                        <i class="fas fa-sync-alt mr-2"></i>รีเฟรช Dataset
+                    </button>
+                    <div id="refresh-result" class="mt-4 hidden">
+                        <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                            <p class="text-green-800"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-4 right-4 hidden">
+        <div class="bg-white rounded-lg shadow-lg p-4 flex items-center space-x-3">
+            <div id="toast-icon"></div>
+            <div>
+                <p id="toast-message" class="font-medium"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let workspaces = [];
+        let datasets = {};
+
+        // Update time
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('current-time').textContent = now.toLocaleTimeString('th-TH');
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
+
+        // Show toast notification
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toast-message');
+            const toastIcon = document.getElementById('toast-icon');
+            
+            toastMessage.textContent = message;
+            
+            if (type === 'success') {
+                toastIcon.innerHTML = '<i class="fas fa-check-circle text-green-500 text-xl"></i>';
+            } else if (type === 'error') {
+                toastIcon.innerHTML = '<i class="fas fa-exclamation-circle text-red-500 text-xl"></i>';
+            } else {
+                toastIcon.innerHTML = '<i class="fas fa-info-circle text-blue-500 text-xl"></i>';
+            }
+            
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3000);
+        }
+
+        // Connect to Power BI
+        async function connect() {
+            const tenantId = document.getElementById('tenant-id').value;
+            const clientId = document.getElementById('client-id').value;
+            const clientSecret = document.getElementById('client-secret').value;
+
+            if (!tenantId || !clientId || !clientSecret) {
+                showToast('กรุณากรอกข้อมูลให้ครบถ้วน', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/connect', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        tenant_id: tenantId,
+                        client_id: clientId,
+                        client_secret: clientSecret
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showToast('เชื่อมต่อสำเร็จ', 'success');
+                    document.getElementById('connection-status').innerHTML = '<i class="fas fa-circle text-xs mr-1"></i> เชื่อมต่อแล้ว';
+                    document.getElementById('connection-status').className = 'bg-green-500 px-3 py-1 rounded-full text-sm';
+                    document.getElementById('main-content').classList.remove('hidden');
+                    loadWorkspaces();
+                } else {
+                    showToast(result.message, 'error');
+                }
+            } catch (error) {
+                showToast('เกิดข้อผิดพลาดในการเชื่อมต่อ', 'error');
+            }
+        }
+
+        // Switch tabs
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.add('hidden');
+            });
+            
+            // Remove active class from all tab buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('tab-active');
+            });
+            
+            // Show selected tab
+            document.getElementById(`${tabName}-tab`).classList.remove('hidden');
+            
+            // Add active class to selected tab button
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('tab-active');
+        }
+
+        // Load workspaces
+        async function loadWorkspaces() {
+            try {
+                const response = await fetch('/workspaces');
+                const result = await response.json();
+
+                if (result.success) {
+                    workspaces = result.workspaces;
+                    displayWorkspaces();
+                    updateWorkspaceSelects();
+                    showToast(`โหลด ${workspaces.length} Workspaces สำเร็จ`, 'success');
+                } else {
+                    showToast(result.message, 'error');
+                }
+            } catch (error) {
+                showToast('เกิดข้อผิดพลาดในการโหลด Workspaces', 'error');
+            }
+        }
+
+        // Display workspaces
+        function displayWorkspaces() {
+            const workspacesList = document.getElementById('workspaces-list');
+            
+            if (workspaces.length === 0) {
+                workspacesList.innerHTML = `
+                    <div class="text-center text-blue-400 py-8">
+                        <i class="fas fa-folder-open text-4xl mb-3"></i>
+                        <p>ไม่พบ Workspaces</p>
+                    </div>
+                `;
+                return;
+            }
+
+            workspacesList.innerHTML = workspaces.map(workspace => `
+                <div class="border border-cyan-700 rounded-lg p-4 hover-scale bg-slate-800/50">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h4 class="font-semibold text-lg text-cyan-300">${workspace.name}</h4>
+                            <p class="text-cyan-500 text-sm">ID: ${workspace.id}</p>
+                        </div>
+                        <button onclick="loadWorkspaceDetails('${workspace.id}')" class="bg-cyan-600 text-white px-3 py-1 rounded-lg hover:bg-cyan-500 transition-all hover:shadow-lg hover:shadow-cyan-500/50">
+                            <i class="fas fa-eye mr-1"></i>ดูรายละเอียด
+                        </button>
+                    </div>
+                    <div id="workspace-details-${workspace.id}" class="mt-4 hidden">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <h5 class="font-medium mb-2 text-cyan-300">Datasets</h5>
+                                <div id="datasets-${workspace.id}" class="space-y-2"></div>
+                            </div>
+                            <div>
+                                <h5 class="font-medium mb-2 text-cyan-300">Reports</h5>
+                                <div id="reports-${workspace.id}" class="space-y-2"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Load workspace details
+        async function loadWorkspaceDetails(workspaceId) {
+            const detailsDiv = document.getElementById(`workspace-details-${workspaceId}`);
+            
+            if (detailsDiv.classList.contains('hidden')) {
+                // Load datasets and reports
+                await Promise.all([
+                    loadDatasets(workspaceId),
+                    loadReports(workspaceId)
+                ]);
+                detailsDiv.classList.remove('hidden');
+            } else {
+                detailsDiv.classList.add('hidden');
+            }
+        }
+
+        // Load datasets
+        async function loadDatasets(workspaceId) {
+            try {
+                const response = await fetch(`/workspace/${workspaceId}/datasets`);
+                const result = await response.json();
+
+                if (result.success) {
+                    datasets[workspaceId] = result.datasets;
+                    const datasetsDiv = document.getElementById(`datasets-${workspaceId}`);
+                    
+                    if (result.datasets.length === 0) {
+                        datasetsDiv.innerHTML = '<p class="text-cyan-400 text-sm">ไม่มี Datasets</p>';
+                    } else {
+                        datasetsDiv.innerHTML = result.datasets.map(dataset => `
+                            <div class="bg-slate-700 p-2 rounded border border-cyan-800">
+                                <p class="font-medium text-sm text-cyan-200">${dataset.name}</p>
+                                <p class="text-cyan-400 text-xs">ID: ${dataset.id}</p>
+                            </div>
+                        `).join('');
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading datasets:', error);
+            }
+        }
+
+        // Load reports
+        async function loadReports(workspaceId) {
+            try {
+                const response = await fetch(`/workspace/${workspaceId}/reports`);
+                const result = await response.json();
+
+                if (result.success) {
+                    const reportsDiv = document.getElementById(`reports-${workspaceId}`);
+                    
+                    if (result.reports.length === 0) {
+                        reportsDiv.innerHTML = '<p class="text-cyan-400 text-sm">ไม่มี Reports</p>';
+                    } else {
+                        reportsDiv.innerHTML = result.reports.map(report => `
+                            <div class="bg-slate-700 p-2 rounded border border-cyan-800">
+                                <p class="font-medium text-sm text-cyan-200">${report.name}</p>
+                                <p class="text-cyan-400 text-xs">ID: ${report.id}</p>
+                            </div>
+                        `).join('');
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading reports:', error);
+            }
+        }
+
+        // Update workspace selects
+        function updateWorkspaceSelects() {
+            const selects = ['query-workspace', 'refresh-workspace'];
+            
+            selects.forEach(selectId => {
+                const select = document.getElementById(selectId);
+                select.innerHTML = '<option value="">เลือก Workspace</option>' +
+                    workspaces.map(ws => `<option value="${ws.id}">${ws.name}</option>`).join('');
+            });
+        }
+
+        // Update dataset selects
+        function updateDatasetSelects(workspaceId) {
+            const selects = ['query-dataset', 'refresh-dataset'];
+            const workspaceDatasets = datasets[workspaceId] || [];
+            
+            selects.forEach(selectId => {
+                const select = document.getElementById(selectId);
+                select.innerHTML = '<option value="">เลือก Dataset</option>' +
+                    workspaceDatasets.map(ds => `<option value="${ds.id}">${ds.name}</option>`).join('');
+            });
+        }
+
+        // Execute DAX query
+        async function executeQuery() {
+            const workspaceId = document.getElementById('query-workspace').value;
+            const datasetId = document.getElementById('query-dataset').value;
+            const daxQuery = document.getElementById('dax-query').value;
+
+            if (!workspaceId || !datasetId || !daxQuery) {
+                showToast('กรุณากรอกข้อมูลให้ครบถ้วน', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        workspace_id: workspaceId,
+                        dataset_id: datasetId,
+                        dax_query: daxQuery
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    const resultDiv = document.getElementById('query-result');
+                    const resultContent = document.getElementById('query-result-content');
+                    
+                    resultContent.textContent = JSON.stringify(result.result, null, 2);
+                    resultDiv.classList.remove('hidden');
+                    showToast('รัน Query สำเร็จ', 'success');
+                } else {
+                    showToast(result.message, 'error');
+                }
+            } catch (error) {
+                showToast('เกิดข้อผิดพลาดในการรัน Query', 'error');
+            }
+        }
+
+        // Refresh dataset
+        async function refreshDataset() {
+            const workspaceId = document.getElementById('refresh-workspace').value;
+            const datasetId = document.getElementById('refresh-dataset').value;
+
+            if (!workspaceId || !datasetId) {
+                showToast('กรุณาเลือก Workspace และ Dataset', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/refresh', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        workspace_id: workspaceId,
+                        dataset_id: datasetId
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    const resultDiv = document.getElementById('refresh-result');
+                    resultDiv.querySelector('p').textContent = result.result.message || 'รีเฟรช Dataset สำเร็จ';
+                    resultDiv.classList.remove('hidden');
+                    showToast('รีเฟรช Dataset สำเร็จ', 'success');
+                } else {
+                    showToast(result.message, 'error');
+                }
+            } catch (error) {
+                showToast('เกิดข้อผิดพลาดในการรีเฟรช Dataset', 'error');
+            }
+        }
+
+        // Event listeners for workspace selects
+        document.getElementById('query-workspace').addEventListener('change', function() {
+            if (this.value && !datasets[this.value]) {
+                loadDatasets(this.value);
+            } else {
+                updateDatasetSelects(this.value);
+            }
+        });
+
+        document.getElementById('refresh-workspace').addEventListener('change', function() {
+            if (this.value && !datasets[this.value]) {
+                loadDatasets(this.value);
+            } else {
+                updateDatasetSelects(this.value);
+            }
+        });
+    </script>
+</body>
+</html>

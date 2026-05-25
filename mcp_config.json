@@ -1,0 +1,56 @@
+{
+  "servers": {
+    "powerbi": {
+      "type": "remote",
+      "url": "http://docker-mcp:8000",
+      "enabled": true
+    },
+    "database": {
+      "type": "remote",
+      "url": "http://docker-mcp:8000",
+      "enabled": true
+    },
+    "excel": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["mcp_servers/excel_mcp_server.py"],
+      "enabled": true
+    }
+  },
+  "ssh_tunnel": {
+    "enabled": false,
+    "host": "docker-mcp",
+    "ssh_port": 22,
+    "username": "scm",
+    "password": "Webchat.2026",
+    "remote_port": 8000,
+    "local_port": 8001
+  },
+  "intents": {
+    "machine": {
+      "keywords": ["machine", "เครื่องจักร", "เครื่อง", "machine info", "ข้อมูลเครื่อง", "สถานะเครื่อง", "เครื่องทอ"],
+      "mcp_server": "database",
+      "confidence_threshold": 0.7
+    },
+    "cap_ava": {
+      "keywords": ["capacity", "cap ava", "cap", "ava", "กำลังการผลิต", "available", "ว่าง", "กำลังผลิต", "capacity available"],
+      "mcp_server": "database",
+      "confidence_threshold": 0.7
+    },
+    "knit_plan": {
+      "keywords": ["knit", "knitting", "plan", "แผนทอ", "แผนการทอ", "แผนการผลิต", "แผน", "การทอ"],
+      "mcp_server": "database",
+      "confidence_threshold": 0.7
+    },
+    "booking": {
+      "keywords": ["booking", "บุ๊คกิ้ง", "จอง", "การจอง", "bookingmaster", "ข้อมูลการจอง", "รายการจอง", "order booking", "สั่งจอง"],
+      "mcp_server": "powerbi",
+      "confidence_threshold": 0.7
+    },
+    "item": {
+      "keywords": ["item", "สินค้า", "รหัสสินค้า", "kp weight", "kp_weight"],
+      "mcp_server": "powerbi",
+      "confidence_threshold": 0.7
+    }
+  }
+}

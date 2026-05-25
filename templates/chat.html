@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>I-SAVE AI Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #0096ff 0%, #00bfff 100%);
+        }
+        .chat-container {
+            height: calc(100vh - 180px);
+            max-height: 800px;
+        }
+        .message-bubble {
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .typing-indicator {
+            display: inline-flex;
+            align-items: center;
+            padding: 8px 12px;
+            background: #f3f4f6;
+            border-radius: 18px;
+        }
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #6b7280;
+            margin: 0 2px;
+            animation: typing 1.4s infinite;
+        }
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        @keyframes typing {
+            0%, 60%, 100% {
+                transform: translateY(0);
+            }
+            30% {
+                transform: translateY(-10px);
+            }
+        }
+        .quick-action {
+            transition: all 0.3s ease;
+        }
+        .quick-action:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 150, 255, 0.3);
+        }
+        .sidebar-link {
+            transition: all 0.3s ease;
+        }
+        .sidebar-link:hover {
+            background: rgba(0, 150, 255, 0.08);
+            border-left: 4px solid #0096ff;
+        }
+        .code-block {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            font-family: 'Courier New', monospace;
+            border-radius: 8px;
+            padding: 12px;
+            overflow-x: auto;
+        }
+        .json-viewer {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .conversation-item {
+            transition: all 0.3s ease;
+        }
+        .conversation-item:hover {
+            background: rgba(0, 150, 255, 0.05);
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <header class="gradient-bg text-white shadow-lg">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <button onclick="toggleSidebar()" class="lg:hidden">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center overflow-hidden">
+                            <img src="/static/logonew.png" alt="I-SAVE Logo" class="w-full h-full object-cover">
+                        </div>
+                        <div>
+                            <h1 class="text-xl font-bold">Power BI AI Assistant</h1>
+                            <p class="text-blue-100 text-xs">ผู้ช่วยอัจฉริยะสำหรับ Power BI</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span id="connection-status" class="bg-red-500 px-3 py-1 rounded-full text-sm">
+                        <i class="fas fa-circle text-xs mr-1"></i> ยังไม่เชื่อมต่อ
+                    </span>
+                    <div class="flex items-center space-x-2">
+                        <div id="user-avatar" class="w-8 h-8 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-full flex items-center justify-center text-white font-bold text-sm">A</div>
+                        <div class="hidden md:block">
+                            <p id="user-name" class="text-sm font-medium">Loading...</p>
+                            <p id="user-role" class="text-xs text-blue-100">Loading...</p>
+                        </div>
+                    </div>
+                    <a href="{{ url_for('logout') }}" class="bg-white/20 hover:bg-white/30 px-3 py-1 rounded-lg text-sm transition-colors">
+                        <i class="fas fa-sign-out-alt mr-1"></i>ออกจากระบบ
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="w-64 bg-white shadow-lg h-screen sticky top-0 transform -translate-x-full lg:translate-x-0 transition-transform duration-300 z-20">
+            <nav class="p-4">
+                <div class="mb-6">
+                    <button onclick="createNewConversation()" class="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                        <i class="fas fa-plus mr-2"></i>สนทนาใหม่
+                    </button>
+                </div>
+                
+                <div class="space-y-2">
+                    <a href="#" onclick="showSection('chat')" class="sidebar-link flex items-center space-x-3 p-3 rounded-lg active">
+                        <i class="fas fa-comments text-blue-600"></i>
+                        <span>แชทกับ AI</span>
+                    </a>
+                    <a href="#" onclick="showSection('connection')" class="sidebar-link flex items-center space-x-3 p-3 rounded-lg">
+                        <i class="fas fa-plug text-blue-600"></i>
+                        <span>การเชื่อมต่อ</span>
+                    </a>
+                    <a href="#" onclick="showSection('workspaces')" class="sidebar-link flex items-center space-x-3 p-3 rounded-lg">
+                        <i class="fas fa-folder text-blue-600"></i>
+                        <span>Workspaces</span>
+                    </a>
+                    <a href="#" onclick="showSection('history')" class="sidebar-link flex items-center space-x-3 p-3 rounded-lg">
+                        <i class="fas fa-history text-blue-600"></i>
+                        <span>ประวัติการใช้งาน</span>
+                    </a>
+                </div>
+                
+                <div class="mt-6 border-t pt-4">
+                    <h3 class="text-sm font-semibold text-gray-600 mb-2">การสนทนาล่าสุด</h3>
+                    <div id="conversation-list" class="space-y-2 max-h-64 overflow-y-auto">
+                        <!-- จะแสดงรายการการสนทนาที่นี่ -->
+                    </div>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-6">
+            <!-- Chat Section -->
+            <section id="chat-section" class="content-section">
+                <div class="bg-white rounded-lg shadow-lg h-full flex flex-col">
+                    <!-- Chat Header -->
+                    <div class="border-b p-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center overflow-hidden">
+                                    <img src="/static/logonew.png" alt="I-SAVE Logo" class="w-full h-full object-cover">
+                                </div>
+                                <div>
+                                    <h3 class="font-semibold">Power BI Assistant</h3>
+                                    <p class="text-sm text-gray-500">พร้อมช่วยเหลือคุณเกี่ยวกับ Power BI</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <button onclick="clearCurrentChat()" class="text-gray-500 hover:text-orange-500 transition-colors" title="ล้างแชทปัจจุบัน">
+                                    <i class="fas fa-broom"></i>
+                                </button>
+                                <button onclick="deleteCurrentConversation()" class="text-gray-500 hover:text-red-500 transition-colors" title="ลบการสนทนา">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Chat Messages -->
+                    <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4">
+                        <!-- Welcome Message -->
+                        <div class="flex items-start space-x-3">
+                            <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                <img src="/static/logonew.png" alt="I-SAVE Logo" class="w-full h-full object-cover">
+                            </div>
+                            <div class="message-bubble bg-gray-100 rounded-lg p-3 max-w-2xl">
+                                <p class="text-gray-800">สวัสดีครับ! ผมคือ Power BI Assistant ผู้ช่วยอัจฉริยะสำหรับ Power BI</p>
+                                <p class="text-gray-800 mt-2">ผมสามารถช่วยคุณได้ในเรื่อง:</p>
+                                <ul class="list-disc list-inside text-gray-700 mt-2 space-y-1">
+                                    <li>เชื่อมต่อกับ Power BI API</li>
+                                    <li>ดูข้อมูล Workspaces, Datasets, Reports</li>
+                                    <li>รันคำสั่ง DAX Query</li>
+                                    <li>รีเฟรชข้อมูล Datasets</li>
+                                    <li>วิเคราะห์ข้อมูลและสร้างรายงาน</li>
+                                    <li>บันทึกประวัติการสนทนา</li>
+                                </ul>
+                                <p class="text-gray-800 mt-3">มีอะไรให้ผมช่วยไหมครับ?</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="border-t p-4 bg-gray-50">
+                        <div class="flex flex-wrap gap-2 mb-3">
+                            <button onclick="sendQuickMessage('เชื่อมต่อ Power BI')" class="quick-action bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm">
+                                <i class="fas fa-plug mr-1"></i>เชื่อมต่อ Power BI
+                            </button>
+                            <button onclick="sendQuickMessage('ดู Workspaces')" class="quick-action bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm">
+                                <i class="fas fa-folder mr-1"></i>ดู Workspaces
+                            </button>
+                            <button onclick="sendQuickMessage('รัน DAX Query')" class="quick-action bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm">
+                                <i class="fas fa-database mr-1"></i>รัน DAX Query
+                            </button>
+                            <button onclick="sendQuickMessage('วิเคราะห์ข้อมูล')" class="quick-action bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm">
+                                <i class="fas fa-chart-bar mr-1"></i>วิเคราะห์ข้อมูล
+                            </button>
+                        </div>
+
+                        <!-- Input Area -->
+                        <div class="flex items-end space-x-2 border-t pt-3">
+                            <div class="flex-1">
+                                <textarea id="message-input" 
+                                    rows="1" 
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                                    placeholder="พิมพ์ข้อความ..."
+                                    onkeypress="handleKeyPress(event)"
+                                    oninput="autoResize(this)"></textarea>
+                            </div>
+                            <button onclick="sendMessage()" class="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition-colors">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Connection Section -->
+            <section id="connection-section" class="content-section hidden">
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <h2 class="text-xl font-bold mb-4 flex items-center">
+                        <i class="fas fa-plug mr-2 text-blue-600"></i>
+                        เชื่อมต่อกับ Power BI
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Tenant ID</label>
+                            <input type="text" id="tenant-id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="กรอก Tenant ID">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Client ID</label>
+                            <input type="text" id="client-id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="กรอก Client ID">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Client Secret</label>
+                            <input type="password" id="client-secret" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="กรอก Client Secret">
+                        </div>
+                    </div>
+                    <button onclick="connect()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                        <i class="fas fa-link mr-2"></i>เชื่อมต่อ
+                    </button>
+                </div>
+            </section>
+
+            <!-- Workspaces Section -->
+            <section id="workspaces-section" class="content-section hidden">
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold flex items-center">
+                            <i class="fas fa-folder mr-2 text-blue-600"></i>
+                            Workspaces
+                        </h2>
+                        <button onclick="loadWorkspaces()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                            <i class="fas fa-refresh mr-2"></i>รีเฟรช
+                        </button>
+                    </div>
+                    <div id="workspaces-list" class="space-y-3">
+                        <div class="text-center text-gray-500 py-8">
+                            <i class="fas fa-folder-open text-4xl mb-3"></i>
+                            <p>กดปุ่มรีเฟรชเพื่อโหลดข้อมูล Workspaces</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- History Section -->
+            <section id="history-section" class="content-section hidden">
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <h2 class="text-xl font-bold mb-4 flex items-center">
+                        <i class="fas fa-history mr-2 text-purple-600"></i>
+                        ประวัติการใช้งาน
+                    </h2>
+                    <div id="activities-list" class="space-y-2">
+                        <div class="text-center text-gray-500 py-8">
+                            <i class="fas fa-history text-4xl mb-3"></i>
+                            <p>กำลังโหลดประวัติการใช้งาน...</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-4 right-4 hidden z-50">
+        <div class="bg-white rounded-lg shadow-lg p-4 flex items-center space-x-3">
+            <div id="toast-icon"></div>
+            <div>
+                <p id="toast-message" class="font-medium"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let workspaces = [];
+        let datasets = {};
+        let chatHistory = [];
+        let isConnected = false;
+        let userInitial = 'A'; // Global variable to store user's initial
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadUserInfo();
+            loadConversations();
+            loadActivities();
+        });
+
+        // Load user info
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/user-info');
+                const result = await response.json();
+
+                if (result.success) {
+                    document.getElementById('user-name').textContent = result.user.username;
+                    document.getElementById('user-role').textContent = result.user.role;
+                    // Set user avatar with first letter of username
+                    userInitial = result.user.username ? result.user.username[0].toUpperCase() : 'A';
+                    document.getElementById('user-avatar').textContent = userInitial;
+                }
+            } catch (error) {
+                console.error('Error loading user info:', error);
+            }
+        }
+
+        // Load conversations
+        async function loadConversations() {
+            try {
+                const response = await fetch('/conversations');
+                const result = await response.json();
+
+                if (result.success) {
+                    conversations = result.conversations;
+                    updateConversationList();
+                    
+                    // ถ้ามีการสนทนา ให้เลือกการสนทนาล่าสุด
+                    if (conversations.length > 0) {
+                        selectConversation(conversations[0].id);
+                    } else {
+                        // สร้างการสนทนาใหม่
+                        createNewConversation();
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading conversations:', error);
+            }
+        }
+
+        // Update conversation list
+        function updateConversationList() {
+            const listContainer = document.getElementById('conversation-list');
+            
+            if (conversations.length === 0) {
+                listContainer.innerHTML = '<p class="text-sm text-gray-500">ยังไม่มีการสนทนา</p>';
+                return;
+            }
+
+            listContainer.innerHTML = conversations.map(conv => `
+                <div class="conversation-item p-2 rounded cursor-pointer ${conv.id === currentConversationId ? 'bg-purple-50' : ''}" 
+                     onclick="selectConversation(${conv.id})">
+                    <div class="text-sm font-medium truncate">${conv.title}</div>
+                    <div class="text-xs text-gray-500">${new Date(conv.updated_at).toLocaleString('th-TH')}</div>
+                </div>
+            `).join('');
+        }
+
+        // Create new conversation
+        async function createNewConversation() {
+            try {
+                const response = await fetch('/conversations', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        title: `สนทนา ${new Date().toLocaleString('th-TH')}`
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    currentConversationId = result.conversation_id;
+                    loadConversations(); // โหลดรายการใหม่
+                    clearChatMessages();
+                    addWelcomeMessage();
+                }
+            } catch (error) {
+                console.error('Error creating conversation:', error);
+                showToast('เกิดข้อผิดพลาดในการสร้างการสนทนา', 'error');
+            }
+        }
+
+        // Select conversation
+        async function selectConversation(conversationId) {
+            currentConversationId = conversationId;
+            
+            // อัปเดต UI
+            updateConversationList();
+            
+            // โหลดข้อความในการสนทนา
+            try {
+                const response = await fetch(`/conversations/${conversationId}/messages`);
+                const result = await response.json();
+
+                if (result.success) {
+                    displayMessages(result.messages);
+                }
+            } catch (error) {
+                console.error('Error loading messages:', error);
+            }
+        }
+
+        // Display messages
+        function displayMessages(messages) {
+            const messagesContainer = document.getElementById('chat-messages');
+            messagesContainer.innerHTML = '';
+
+            messages.forEach(msg => {
+                addMessageToChat(msg.message, msg.sender, msg.message_type, msg.metadata);
+            });
+        }
+
+        // Add welcome message
+        function addWelcomeMessage() {
+            addMessageToChat(
+                'สวัสดีครับ! ผมคือ Power BI Assistant ผู้ช่วยอัจฉริยะสำหรับ Power BI\n\nผมสามารถช่วยคุณได้ในเรื่อง:\n• เชื่อมต่อกับ Power BI API\n• ดูข้อมูล Workspaces, Datasets, Reports\n• รันคำสั่ง DAX Query\n• รีเฟรชข้อมูล Datasets\n• วิเคราะห์ข้อมูลและสร้างรายงาน\n• บันทึกประวัติการสนทนา\n\nมีอะไรให้ผมช่วยไหมครับ?',
+                'assistant',
+                'text'
+            );
+        }
+
+        // Clear chat messages
+        function clearChatMessages() {
+            document.getElementById('chat-messages').innerHTML = '';
+        }
+
+        // Clear current chat
+        function clearCurrentChat() {
+            if (confirm('คุณต้องการล้างข้อความในการสนทนาปัจจุบันหรือไม่?')) {
+                clearChatMessages();
+                addWelcomeMessage();
+            }
+        }
+
+        // Delete current conversation
+        async function deleteCurrentConversation() {
+            if (!currentConversationId) return;
+            
+            if (confirm('คุณต้องการลบการสนทนานี้หรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้')) {
+                try {
+                    const response = await fetch(`/conversations/${currentConversationId}`, {
+                        method: 'DELETE'
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        showToast('ลบการสนทนาสำเร็จ', 'success');
+                        loadConversations(); // โหลดรายการใหม่
+                    } else {
+                        showToast('ลบการสนทนาล้มเหลว', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error deleting conversation:', error);
+                    showToast('เกิดข้อผิดพลาด', 'error');
+                }
+            }
+        }
+
+        // Toggle sidebar
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('-translate-x-full');
+        }
+
+        // Show section
+        function showSection(sectionName) {
+            // Hide all sections
+            document.querySelectorAll('.content-section').forEach(section => {
+                section.classList.add('hidden');
+            });
+            
+            // Remove active class from all sidebar links
+            document.querySelectorAll('.sidebar-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            
+            // Show selected section
+            document.getElementById(`${sectionName}-section`).classList.remove('hidden');
+            
+            // Add active class to selected sidebar link
+            const activeLink = document.querySelector(`[onclick="showSection('${sectionName}')"]`);
+            if (activeLink) {
+                activeLink.classList.add('active');
+            }
+        }
+
+        // Auto resize textarea
+        function autoResize(textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = textarea.scrollHeight + 'px';
+        }
+
+        // Handle key press
+        function handleKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        // Send message
+        async function sendMessage() {
+            const input = document.getElementById('message-input');
+            const message = input.value.trim();
+            
+            if (!message || !currentConversationId) return;
+
+            // Add user message to chat
+            addMessageToChat(message, 'user');
+            
+            // Clear input
+            input.value = '';
+            input.style.height = 'auto';
+            
+            // Show typing indicator
+            showTypingIndicator();
+            
+            try {
+                const response = await fetch(`/conversations/${currentConversationId}/messages`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: message
+                    })
+                });
+
+                const result = await response.json();
+
+                hideTypingIndicator();
+
+                if (result.success) {
+                    addMessageToChat(result.ai_response.message, 'assistant', result.ai_response.type, result.ai_response.metadata);
+                } else {
+                    addMessageToChat('เกิดข้อผิดพลาดในการประมวลผล กรุณาลองใหม่อีกครับ', 'assistant');
+                }
+            } catch (error) {
+                hideTypingIndicator();
+                addMessageToChat('เกิดข้อผิดพลาดในการสื่อสาร กรุณาลองใหม่อีกครับ', 'assistant');
+            }
+        }
+
+        // Send quick message
+        function sendQuickMessage(message) {
+            document.getElementById('message-input').value = message;
+            sendMessage();
+        }
+
+        // Add message to chat
+        function addMessageToChat(message, sender, type = 'text', metadata = null) {
+            const messagesContainer = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'flex items-start space-x-3 message-bubble';
+            
+            if (sender === 'user') {
+                messageDiv.classList.add('justify-end');
+                messageDiv.innerHTML = `
+                    <div class="bg-purple-600 text-white rounded-lg p-3 max-w-2xl">
+                        <p>${message}</p>
+                    </div>
+                    <div class="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center flex-shrink-0 text-white font-bold text-sm">${userInitial}</div>
+                `;
+            } else {
+                messageDiv.innerHTML = `
+                    <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        <img src="/static/logonew.png" alt="I-SAVE Logo" class="w-full h-full object-cover">
+                    </div>
+                    <div class="bg-gray-100 rounded-lg p-3 max-w-2xl">
+                        ${formatMessage(message, type)}
+                    </div>
+                `;
+            }
+            
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Format message
+        function formatMessage(message, type) {
+            if (type === 'code') {
+                return `<div class="code-block">${message}</div>`;
+            } else if (type === 'json') {
+                return `<div class="json-viewer">${JSON.stringify(JSON.parse(message), null, 2)}</div>`;
+            } else {
+                // แปลง newline เป็น <br>
+                return `<p class="text-gray-800 whitespace-pre-line">${message}</p>`;
+            }
+        }
+
+        // Show typing indicator
+        function showTypingIndicator() {
+            const messagesContainer = document.getElementById('chat-messages');
+            const typingDiv = document.createElement('div');
+            typingDiv.id = 'typing-indicator';
+            typingDiv.className = 'flex items-start space-x-3';
+            typingDiv.innerHTML = `
+                <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
+                    <img src="/static/logonew.png" alt="I-SAVE Logo" class="w-full h-full object-cover">
+                </div>
+                <div class="typing-indicator">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
+            `;
+            
+            messagesContainer.appendChild(typingDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Hide typing indicator
+        function hideTypingIndicator() {
+            const typingIndicator = document.getElementById('typing-indicator');
+            if (typingIndicator) {
+                typingIndicator.remove();
+            }
+        }
+
+        // Load activities
+        async function loadActivities() {
+            try {
+                const response = await fetch('/activities');
+                const result = await response.json();
+
+                if (result.success) {
+                    displayActivities(result.activities);
+                }
+            } catch (error) {
+                console.error('Error loading activities:', error);
+            }
+        }
+
+        // Display activities
+        function displayActivities(activities) {
+            const activitiesContainer = document.getElementById('activities-list');
+            
+            if (activities.length === 0) {
+                activitiesContainer.innerHTML = `
+                    <div class="text-center text-gray-500 py-8">
+                        <i class="fas fa-history text-4xl mb-3"></i>
+                        <p>ยังไม่มีประวัติการใช้งาน</p>
+                    </div>
+                `;
+                return;
+            }
+
+            activitiesContainer.innerHTML = activities.map(activity => `
+                <div class="p-3 bg-gray-50 rounded-lg">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-sm font-medium text-gray-700">${getActionText(activity.action)}</span>
+                        <span class="text-xs text-gray-500">${new Date(activity.created_at).toLocaleString('th-TH')}</span>
+                    </div>
+                    ${activity.details ? `<p class="text-sm text-gray-600">${getDetailsText(action.details)}</p>` : ''}
+                </div>
+            `).join('');
+        }
+
+        // Get action text in Thai
+        function getActionText(action) {
+            const actionMap = {
+                'login': 'เข้าสู่ระบบ',
+                'logout': 'ออกจากระบบ',
+                'register': 'สมัครสมาชิก',
+                'create_conversation': 'สร้างการสนทนา',
+                'send_message': 'ส่งข้อความ',
+                'delete_conversation': 'ลบการสนทนา',
+                'connect_powerbi': 'เชื่อมต่อ Power BI',
+                'get_workspaces': 'ดู Workspaces',
+                'get_datasets': 'ดู Datasets',
+                'execute_dax_query': 'รัน DAX Query'
+            };
+            return actionMap[action] || action;
+        }
+
+        // Get details text
+        function getDetailsText(details) {
+            if (!details) return '';
+            if (typeof details === 'string') return details;
+            
+            if (details.workspaces_count) {
+                return `พบ ${details.workspaces_count} Workspaces`;
+            }
+            if (details.datasets_count) {
+                return `พบ ${details.datasets_count} Datasets`;
+            }
+            if (details.query) {
+                return `Query: ${details.query}`;
+            }
+            
+            return JSON.stringify(details);
+        }
+
+        // Connect to Power BI
+        async function connect() {
+            const tenantId = document.getElementById('tenant-id').value;
+            const clientId = document.getElementById('client-id').value;
+            const clientSecret = document.getElementById('client-secret').value;
+
+            if (!tenantId || !clientId || !clientSecret) {
+                showToast('กรุณากรอกข้อมูลให้ครบถ้วน', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/connect', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        tenant_id: tenantId,
+                        client_id: clientId,
+                        client_secret: clientSecret
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    isConnected = true;
+                    showToast('เชื่อมต่อสำเร็จ', 'success');
+                    document.getElementById('connection-status').innerHTML = '<i class="fas fa-circle text-xs mr-1"></i> เชื่อมต่อแล้ว';
+                    document.getElementById('connection-status').className = 'bg-green-500 px-3 py-1 rounded-full text-sm';
+                    
+                    // Add success message to chat
+                    addMessageToChat('เชื่อมต่อกับ Power BI สำเร็จแล้วครับ! ตอนนี้คุณสามารถ:\n\n• ดู Workspaces\n• รัน DAX Query\n• รีเฟรช Datasets\n\nมีอะไรให้ช่วยต่อไหมครับ?', 'assistant');
+                } else {
+                    showToast(result.message, 'error');
+                }
+            } catch (error) {
+                showToast('เกิดข้อผิดพลาดในการเชื่อมต่อ', 'error');
+            }
+        }
+
+        // Load workspaces
+        async function loadWorkspaces() {
+            try {
+                const response = await fetch('/workspaces');
+                const result = await response.json();
+
+                if (result.success) {
+                    workspaces = result.workspaces;
+                    displayWorkspaces();
+                    showToast(`โหลด ${workspaces.length} Workspaces สำเร็จ`, 'success');
+                } else {
+                    showToast(result.message, 'error');
+                }
+            } catch (error) {
+                showToast('เกิดข้อผิดพลาดในการโหลด Workspaces', 'error');
+            }
+        }
+
+        // Display workspaces
+        function displayWorkspaces() {
+            const workspacesList = document.getElementById('workspaces-list');
+            
+            if (workspaces.length === 0) {
+                workspacesList.innerHTML = `
+                    <div class="text-center text-gray-500 py-8">
+                        <i class="fas fa-folder-open text-4xl mb-3"></i>
+                        <p>ไม่พบ Workspaces</p>
+                    </div>
+                `;
+                return;
+            }
+
+            workspacesList.innerHTML = workspaces.map(workspace => `
+                <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h4 class="font-semibold text-lg">${workspace.name}</h4>
+                            <p class="text-gray-600 text-sm">ID: ${workspace.id}</p>
+                        </div>
+                        <button onclick="sendQuickMessage('วิเคราะห์ workspace ${workspace.name}')" class="bg-purple-100 text-purple-600 px-3 py-1 rounded-lg hover:bg-purple-200 transition-colors">
+                            <i class="fas fa-comment-dots mr-1"></i>ถาม AI
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Show toast notification
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toast-message');
+            const toastIcon = document.getElementById('toast-icon');
+            
+            toastMessage.textContent = message;
+            
+            if (type === 'success') {
+                toastIcon.innerHTML = '<i class="fas fa-check-circle text-green-500 text-xl"></i>';
+            } else if (type === 'error') {
+                toastIcon.innerHTML = '<i class="fas fa-exclamation-circle text-red-500 text-xl"></i>';
+            } else {
+                toastIcon.innerHTML = '<i class="fas fa-info-circle text-blue-500 text-xl"></i>';
+            }
+            
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>I-SAVE Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        html, body { height: 100%; overflow: hidden; overflow-x: hidden; max-width: 100vw; }
+        body { font-family: "Noto Sans Thai", sans-serif; background: #f0f4f8; }
+        .floating-shapes { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+        .shape { position: absolute; opacity: 0.06; animation: float 6s ease-in-out infinite; background: #0096ff; }
+        .shape:nth-child(1) { width: 90px; height: 90px; border-radius: 50%; top: 8%; left: 6%; animation-delay: 0s; }
+        .shape:nth-child(2) { width: 130px; height: 130px; border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%; top: 65%; right: 8%; animation-delay: 2s; }
+        .shape:nth-child(3) { width: 80px; height: 80px; border-radius: 63% 37% 54% 46% / 55% 48% 52% 45%; bottom: 12%; left: 25%; animation-delay: 4s; }
+        @keyframes float { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-18px) rotate(180deg); } }
+        .glass { background: #ffffff; backdrop-filter: blur(12px); border: 1px solid #e2e8f0; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06); }
+        .btn-purple { background: linear-gradient(135deg, #0096ff 0%, #00bfff 100%); transition: all 0.25s ease; }
+        .btn-purple:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(0, 150, 255, 0.4); }
+        .conversation-item { transition: all 0.2s ease; border: 1px solid transparent; border-radius: 12px; background: #EEEEEE; }
+        .conversation-item:hover { background: #EEEEEE; border-color: rgba(0, 150, 255, 0.15); transform: translateX(2px); }
+        .conversation-item.active { background: #EEEEEE; border-color: rgba(0, 150, 255, 0.3); }
+        .message-enter { animation: msgIn 0.25s ease-out; }
+        @keyframes msgIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        .typing-dot { width: 7px; height: 7px; border-radius: 50%; background: #9ca3af; animation: blink 1.2s infinite ease-in-out; }
+        .typing-dot:nth-child(2) { animation-delay: 0.15s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.3s; }
+        @keyframes blink { 0%, 80%, 100% { transform: translateY(0); opacity: 0.35; } 40% { transform: translateY(-3px); opacity: 1; } }
+        .scrollbar-thin::-webkit-scrollbar { width: 4px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(0, 150, 255, 0.3); border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="floating-shapes"><div class="shape"></div><div class="shape"></div><div class="shape"></div></div>
+    <div class="relative z-10 flex h-screen gap-3 p-3 lg:gap-4 lg:p-4">
+
+        <!-- Sidebar -->
+        <aside id="sidebar" class="glass fixed inset-y-3 left-3 z-30 flex w-[84vw] max-w-[300px] flex-col rounded-2xl p-4 shadow-2xl transition-transform duration-300 lg:static lg:w-72 lg:translate-x-0 -translate-x-[120%]" style="background: #D9EAFD; border-color: #c0d4f0;">
+            <div class="flex items-center justify-between pb-4 border-b border-blue-200">
+                <div class="flex items-center gap-2">
+                    <div class="flex h-9 w-9 items-center justify-center rounded-xl btn-purple shadow overflow-hidden">
+                        <img src="/static/logonew.png" alt="I-SAVE Logo" class="w-full h-full object-cover">
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-bold uppercase tracking-widest text-gray-600">I-SAVE</p>
+                        <h1 class="text-base font-bold text-gray-800 leading-tight">หัวข้อสนทนา</h1>
+                    </div>
+                </div>
+                <button onclick="toggleSidebar()" class="rounded-lg bg-white/50 p-2 text-gray-600 lg:hidden hover:bg-white/70">
+                    <i class="fas fa-xmark text-sm"></i>
+                </button>
+            </div>
+            <div class="mt-4 space-y-3">
+                <button onclick="createNewConversation()" class="btn-purple w-full rounded-xl py-2.5 text-sm font-semibold text-white shadow-md">
+                    <i class="fas fa-pen-to-square mr-2"></i>เริ่มแชทใหม่
+                </button>
+                <button onclick="openRenameModal()" class="w-full rounded-xl border border-blue-200 bg-white/50 px-3 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-white/70">
+                    <i class="fas fa-pencil mr-2"></i>แก้ชื่อหัวข้อ
+                </button>
+                <button onclick="deleteCurrentConversation()" class="w-full rounded-xl border border-rose-300 bg-rose-50 px-3 py-2.5 text-sm font-semibold text-rose-600 transition hover:bg-rose-100">
+                    <i class="fas fa-trash mr-2"></i>ลบหัวข้อ
+                </button>
+                <div class="relative">
+                    <input id="search-input" type="search" name="chat-srch" placeholder="ค้นหาหัวข้อ..." autocomplete="off" spellcheck="false" oninput="searchConversations()"
+                        class="w-full rounded-xl border border-blue-200 px-4 py-2.5 pl-10 text-sm text-gray-800 outline-none transition focus:border-blue-400 placeholder-gray-400" style="background:#EEEEEE;">
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                </div>
+            </div>
+            <div id="conversation-list" class="scrollbar-thin mt-2 flex-1 space-y-1.5 overflow-y-auto pr-0.5 pb-4"></div>
+        </aside>
+
+        <div id="sidebar-backdrop" onclick="toggleSidebar()" class="fixed inset-0 z-20 hidden bg-black/30 lg:hidden"></div>
+
+        <!-- Main -->
+        <main class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 lg:gap-4">
+            <header class="relative rounded-2xl px-4 py-3 shadow-md backdrop-blur-xl border z-[100]" style="background: #D9EAFD; border-color: #c0d4f0;">
+                <!-- Background decoration -->
+                <div class="absolute inset-0 bg-gradient-to-r from-blue-50/50 via-transparent to-blue-50/50 rounded-2xl"></div>
+                <div class="absolute right-0 top-0 h-full w-32 bg-gradient-to-l from-blue-50/30 to-transparent rounded-2xl"></div>
+                <div class="relative z-10 flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-3">
+                        <button onclick="toggleSidebar()" class="rounded-lg bg-gray-100 backdrop-blur p-2 text-gray-500 lg:hidden hover:bg-gray-200 transition-colors">
+                            <i class="fas fa-bars text-sm"></i>
+                        </button>
+                        <div class="flex items-center gap-2">
+                            <div class="relative">
+                                <div class="absolute inset-0 rounded-xl bg-gradient-to-br from-blue-400 to-blue-600 blur-md opacity-30"></div>
+                                <div class="relative flex h-9 w-9 items-center justify-center rounded-xl">
+                                    <img src="/static/chat.png" alt="Chat" class="w-5 h-5 object-contain">
+                                </div>
+                            </div>
+                            <div>
+                                <p class="text-[10px] font-bold uppercase tracking-widest text-blue-500">Topic</p>
+                                <h2 id="active-conversation-title" class="text-base font-bold text-gray-800 leading-tight">กำลังโหลด...</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="relative z-[99999]">
+                            <button id="user-menu-trigger" onclick="toggleUserMenu()" class="flex items-center gap-2 rounded-xl border border-gray-300 bg-gray-50 backdrop-blur px-3 py-2 transition-all hover:bg-gray-100 hover:border-gray-400">
+                                <div id="user-avatar" class="flex h-7 w-7 items-center justify-center rounded-full overflow-hidden shadow-sm">
+                                    <img src="/static/user.png" alt="User" class="w-full h-full object-cover">
+                                </div>
+                                <div class="hidden text-left md:block">
+                                    <p id="user-name" class="text-sm font-semibold text-gray-800 leading-tight">...</p>
+                                    <p class="text-[10px] text-gray-500">จัดการบัญชี <i class="fas fa-chevron-down text-[8px]"></i></p>
+                                </div>
+                            </button>
+                            <div id="user-menu" style="display: none;" class="absolute right-0 top-full mt-2 w-64 rounded-xl bg-white shadow-xl ring-1 ring-gray-200 overflow-hidden z-[999999]">
+                                <div class="p-2">
+                                    <button onclick="openChangePasswordModal(); toggleUserMenu();" class="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-gray-700 rounded-lg transition hover:bg-gray-100">
+                                        <i class="fas fa-key w-4 text-blue-500"></i>
+                                        <span>เปลี่ยนรหัสผ่าน</span>
+                                    </button>
+                                    <button id="admin-menu-btn" onclick="openAdminUsersModal(); toggleUserMenu();" class="hidden w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-rose-600 rounded-lg transition hover:bg-rose-50">
+                                        <i class="fas fa-users w-4 text-rose-500"></i>
+                                        <span>จัดการผู้ใช้</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <a href="{{ url_for('logout') }}" class="rounded-xl bg-gradient-to-r from-red-500 to-rose-600 px-3 py-2 text-sm font-semibold text-white shadow-lg transition-all hover:shadow-xl hover:-translate-y-0.5">ออกจากระบบ</a>
+                    </div>
+                </div>
+            </header>
+
+            <section class="glass flex min-h-0 flex-1 flex-col rounded-2xl shadow-lg overflow-hidden relative z-0">
+                <div id="chat-messages" class="scrollbar-thin flex-1 space-y-3 overflow-y-auto px-4 py-5 lg:px-6"></div>
+                <div class="border-t border-gray-200 px-4 py-3 lg:px-5">
+                    <div class="mb-2.5 grid grid-cols-2 gap-2">
+                        <button onclick="sendQuickMessage('ข้อมูลเครื่องจักร')" class="group relative overflow-hidden rounded-2xl p-3.5 shadow-md transition-all duration-300 hover:shadow-lg hover:-translate-y-1" style="background: #EDF4FE;">
+                            <div class="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100"></div>
+                            <div class="relative flex items-center gap-3">
+                                <div class="relative">
+                                    <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-white/40 overflow-hidden">
+                                        <img src="/static/knitting-machine.png" alt="Machine" class="w-8 h-8 object-contain">
+                                    </div>
+                                </div>
+                                <div class="flex-1 text-left">
+                                    <div class="text-sm font-bold text-gray-800 leading-tight">Machine Capacity</div>
+                                    <div class="text-xs text-blue-800 font-medium">ข้อมูลเครื่องจักร</div>
+                                </div>
+                            </div>
+                        </button>
+                        <button onclick="sendQuickMessage('ข้อมูล Item')" class="group relative overflow-hidden rounded-2xl p-3.5 shadow-md transition-all duration-300 hover:shadow-lg hover:-translate-y-1" style="background: #EDF4FE;">
+                            <div class="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100"></div>
+                            <div class="relative flex items-center gap-3">
+                                <div class="relative">
+                                    <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-white/40 overflow-hidden">
+                                        <img src="/static/checklist.png" alt="Item" class="w-8 h-8 object-contain">
+                                    </div>
+                                </div>
+                                <div class="flex-1 text-left">
+                                    <div class="text-sm font-bold text-gray-800 leading-tight">ITEM</div>
+                                    <div class="text-xs text-blue-800 font-medium">ข้อมูล Item</div>
+                                </div>
+                            </div>
+                        </button>
+                        <button onclick="sendQuickMessage('ข้อมูล Capacity')" class="group relative overflow-hidden rounded-2xl p-3.5 shadow-md transition-all duration-300 hover:shadow-lg hover:-translate-y-1" style="background: #EDF4FE;">
+                            <div class="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100"></div>
+                            <div class="relative flex items-center gap-3">
+                                <div class="relative">
+                                    <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-white/40 overflow-hidden">
+                                        <img src="/static/production.png" alt="Capacity" class="w-8 h-8 object-contain">
+                                    </div>
+                                </div>
+                                <div class="flex-1 text-left">
+                                    <div class="text-sm font-bold text-gray-800 leading-tight">Available Capacity</div>
+                                    <div class="text-xs text-blue-800 font-medium">ข้อมูล Capacity</div>
+                                </div>
+                            </div>
+                        </button>
+                        <button onclick="sendQuickMessage('ข้อมูลแผนทอ')" class="group relative overflow-hidden rounded-2xl p-3.5 shadow-md transition-all duration-300 hover:shadow-lg hover:-translate-y-1" style="background: #EDF4FE;">
+                            <div class="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100"></div>
+                            <div class="relative flex items-center gap-3">
+                                <div class="relative">
+                                    <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-white/40 overflow-hidden">
+                                        <img src="/static/work-plan.png" alt="Plan" class="w-8 h-8 object-contain">
+                                    </div>
+                                </div>
+                                <div class="flex-1 text-left">
+                                    <div class="text-sm font-bold text-gray-800 leading-tight">Knitting Plan</div>
+                                    <div class="text-xs text-blue-800 font-medium">ข้อมูลแผนทอ</div>
+                                </div>
+                            </div>
+                        </button>
+                    </div>
+                    <div class="flex items-end gap-2">
+                        <textarea id="message-input" rows="1" oninput="autoResize(this)" onkeypress="handleKeyPress(event)"
+                            placeholder="พิมพ์ข้อความ..."
+                            class="min-h-[46px] flex-1 resize-none rounded-xl border-2 bg-gray-50 px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-blue-500 placeholder-gray-400 break-words overflow-hidden" style="border-color:#AAC4F5;"></textarea>
+                        <button onclick="sendMessage()" class="btn-purple flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl text-white shadow-md">
+                            <i class="fas fa-paper-plane text-sm"></i>
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div id="toast" class="fixed top-10 left-1/2 transform -translate-x-1/2 z-50 hidden rounded-xl px-4 py-3 text-sm font-medium text-white shadow-2xl"></div>
+
+    <!-- Rename Modal -->
+    <div id="rename-modal" style="display: none;" class="fixed inset-0 z-[9999999] flex items-center justify-center bg-black/40 p-4">
+        <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl" style="border: 1px solid #e2e8f0;">
+            <h3 class="text-lg font-bold text-gray-800">เปลี่ยนชื่อหัวข้อ</h3>
+            <p class="mt-1 text-sm text-gray-500">ชื่อหัวข้อนี้จะถูกเก็บไว้กับบัญชีของคุณ</p>
+            <input id="conversation-title" type="text" class="mt-4 w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-blue-400 placeholder-gray-400" placeholder="เช่น วางแผนโปรเจกต์เดือนมีนาคม">
+            <div class="mt-5 flex justify-end gap-2">
+                <button onclick="closeRenameModal()" class="rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-100">ยกเลิก</button>
+                <button onclick="confirmRenameConversation()" class="btn-purple rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow">บันทึก</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div id="change-password-modal" style="display: none;" class="fixed inset-0 z-[9999999] flex items-center justify-center bg-black/40 p-4">
+        <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl" style="border: 1px solid #e2e8f0;">
+            <h3 class="text-lg font-bold text-gray-800">เปลี่ยนรหัสผ่าน</h3>
+            <p class="mt-1 text-sm text-gray-500">กรอกรหัสผ่านเดิมและตั้งรหัสผ่านใหม่</p>
+            <input id="old-password" type="password" autocomplete="current-password" class="mt-4 w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-blue-400 placeholder-gray-400" placeholder="รหัสผ่านเดิม">
+            <input id="new-password" type="password" autocomplete="new-password" class="mt-3 w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-blue-400 placeholder-gray-400" placeholder="รหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร)">
+            <input id="confirm-new-password" type="password" autocomplete="new-password" class="mt-3 w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-blue-400 placeholder-gray-400" placeholder="ยืนยันรหัสผ่านใหม่">
+            <div class="mt-5 flex justify-end gap-2">
+                <button onclick="closeChangePasswordModal()" class="rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-100">ยกเลิก</button>
+                <button onclick="confirmChangePassword()" class="btn-purple rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow">บันทึก</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Users Modal -->
+    <div id="admin-users-modal" class="fixed inset-0 z-0 hidden items-center justify-center bg-black/40 p-4">
+        <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h3 class="text-lg font-bold text-gray-900">จัดการผู้ใช้</h3>
+                    <p class="mt-1 text-sm text-gray-500">รีเซ็ตรหัสผ่านให้ผู้ใช้ที่ต้องการ</p>
+                </div>
+                <button onclick="closeAdminUsersModal()" class="rounded-full p-2 text-gray-400 transition hover:bg-gray-100"><i class="fas fa-xmark"></i></button>
+            </div>
+            <div id="admin-users-list" class="mt-4 max-h-80 space-y-2 overflow-y-auto"></div>
+        </div>
+    </div>
+
+    <!-- Admin Reset Password Modal -->
+    <div id="admin-reset-password-modal" style="display: none;" class="fixed inset-0 z-0 hidden items-center justify-center bg-black/40 p-4">
+        <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <h3 class="text-lg font-bold text-gray-900">รีเซ็ตรหัสผ่าน</h3>
+            <p id="admin-reset-target-name" class="mt-1 text-sm font-medium text-gray-600"></p>
+            <input id="admin-new-password" type="password" autocomplete="new-password" class="mt-4 w-full rounded-xl border border-purple-200 px-4 py-3 text-sm outline-none transition focus:border-purple-400" placeholder="รหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร)">
+            <div class="mt-5 flex justify-end gap-2">
+                <button onclick="closeAdminResetModal()" class="rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-100">ยกเลิก</button>
+                <button onclick="confirmAdminReset()" class="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white shadow transition hover:bg-rose-700">รีเซ็ตรหัสผ่าน</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let conversations = [], filteredConversations = [], currentConversationId = null;
+        let userInitial = 'A'; // Global variable to store user's initial
+        document.addEventListener("DOMContentLoaded", async () => {
+            const si = document.getElementById("search-input");
+            si.value = ""; setTimeout(() => { si.value = ""; }, 150);
+            await loadUserInfo(); await loadConversations();
+        });
+        document.addEventListener("click", (e) => {
+            const menu = document.getElementById("user-menu"), trigger = document.getElementById("user-menu-trigger");
+            if (menu && menu.style.display !== "none" && !menu.contains(e.target) && trigger && !trigger.contains(e.target)) menu.style.display = "none";
+        });
+        function showToast(msg) {
+            const t = document.getElementById("toast"); t.textContent = msg; t.classList.remove("hidden");
+            // Set red background for delete notifications
+            if (msg.includes("ลบหัวข้อแล้ว") || msg.includes("ลบหัวข้อไม่สำเร็จ")) {
+                t.style.background = "linear-gradient(135deg, #dc2626 0%, #ef4444 100%)";
+            } else {
+                t.style.background = "linear-gradient(135deg, #0096ff 0%, #00bfff 100%)";
+            }
+            clearTimeout(showToast._t); showToast._t = setTimeout(() => t.classList.add("hidden"), 2500);
+        }
+        function toggleSidebar() {
+            const s = document.getElementById("sidebar"), b = document.getElementById("sidebar-backdrop");
+            const open = s.classList.contains("translate-x-0");
+            s.classList.toggle("-translate-x-[120%]", open); s.classList.toggle("translate-x-0", !open); b.classList.toggle("hidden", open);
+        }
+        async function loadUserInfo() {
+            const r = await fetch("/user-info"), d = await r.json();
+            if (d.success) {
+                userInitial = d.user.username[0].toUpperCase();
+                document.getElementById("user-name").textContent = d.user.username;
+                if (d.user.role === "admin") { const b = document.getElementById("admin-menu-btn"); b.classList.remove("hidden"); b.classList.add("flex"); }
+            }
+        }
+        async function loadConversations(preferredId = null) {
+            const r = await fetch("/conversations"), d = await r.json();
+            if (!d.success) { showToast("โหลดหัวข้อสนทนาไม่สำเร็จ"); return; }
+            conversations = d.conversations; filteredConversations = [...conversations]; updateConversationList();
+            if (!conversations.length) { await createNewConversation(); return; }
+            const toOpen = preferredId && conversations.some(c => c.id === preferredId) ? preferredId
+                : currentConversationId && conversations.some(c => c.id === currentConversationId) ? currentConversationId
+                : conversations[0].id;
+            await selectConversation(toOpen, false);
+        }
+        function updateConversationList() {
+            const list = document.getElementById("conversation-list");
+            if (!filteredConversations.length) { list.innerHTML = '<div class="rounded-xl border border-dashed border-blue-200 px-4 py-4 text-sm text-gray-400 text-center">ไม่พบหัวข้อ</div>'; return; }
+            list.innerHTML = filteredConversations.map(c => `<button class="conversation-item w-full px-3 py-2.5 text-left ${c.id === currentConversationId ? "active" : ""}" onclick="selectConversation(${c.id})"><div class="truncate text-sm font-semibold text-gray-800">${escapeHtml(c.title)}</div><div class="mt-0.5 text-xs text-gray-500">${formatDate(c.updated_at)}</div></button>`).join("");
+        }
+        function searchConversations() {
+            const t = document.getElementById("search-input").value.trim().toLowerCase();
+            filteredConversations = t ? conversations.filter(c => c.title.toLowerCase().includes(t)) : [...conversations];
+            updateConversationList();
+        }
+        async function createNewConversation() {
+            const r = await fetch("/conversations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: "แชทใหม่" }) }), d = await r.json();
+            if (!d.success) { showToast("สร้างแชทใหม่ไม่สำเร็จ"); return; }
+            currentConversationId = d.conversation_id; await loadConversations(d.conversation_id); renderWelcomeState(); showToast("สร้างหัวข้อใหม่แล้ว");
+        }
+        async function selectConversation(id, closeMobile = true) {
+            currentConversationId = id; updateConversationList();
+            const r = await fetch("/conversations/" + id + "/messages"), d = await r.json();
+            if (!d.success) { showToast(d.message || "โหลดบทสนทนาไม่สำเร็จ"); return; }
+            setActiveConversationTitle(d.conversation.title); displayMessages(d.messages);
+            if (closeMobile && window.innerWidth < 1024) toggleSidebar();
+        }
+        async function sendMessage() {
+            const input = document.getElementById("message-input"), message = input.value.trim();
+            if (!message || !currentConversationId) return;
+            removeWelcomeState(); addMessageToChat(message, "user"); input.value = ""; input.style.height = "auto"; showTypingIndicator();
+            try {
+                const r = await fetch("/conversations/" + currentConversationId + "/messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message }) }), d = await r.json();
+                hideTypingIndicator();
+                if (!d.success) { showToast(d.message || "ส่งข้อความไม่สำเร็จ"); return; }
+                addMessageToChat(d.ai_response.message, "assistant");
+                if (d.conversation) setActiveConversationTitle(d.conversation.title);
+                await loadConversations(currentConversationId);
+            } catch (_) { hideTypingIndicator(); showToast("เกิดข้อผิดพลาดในการสื่อสาร"); }
+        }
+        function sendQuickMessage(msg) { document.getElementById("message-input").value = msg; sendMessage(); }
+        function displayMessages(messages) {
+            const c = document.getElementById("chat-messages"); c.innerHTML = "";
+            if (!messages.length) { renderWelcomeState(); return; }
+            messages.forEach(m => addMessageToChat(m.message, m.sender));
+        }
+        function renderWelcomeState() {
+            document.getElementById("chat-messages").innerHTML = `<div id="welcome-state" class="mx-auto max-w-md rounded-2xl border border-purple-100 bg-gradient-to-br from-purple-50 to-violet-50 p-6 text-center shadow-sm"><div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full btn-purple shadow-md"><i class="fas fa-comments text-white"></i></div><h3 class="text-lg font-bold text-gray-900">เริ่มบทสนทนาใหม่</h3><p class="mt-2 text-sm leading-6 text-gray-500">ระบบเก็บหัวข้อสนทนาแยกตามผู้ใช้ กลับมาเปิดอ่านได้ทุกเมื่อ หรือกด &ldquo;เริ่มแชทใหม่&rdquo; เพื่อเปลี่ยนเรื่องสนทนา</p></div>`;
+        }
+        function removeWelcomeState() { document.getElementById("welcome-state")?.remove(); }
+        function renderMarkdown(text) {
+            return text
+                .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+                .replace(/^#{3}\s+(.+)$/gm, '<h3 style="font-weight:700;font-size:0.95em;margin:0.6em 0 0.2em">$1</h3>')
+                .replace(/^#{2}\s+(.+)$/gm, '<h2 style="font-weight:700;font-size:1.05em;margin:0.6em 0 0.2em">$1</h2>')
+                .replace(/^#{1}\s+(.+)$/gm, '<h2 style="font-weight:800;font-size:1.1em;margin:0.6em 0 0.2em">$1</h2>')
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                .replace(/^---+$/gm, '<hr style="border:0;border-top:1px solid #e5e7eb;margin:0.5em 0">')
+                .replace(/^[-*]\s+(.+)$/gm, '<div style="padding-left:1em;margin:0.1em 0">• $1</div>')
+                .replace(/\n/g, '<br>');
+        }
+        function addMessageToChat(message, sender) {
+            const c = document.getElementById("chat-messages"), w = document.createElement("div");
+            w.className = "message-enter flex items-start gap-2 " + (sender === "user" ? "justify-end" : "justify-start");
+            w.innerHTML = sender === "user"
+                ? `<div class="max-w-[75%] rounded-2xl rounded-br-sm px-4 py-3 text-sm leading-7 text-gray-800 shadow-md break-words overflow-wrap-anywhere" style="background:#D9EAFD;">${escapeHtml(message).replace(/\n/g, "<br>")}</div><div class="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-cyan-600 text-white font-bold text-sm flex items-center justify-center shadow-sm">${userInitial}</div>`
+                : `<div class="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden shadow-sm bg-white"><img src="/static/chat-bot.png" alt="AI" class="w-full h-full object-cover"></div><div class="max-w-[75%] rounded-2xl rounded-bl-sm border border-purple-100 bg-white px-4 py-3 text-sm leading-7 text-gray-700 shadow-sm break-words overflow-wrap-anywhere">${renderMarkdown(message)}</div>`;
+            c.appendChild(w); c.scrollTop = c.scrollHeight;
+        }
+        function showTypingIndicator() {
+            const c = document.getElementById("chat-messages"), w = document.createElement("div");
+            w.id = "typing-indicator"; w.className = "flex justify-start";
+            w.innerHTML = '<div class="flex items-center gap-1.5 rounded-2xl rounded-bl-sm border border-purple-100 bg-white px-4 py-3 shadow-sm"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div>';
+            c.appendChild(w); c.scrollTop = c.scrollHeight;
+        }
+        function hideTypingIndicator() { document.getElementById("typing-indicator")?.remove(); }
+        function autoResize(el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }
+        function handleKeyPress(e) { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+        function openRenameModal() {
+            if (!currentConversationId) return;
+            const cur = conversations.find(c => c.id === currentConversationId);
+            document.getElementById("conversation-title").value = cur ? cur.title : "";
+            document.getElementById("rename-modal").style.display = "flex";
+            document.getElementById("conversation-title").focus();
+        }
+        function closeRenameModal() { document.getElementById("rename-modal").style.display = "none"; }
+        async function confirmRenameConversation() {
+            const title = document.getElementById("conversation-title").value.trim();
+            if (!title || !currentConversationId) { showToast("กรุณาระบุชื่อหัวข้อ"); return; }
+            const r = await fetch("/conversations/" + currentConversationId, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title }) }), d = await r.json();
+            if (!d.success) { showToast(d.message || "เปลี่ยนชื่อไม่สำเร็จ"); return; }
+            setActiveConversationTitle(title); closeRenameModal(); await loadConversations(currentConversationId); showToast("เปลี่ยนชื่อหัวข้อแล้ว");
+        }
+        async function deleteCurrentConversation() { if (currentConversationId) await deleteConversation(currentConversationId); }
+        async function deleteConversation(id) {
+            if (!confirm("ต้องการลบหัวข้อสนทนานี้หรือไม่")) return;
+            const r = await fetch("/conversations/" + id, { method: "DELETE" }), d = await r.json();
+            if (!d.success) { showToast(d.message || "ลบหัวข้อไม่สำเร็จ"); return; }
+            if (currentConversationId === id) currentConversationId = null;
+            await loadConversations(); showToast("ลบหัวข้อแล้ว");
+        }
+        async function clearAllConversations() {
+            if (!conversations.length) return;
+            if (!confirm("ต้องการลบหัวข้อสนทนาทั้งหมดหรือไม่")) return;
+            for (const c of conversations) await fetch("/conversations/" + c.id, { method: "DELETE" });
+            currentConversationId = null; await loadConversations(); showToast("ลบหัวข้อทั้งหมดแล้ว");
+        }
+        function setActiveConversationTitle(t) { document.getElementById("active-conversation-title").textContent = t || "แชทใหม่"; }
+        function formatDate(v) { const d = new Date(v); return isNaN(d.getTime()) ? v : d.toLocaleString("th-TH"); }
+        function escapeHtml(v) { return String(v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;"); }
+        function toggleUserMenu() { 
+            const menu = document.getElementById("user-menu");
+            if (menu.style.display === "none") {
+                menu.style.display = "block";
+            } else {
+                menu.style.display = "none";
+            }
+        }
+        function openChangePasswordModal() {
+            document.getElementById("user-menu").style.display = "none";
+            ["old-password","new-password","confirm-new-password"].forEach(id => document.getElementById(id).value = "");
+            document.getElementById("change-password-modal").style.display = "flex";
+            document.getElementById("old-password").focus();
+        }
+        function closeChangePasswordModal() { document.getElementById("change-password-modal").style.display = "none"; }
+        async function confirmChangePassword() {
+            const old = document.getElementById("old-password").value, nw = document.getElementById("new-password").value, cf = document.getElementById("confirm-new-password").value;
+            if (!old || !nw || !cf) { showToast("กรุณากรอกข้อมูลให้ครบถ้วน"); return; }
+            if (nw !== cf) { showToast("รหัสผ่านใหม่ไม่ตรงกัน"); return; }
+            if (nw.length < 6) { showToast("รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร"); return; }
+            const r = await fetch("/change-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ old_password: old, new_password: nw }) }), d = await r.json();
+            if (!d.success) { showToast(d.message || "เปลี่ยนรหัสผ่านไม่สำเร็จ"); return; }
+            closeChangePasswordModal(); showToast("เปลี่ยนรหัสผ่านสำเร็จ");
+        }
+        async function openAdminUsersModal() {
+            document.getElementById("user-menu").style.display = "none";
+            document.getElementById("admin-users-modal").style.display = "flex";
+            await loadAdminUsers();
+        }
+        function closeAdminUsersModal() { document.getElementById("admin-users-modal").style.display = "none"; }
+        async function loadAdminUsers() {
+            const r = await fetch("/admin/users"), d = await r.json();
+            if (!d.success) { showToast("โหลดรายชื่อผู้ใช้ไม่สำเร็จ"); return; }
+            document.getElementById("admin-users-list").innerHTML = d.users.map(u => `<div class="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-4 py-3"><div><p class="text-sm font-semibold text-gray-900">${escapeHtml(u.username)}<span class="ml-1 rounded-full ${u.role==="admin"?"bg-purple-100 text-purple-700":"bg-gray-200 text-gray-600"} px-2 py-0.5 text-xs">${escapeHtml(u.role)}</span></p><p class="text-xs text-gray-500">${escapeHtml(u.email)}</p></div><button onclick="openAdminResetModal(${u.id},${JSON.stringify(u.username)})" class="rounded-lg bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100"><i class="fas fa-key mr-1"></i>รีเซ็ต</button></div>`).join("");
+        }
+        let adminResetTargetId = null;
+        function openAdminResetModal(userId, username) {
+            console.log('Opening reset modal for user:', username, 'ID:', userId);
+            adminResetTargetId = userId;
+            document.getElementById("admin-reset-target-name").textContent = "ผู้ใช้: " + username;
+            document.getElementById("admin-new-password").value = "";
+            const modal = document.getElementById("admin-reset-password-modal");
+            modal.classList.remove("hidden");
+            modal.style.display = "flex";
+            document.getElementById("admin-new-password").focus();
+        }
+        function closeAdminResetModal() { 
+            const modal = document.getElementById("admin-reset-password-modal");
+            modal.classList.add("hidden");
+            modal.style.display = "none";
+            adminResetTargetId = null; 
+        }
+        async function confirmAdminReset() {
+            if (!adminResetTargetId) return;
+            const pw = document.getElementById("admin-new-password").value;
+            if (!pw || pw.length < 6) { showToast("รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร"); return; }
+            const r = await fetch("/admin/users/" + adminResetTargetId + "/reset-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ new_password: pw }) }), d = await r.json();
+            if (!d.success) { showToast(d.message || "รีเซ็ตรหัสผ่านไม่สำเร็จ"); return; }
+            closeAdminResetModal(); showToast("รีเซ็ตรหัสผ่านสำเร็จ");
+        }
+    </script>
+</body>
+</html>

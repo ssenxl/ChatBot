@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.venv/Scripts/pip install *)",
+      "Bash(.venv/Scripts/python test_mcp_connection.py)",
+      "Bash(.venv/Scripts/pip show *)",
+      "Bash(.venv/Scripts/python -c ' *)",
+      "Bash(.venv/Scripts/python.exe -c \"from mcp_client import get_mcp_client; print\\('import OK'\\)\")"
+    ]
+  }
+}
