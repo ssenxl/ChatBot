@@ -156,14 +156,10 @@ def generate_conversation_title(message):
 
 def generate_ai_response(message):
     message_lower = (message or '').strip().lower()
-    username = session.get('username', 'คุณ')
 
     if any(keyword in message_lower for keyword in ['สวัสดี', 'hello', 'hi', 'หวัดดี']):
         return {
-            'message': (
-                f'สวัสดีครับ {username}! ตอนนี้ระบบนี้ถูกปรับให้เป็น chatbot อย่างเดียวแล้ว\n\n'
-                'คุณสามารถคุยต่อในหัวข้อเดิมได้ตลอด หรือกด "แชทใหม่" เมื่อต้องการเริ่มเรื่องใหม่ครับ'
-            ),
+            'message': 'สวัสดีค่ะ น้อง I-SAVE Chatbot ค่ะพี่ๆ สามารถสอบถามข้อมูล หรือพิมพ์คำถามที่ต้องการได้เลยนะคะ น้องยินดีช่วยเหลือค่ะ',
             'type': 'text'
         }
 
