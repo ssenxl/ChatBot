@@ -157,9 +157,16 @@ def generate_conversation_title(message):
 def generate_ai_response(message):
     message_lower = (message or '').strip().lower()
 
-    if any(keyword in message_lower for keyword in ['สวัสดี', 'hello', 'hi', 'หวัดดี']):
+    thai_greetings = ['สวัสดี', 'หวัดดี']
+    eng_greetings = ['hello', 'hi']
+    if any(keyword in message_lower for keyword in thai_greetings + eng_greetings):
+        is_english = any(keyword in message_lower for keyword in eng_greetings) and not any(keyword in message_lower for keyword in thai_greetings)
+        if is_english:
+            greeting_msg = "Hello! I'm I-SAVE Chatbot. Feel free to ask me anything about the I-SAVE system. I'm happy to help!"
+        else:
+            greeting_msg = 'สวัสดีค่ะ น้อง I-SAVE Chatbot ค่ะพี่ๆ สามารถสอบถามข้อมูล หรือพิมพ์คำถามที่ต้องการได้เลยนะคะ น้องยินดีช่วยเหลือค่ะ'
         return {
-            'message': 'สวัสดีค่ะ น้อง I-SAVE Chatbot ค่ะพี่ๆ สามารถสอบถามข้อมูล หรือพิมพ์คำถามที่ต้องการได้เลยนะคะ น้องยินดีช่วยเหลือค่ะ',
+            'message': greeting_msg,
             'type': 'text'
         }
 

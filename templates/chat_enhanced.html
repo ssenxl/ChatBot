@@ -357,7 +357,9 @@
                 .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
                 .replace(/\*(.+?)\*/g, '<em>$1</em>')
                 .replace(/^---+$/gm, '<hr style="border:0;border-top:1px solid #e5e7eb;margin:0.5em 0">')
-                .replace(/^[-*]\s+(.+)$/gm, '<div style="padding-left:1em;margin:0.1em 0">• $1</div>')
+                .replace(/^[-*•]\s*(.+)$/gm, '<div style="padding-left:1em;margin:0.1em 0">• $1</div>')
+                .replace(/<\/div>\n/g, '</div>')
+                .replace(/\n<div/g, '<div')
                 .replace(/\n/g, '<br>');
         }
         function addMessageToChat(message, sender) {

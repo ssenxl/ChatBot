@@ -28,10 +28,47 @@ class ProcessedResponse:
 
 def _clean_response(text: str) -> str:
     text = re.sub(r'\n{3,}', '\n\n', text)
+    # Remove blank line between consecutive bullets
     _bullet_gap = re.compile(r'([ \t]*[-•*][^\n]+)\n\n([ \t]*[-•*])', re.MULTILINE)
     while _bullet_gap.search(text):
         text = _bullet_gap.sub(r'\1\n\2', text)
+    # Remove blank line between non-bullet text and a bullet
+    text = re.sub(r'([^\n]+)\n\n([ \t]*[-•*])', r'\1\n\2', text)
+    # Remove blank line between a bullet and following non-bullet text
+    text = re.sub(r'([ \t]*[-•*][^\n]+)\n\n([^-•*\n])', r'\1\n\2', text)
     return text.strip()
+
+
+def _has_thai(text: str) -> bool:
+    return bool(re.search(r'[฀-๿]', text))
+
+
+def _has_english_words(text: str) -> bool:
+    stripped = re.sub(r'\b[A-Z][A-Z0-9/\-]*\b', '', text)
+    return bool(re.search(r'\b[a-zA-Z]{2,}\b', stripped))
+
+
+def _detect_reply_language(message: str, history: Optional[List[Dict]] = None) -> str:
+    """Return 'thai' or 'english'.
+    - Any Thai character in message → Thai
+    - No Thai + has English words → English
+    - No signal → check recent history, default Thai
+    """
+    if _has_thai(message):
+        return 'thai'
+    if _has_english_words(message):
+        return 'english'
+
+    # No signal (e.g. bare item code) — fall back to recent history
+    if history:
+        for msg in reversed(history[-6:]):
+            content = msg.get('content') or msg.get('message', '')
+            if _has_thai(content):
+                return 'thai'
+            if _has_english_words(content):
+                return 'english'
+
+    return 'thai'
 
 
 def _min_plannable_yw() -> str:
@@ -73,10 +110,12 @@ def _group_matches(group_col: str, keywords: list) -> bool:
 SYSTEM_PROMPT_TEMPLATE = """You are an AI assistant for the I-SAVE system at a textile factory.
 คุณเป็นผู้ช่วย AI ของระบบ I-SAVE สำหรับโรงงานทอผ้า ชื่อว่า "น้อง I-SAVE Chatbot"
 
-LANGUAGE RULE (highest priority): Always reply in the same language as the user's message.
-- If the user writes in English → reply in English
-- If the user writes in Thai → reply in Thai
-- If mixed → follow the dominant language
+LANGUAGE RULE (highest priority — overrides ALL template responses below):
+- Item codes (e.g. F100114/10A0), machine group names (e.g. SKP 28G), and technical codes are NOT language indicators — ignore them when detecting language.
+- If the user's non-code text is Thai (or no non-code text exists) → reply in Thai
+- If the user's non-code text is clearly English → reply in English
+- If mixed → follow the dominant non-code language; default to Thai when unclear
+- Always translate any template response to match the detected language.
 
 คุณมี tools สำหรับดึงข้อมูลจากระบบ ให้เรียก tool ก่อนตอบทุกครั้งที่คำถามเกี่ยวกับข้อมูล:
 - get_item_plan        : แผน item (กลุ่มเครื่อง, KP_Weight, สัปดาห์ที่วางแผน)
@@ -91,24 +130,29 @@ LANGUAGE RULE (highest priority): Always reply in the same language as the user'
 4. YW = week code in format YYYYWW e.g. 202622 = year 2026 week 22
 5. Earliest plannable week = YW {min_yw} (current +2 weeks) — exclude YW below this
 6. Ava = available machines (Total − Used_N − Used_F)
-7. Be concise. Use bold (**text**) for key numbers. No blank lines between bullet points.
-8. เมื่อผู้ใช้ทักทาย (สวัสดี, hello, hi ฯลฯ) ให้ตอบว่า: "สวัสดีค่ะ น้อง I-SAVE Chatbot ค่ะพี่ๆ สามารถสอบถามข้อมูล หรือพิมพ์คำถามที่ต้องการได้เลยนะคะ น้องยินดีช่วยเหลือค่ะ"
-9. ถ้า message ไม่เกี่ยวกับข้อมูลในระบบ I-SAVE เลย (ไม่ว่าจะเป็นคำถาม, ข้อความส่วนตัว, ความรู้สึก, เรื่องทั่วไป ฯลฯ) ให้ตอบว่าเท่านี้เท่านั้น: "ขออภัยค่ะ น้อง I-SAVE Chatbot ยังไม่สามารถตอบคำถามนี้ได้ในขณะนี้\nรบกวนพี่ๆ สอบถามเฉพาะข้อมูลที่เกี่ยวข้องกับระบบ I-SAVE หรือหัวข้อที่น้องรองรับนะคะ" — ห้ามตอบเพิ่มเติม ห้าม empathize หรือแสดงความเห็นใจ
-10. คำว่า "วีค" หรือ "week" ในการตอบกลับภาษาไทย ให้ใช้ "สัปดาห์" เสมอ เช่น "สัปดาห์ที่ 22" ไม่ใช่ "week 22" หรือ "วีค 22"
-11. เมื่อมีเครื่องว่างหลายกลุ่ม ให้ตอบเป็น summary ก่อน เช่น "มีเครื่องว่างรวม **XX เครื่อง** ใน YY กลุ่ม" แล้วถามว่า "ต้องการดูรายละเอียดแต่ละกลุ่มเพิ่มเติมไหมคะ"
-12. ถ้าไม่ระบุ Item หรือกลุ่มเครื่อง ให้ตอบเป็นภาพรวมในรูปแบบนี้:
-    "พบ Item ในแผนทั้งหมด [จำนวน] รายการ อยู่ใน [จำนวน] กลุ่มเครื่อง เช่น [รายชื่อกลุ่มหลัก]
-    KP_Weight รวม [ยอดรวม] ตัน
-    ต้องการดูรายละเอียดเพิ่มเติมไหมคะ เช่น Item, กลุ่มเครื่อง, Gauge หรือช่วงสัปดาห์"
-13. ถ้ารหัส Item ที่ผู้ใช้ระบุเป็นตัวย่อและมีผลลัพธ์มากกว่า 1 รายการ ให้แสดงรายชื่อเต็มเป็นตัวเลือก 1, 2, 3, 4 ก่อน แล้วถามว่า "พี่ๆ ต้องการดู Item ไหนคะ" แทนที่จะแสดงผลทั้งหมดทันที
-14. เมื่อผู้ใช้ถามเกี่ยวกับ item เฉพาะเจาะจง ให้ตอบในรูปแบบนี้:
-    "Item [รหัส] สามารถทอได้ที่กลุ่มเครื่อง [กลุ่ม] โดยมีรายละเอียดแผนทอ ดังนี้
-    1.สัปดาห์ที่ [YW] จำนวน [KP_Weight] ตัน
-    2.สัปดาห์ที่ [YW] จำนวน [KP_Weight] ตัน
-    ...
-    หากต้องการสอบถามเรื่องไหนเพิ่มเติม สามารถพิมพ์สอบถามได้เลยค่ะ"
-    - ใช้ unit เป็น "ตัน" เสมอ (แม้ข้อมูลในระบบจะเก็บเป็น kg ให้แสดงค่าเดิมแต่เปลี่ยน label เป็น ตัน)
-    - ถ้า item อยู่หลายกลุ่มเครื่อง ให้แสดงแต่ละกลุ่มแยกกัน"""
+7. Be concise. Use bold (**text**) for key numbers. No blank lines anywhere in the response — not between paragraphs, not between bullets, not between a paragraph and a bullet.
+8. When user greets (สวัสดี, hello, hi, etc.):
+   - Thai: "สวัสดีค่ะ น้อง I-SAVE Chatbot ค่ะพี่ๆ สามารถสอบถามข้อมูล หรือพิมพ์คำถามที่ต้องการได้เลยนะคะ น้องยินดีช่วยเหลือค่ะ"
+   - English: "Hello! I'm I-SAVE Chatbot. Feel free to ask me anything about the I-SAVE system. I'm happy to help!"
+9. I-SAVE topics include: items, item codes, item plan, machine groups, machine capacity, booking, knit plan, KP Weight, week/YW, gauge, available machines (เครื่องว่าง), เครื่องจักร, แผนทอ, การจอง — always call a tool for these.
+   If message is truly unrelated to I-SAVE (e.g. weather, cooking, general knowledge), reply with this only (no extra text, no empathy):
+   - Thai: "ขออภัยค่ะ น้อง I-SAVE Chatbot ยังไม่สามารถตอบคำถามนี้ได้ในขณะนี้\nรบกวนพี่ๆ สอบถามเฉพาะข้อมูลที่เกี่ยวข้องกับระบบ I-SAVE หรือหัวข้อที่น้องรองรับนะคะ"
+   - English: "Sorry, I'm unable to answer this question. Please ask only about I-SAVE system data or supported topics."
+10. Week terminology: Thai responses → always use "สัปดาห์" (e.g. "สัปดาห์ที่ 22") — never "week 22" or "วีค 22". English responses → use "week" (e.g. "Week 22").
+11. When multiple machine groups have available capacity, give a summary first:
+    - Thai: "มีเครื่องว่างรวม **XX เครื่อง** ใน YY กลุ่ม" แล้วถามว่า "ต้องการดูรายละเอียดแต่ละกลุ่มเพิ่มเติมไหมคะ"
+    - English: "Total **XX machines** available across YY groups. Would you like details per group?"
+12. If no Item or group is specified, give an overview:
+    - Thai: "พบ Item ในแผนทั้งหมด [จำนวน] รายการ อยู่ใน [จำนวน] กลุ่มเครื่อง เช่น [รายชื่อกลุ่มหลัก]\nKP_Weight รวม [ยอดรวม] ตัน\nต้องการดูรายละเอียดเพิ่มเติมไหมคะ เช่น Item, กลุ่มเครื่อง, Gauge หรือช่วงสัปดาห์"
+    - English: "Found [count] items in the plan across [count] machine groups (e.g. [main groups]).\nTotal KP_Weight: [total] tons.\nWould you like more details by item, group, gauge, or week range?"
+13. If item code is partial and matches more than 1 result, show a numbered list (1, 2, 3, 4) and ask which one the user wants before showing details.
+14. When asked about a specific item, call get_item_plan first, then format the response using ACTUAL values from the tool result.
+    CRITICAL: NEVER output literal bracket placeholders. Replace every placeholder with real data. If tool returns no data, say item was not found.
+    Format template (replace ALL bracketed parts with real values from tool result):
+    - Thai: "Item {{actual_item_code}} สามารถทอได้ที่กลุ่มเครื่อง {{actual_group_name}} โดยมีรายละเอียดแผนทอ ดังนี้\n1.สัปดาห์ที่ {{actual_YW}} จำนวน {{actual_KP_Weight}} ตัน\n...\nหากต้องการสอบถามเรื่องไหนเพิ่มเติม สามารถพิมพ์สอบถามได้เลยค่ะ"
+    - English: "Item {{actual_item_code}} can be knitted at machine group {{actual_group_name}}. Knitting plan details:\n1. Week {{actual_YW}}: {{actual_KP_Weight}} tons\n...\nFeel free to ask if you need more information."
+    - Always use "ตัน" (Thai) or "tons" (English) as the unit (data is stored in kg but display as-is with the ton label)
+    - If item spans multiple groups, list each group separately"""
 
 TOOLS = [
     {
@@ -408,9 +452,12 @@ class ResponseProcessor:
     ) -> ProcessedResponse:
         history_msgs = self._build_history_messages(conversation_history or [])
         system_prompt = SYSTEM_PROMPT_TEMPLATE.format(min_yw=_min_plannable_yw())
+        lang = _detect_reply_language(user_message, conversation_history)
+        lang_instruction = "IMPORTANT: Reply in Thai language." if lang == 'thai' else "IMPORTANT: Reply in English."
 
         messages = [
             {"role": "system", "content": system_prompt},
+            {"role": "system", "content": lang_instruction},
             *history_msgs,
             {"role": "user", "content": user_message},
         ]
@@ -434,8 +481,9 @@ class ResponseProcessor:
                 )
             except Exception as e:
                 logger.error(f"OpenAI API error: {e}")
+                err_msg = f"Sorry, the AI system is temporarily unavailable. ({e})" if lang == 'english' else f"ขออภัยค่ะ ระบบ AI ขัดข้องชั่วคราว ({e})"
                 return ProcessedResponse(
-                    message=f"ขออภัยครับ ระบบ AI ขัดข้องชั่วคราว ({e})",
+                    message=err_msg,
                     response_type='text',
                     metadata={'intent': 'error', 'confidence': 0.0, 'matched_keywords': []},
                 )
@@ -472,8 +520,9 @@ class ResponseProcessor:
                         "content": result,
                     })
             else:
+                fallback = "Sorry, I'm unable to respond." if lang == 'english' else "ขออภัยค่ะ ไม่สามารถตอบได้"
                 return ProcessedResponse(
-                    message=_clean_response(msg.content or "ขออภัยครับ ไม่สามารถตอบได้"),
+                    message=_clean_response(msg.content or fallback),
                     response_type='text',
                     processing_path='agent',
                     mcp_calls=tool_calls_log,
@@ -486,23 +535,32 @@ class ResponseProcessor:
                         'completion_tokens': total_completion_tokens,
                         'total_tokens': total_prompt_tokens + total_completion_tokens,
                     },
-                    suggestions=self._get_suggestions(tool_calls_log),
+                    suggestions=self._get_suggestions(tool_calls_log, lang),
                 )
 
+        timeout_msg = "Sorry, the system took too long to respond. Please try again." if lang == 'english' else "ขออภัยค่ะ ระบบประมวลผลนานเกินไป กรุณาถามใหม่อีกครั้ง"
         return ProcessedResponse(
-            message="ขออภัยครับ ระบบประมวลผลนานเกินไป กรุณาถามใหม่อีกครั้ง",
+            message=timeout_msg,
             response_type='text',
             processing_path='agent',
             mcp_calls=tool_calls_log,
             metadata={'intent': 'agent', 'confidence': 0.0, 'matched_keywords': []},
         )
 
-    def _get_suggestions(self, tool_calls_log: list) -> list:
+    def _get_suggestions(self, tool_calls_log: list, lang: str = 'thai') -> list:
         tools_used = {c['tool'] for c in tool_calls_log}
+        if lang == 'english':
+            if 'get_item_plan' in tools_used or 'get_knit_plan' in tools_used:
+                return ['Check available machines for this item', 'View all KP Weights', 'View knit plan this week']
+            if 'get_machine_capacity' in tools_used:
+                return ['Check available machines next week', 'View booking', 'View knit plan']
+            if 'get_booking' in tools_used:
+                return ['Check available machines', 'View knit plan', 'View item plan']
+            return ['Machine info', 'Item info', 'Capacity info']
         if 'get_item_plan' in tools_used or 'get_knit_plan' in tools_used:
             return ['ดูเครื่องว่างสำหรับ item นี้', 'ดู KP Weight ทั้งหมด', 'ดูแผนทอสัปดาห์นี้']
         if 'get_machine_capacity' in tools_used:
-            return ['ดูเครื่องว่าง week ถัดไป', 'ดูการจอง', 'ดูแผนทอ']
+            return ['ดูเครื่องว่างสัปดาห์ถัดไป', 'ดูการจอง', 'ดูแผนทอ']
         if 'get_booking' in tools_used:
             return ['ดูเครื่องว่าง', 'ดูแผนทอ', 'ดู item plan']
         return ['ข้อมูลเครื่องจักร', 'ข้อมูล Item', 'ข้อมูล Capacity']

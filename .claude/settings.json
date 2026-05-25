@@ -49,7 +49,10 @@
       "PowerShell(c:\\\\vscode\\\\Chatbot\\\\.venv\\\\Scripts\\\\pip install psycopg2-binary)",
       "PowerShell(& \"c:\\\\vscode\\\\Chatbot\\\\.venv\\\\Scripts\\\\python.exe\" -m pip install psycopg2-binary)",
       "Bash(dir \"c:\\\\vscode\\\\Chatbot\")",
-      "Bash(git init *)"
+      "Bash(git init *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git config *)",
+      "PowerShell(.\\\\deploy_to_webchat.ps1)"
     ]
   }
 }
