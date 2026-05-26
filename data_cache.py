@@ -110,6 +110,9 @@ class DataCache:
         self._ready: Dict[str, bool] = {}
         self._lock = threading.Lock()
         self._thread: Optional[threading.Thread] = None
+        self._last_refresh: Optional[datetime] = None
+        self._next_refresh: Optional[datetime] = None
+        self._row_counts: Dict[str, int] = {}
 
     def start(self):
         self._thread = threading.Thread(target=self._run, daemon=True, name='DataCacheThread')
@@ -121,6 +124,8 @@ class DataCache:
 
         while True:
             next_time = self._next_refresh_time()
+            with self._lock:
+                self._next_refresh = next_time
             sleep_secs = max((next_time - datetime.now()).total_seconds(), 0)
             logger.info(f"DataCache: next refresh at {next_time.strftime('%H:%M')} (in {sleep_secs/3600:.1f}h)")
             time.sleep(sleep_secs)
@@ -201,6 +206,13 @@ class DataCache:
                 self._cache['query_item'] = {'success': True, 'data': item_summary}
                 self._ready['query_item'] = True
 
+            self._last_refresh = datetime.now()
+            self._row_counts = {
+                'booking_master': len(booking_rows),
+                'table_mc': len(mc_rows),
+                'table_item': len(item_rows),
+            }
+
     def get(self, key: str) -> Tuple[Optional[dict], bool]:
         with self._lock:
             return self._cache.get(key), self._ready.get(key, False)
@@ -211,7 +223,12 @@ class DataCache:
 
     def get_status(self) -> dict:
         with self._lock:
-            return {key: self._ready.get(key, False) for key in DATA_KEYS}
+            return {
+                'ready': {key: self._ready.get(key, False) for key in DATA_KEYS},
+                'last_refresh': self._last_refresh.strftime('%Y-%m-%d %H:%M:%S') if self._last_refresh else None,
+                'next_refresh': self._next_refresh.strftime('%Y-%m-%d %H:%M:%S') if self._next_refresh else None,
+                'row_counts': dict(self._row_counts),
+            }
 
     def force_refresh(self):
         """บังคับ refresh cache ทันที (เรียกจาก admin endpoint)"""

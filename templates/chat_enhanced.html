@@ -409,7 +409,7 @@
         function displayMessages(messages) {
             const c = document.getElementById("chat-messages"); c.innerHTML = "";
             if (!messages.length) { renderWelcomeState(); return; }
-            messages.forEach(m => addMessageToChat(m.message, m.sender, null, m.sender === 'assistant' ? m.id : null));
+            messages.forEach(m => addMessageToChat(m.message, m.sender, null, m.sender === 'assistant' ? m.id : null, m.feedback_type));
         }
         function renderWelcomeState() {
             document.getElementById("chat-messages").innerHTML = `<div id="welcome-state" class="mx-auto max-w-md rounded-2xl border border-purple-100 bg-gradient-to-br from-purple-50 to-violet-50 p-6 text-center shadow-sm"><div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full btn-purple shadow-md"><i class="fas fa-comments text-white"></i></div><h3 class="text-lg font-bold text-gray-900">เริ่มบทสนทนาใหม่</h3><p class="mt-2 text-sm leading-6 text-gray-500">ระบบเก็บหัวข้อสนทนาแยกตามผู้ใช้ กลับมาเปิดอ่านได้ทุกเมื่อ หรือกด &ldquo;เริ่มแชทใหม่&rdquo; เพื่อเปลี่ยนเรื่องสนทนา</p></div>`;
@@ -429,7 +429,7 @@
                 .replace(/\n<div/g, '<div')
                 .replace(/\n/g, '<br>');
         }
-        function addMessageToChat(message, sender, suggestions, messageId) {
+        function addMessageToChat(message, sender, suggestions, messageId, feedbackType) {
             const c = document.getElementById("chat-messages"), w = document.createElement("div");
             w.className = "message-enter flex items-start gap-2 " + (sender === "user" ? "justify-end" : "justify-start");
             if (sender === "user") {
@@ -439,10 +439,12 @@
                     ? `<div class="mt-2 flex flex-wrap gap-2">${suggestions.map(s => `<button onclick="sendQuickMessage(${escapeHtml(JSON.stringify(s))})" class="text-xs px-3 py-1.5 rounded-full border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 hover:border-purple-300 transition-colors duration-200 cursor-pointer">${escapeHtml(s)}</button>`).join('')}</div>`
                     : '';
                 const encodedMsg = encodeURIComponent(message);
+                const likeActive = feedbackType === 'like';
+                const dislikeActive = feedbackType === 'dislike';
                 const feedbackHtml = messageId ? `
                     <span class="w-px h-3 bg-gray-200 mx-0.5 self-center"></span>
-                    <button id="like-${messageId}" title="ดีมาก" onclick="submitFeedback(${messageId},'like')" class="rounded-md p-1.5 text-gray-300 hover:text-green-500 hover:bg-green-50 transition-colors"><i class="far fa-thumbs-up text-xs"></i></button>
-                    <button id="dislike-${messageId}" title="ปรับปรุงได้" onclick="submitFeedback(${messageId},'dislike')" class="rounded-md p-1.5 text-gray-300 hover:text-rose-400 hover:bg-rose-50 transition-colors"><i class="far fa-thumbs-down text-xs"></i></button>` : '';
+                    <button id="like-${messageId}" title="ดีมาก" onclick="submitFeedback(${messageId},'like')" class="rounded-md p-1.5 ${likeActive ? 'text-green-500 bg-green-50' : 'text-gray-300 hover:text-green-500 hover:bg-green-50'} transition-colors"><i class="${likeActive ? 'fas' : 'far'} fa-thumbs-up text-xs"></i></button>
+                    <button id="dislike-${messageId}" title="ปรับปรุงได้" onclick="submitFeedback(${messageId},'dislike')" class="rounded-md p-1.5 ${dislikeActive ? 'text-rose-400 bg-rose-50' : 'text-gray-300 hover:text-rose-400 hover:bg-rose-50'} transition-colors"><i class="${dislikeActive ? 'fas' : 'far'} fa-thumbs-down text-xs"></i></button>` : '';
                 const actionsHtml = `<div class="flex items-center gap-0.5 px-1 mt-0.5">
                     <button title="คัดลอก" data-encoded="${encodedMsg}" onclick="copyMessage(this)" class="rounded-md p-1.5 text-gray-300 hover:text-blue-400 hover:bg-blue-50 transition-colors"><i class="far fa-copy text-xs"></i></button>
                     ${feedbackHtml}

@@ -59,20 +59,31 @@
 
     <div class="container mx-auto px-4 py-8 max-w-7xl">
         <!-- Cache Refresh Banner -->
-        <div class="card-shadow rounded-xl p-4 mb-6 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
-                    <i class="fas fa-database text-indigo-600"></i>
+        <div class="card-shadow rounded-xl p-4 mb-6">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-database text-indigo-600"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm font-semibold text-gray-800">Data Cache</p>
+                        <p class="text-xs text-gray-500" id="cache-time-line">กำลังโหลดสถานะ...</p>
+                    </div>
                 </div>
-                <div>
-                    <p class="text-sm font-semibold text-gray-800">Data Cache</p>
-                    <p class="text-xs text-gray-500">รีเฟรชข้อมูลจาก Power BI ด้วยตนเอง</p>
-                </div>
+                <button onclick="refreshCache()" id="cache-btn"
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2">
+                    <i class="fas fa-sync" id="cache-icon"></i>Refresh Cache
+                </button>
             </div>
-            <button onclick="refreshCache()" id="cache-btn"
-                class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2">
-                <i class="fas fa-sync" id="cache-icon"></i>Refresh Cache
-            </button>
+            <div id="cache-status-row" class="mt-3 flex flex-wrap gap-2 hidden">
+                <span id="cs-item" class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium"></span>
+                <span id="cs-cap" class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium"></span>
+                <span id="cs-booking" class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium"></span>
+                <span class="border-l border-gray-200 mx-1"></span>
+                <span id="cs-bm" class="text-xs text-gray-500"></span>
+                <span id="cs-mc" class="text-xs text-gray-500"></span>
+                <span id="cs-ti" class="text-xs text-gray-500"></span>
+            </div>
         </div>
 
         <!-- Stats -->
@@ -205,7 +216,7 @@
             </div>
             <div class="flex" style="height:480px;">
                 <!-- Ticket List -->
-                <div class="w-72 border-r border-gray-100 flex flex-col flex-shrink-0">
+                <div class="w-72 border-r border-gray-100 flex flex-col flex-shrink-0 min-h-0">
                     <div class="flex gap-1 p-2 border-b border-gray-100 bg-gray-50">
                         <button id="filter-all" onclick="filterTickets('all')" class="flex-1 rounded-lg py-1.5 text-xs font-semibold bg-blue-500 text-white transition">ทั้งหมด</button>
                         <button id="filter-pending" onclick="filterTickets('pending')" class="flex-1 rounded-lg py-1.5 text-xs font-semibold text-gray-500 hover:bg-gray-100 transition">รอตอบ</button>
@@ -216,11 +227,11 @@
                     </div>
                 </div>
                 <!-- Thread View -->
-                <div class="flex-1 flex flex-col">
+                <div class="flex-1 flex flex-col min-h-0">
                     <div id="admin-thread-placeholder" class="flex-1 flex items-center justify-center text-gray-300">
                         <div class="text-center"><i class="fas fa-comments text-4xl mb-3 block"></i><p class="text-sm">เลือกข้อความเพื่อดูรายละเอียด</p></div>
                     </div>
-                    <div id="admin-thread-view" class="hidden flex-1 flex-col">
+                    <div id="admin-thread-view" class="hidden flex-1 flex-col min-h-0">
                         <div class="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-100">
                             <div>
                                 <span class="text-sm font-semibold text-gray-700" id="admin-thread-user"></span>
@@ -378,7 +389,16 @@
         let activeConvId = null;
         let allUsers = [];
 
-        document.addEventListener('DOMContentLoaded', () => { loadUsers(); loadTokenUsage(); loadFeedback(); loadSupportTickets(); });
+        document.addEventListener('DOMContentLoaded', () => {
+            loadUsers(); loadTokenUsage(); loadFeedback(); loadSupportTickets(); loadCacheStatus();
+            setInterval(async () => {
+                const prevPending = allTickets.filter(t => t.status === 'pending').length;
+                await loadSupportTickets();
+                const newPending = allTickets.filter(t => t.status === 'pending').length;
+                if (newPending > prevPending) showToast('มีข้อความใหม่จากผู้ใช้', 'info');
+                if (activeAdminTicketId) await openAdminThread(activeAdminTicketId);
+            }, 20000);
+        });
 
         async function loadUsers() {
             const tbody = document.getElementById('users-tbody');
@@ -486,7 +506,57 @@
             showToast(newState ? 'เปิดใช้งานผู้ใช้แล้ว' : 'ปิดใช้งานผู้ใช้แล้ว', 'success');
         }
 
-        // ---- Cache Refresh ----
+        // ---- Cache Status & Refresh ----
+
+        function _badge(ready, label) {
+            const cls = ready
+                ? 'bg-green-100 text-green-700'
+                : 'bg-red-100 text-red-600';
+            const dot = ready ? '●' : '●';
+            return { cls, text: `${dot} ${label}` };
+        }
+
+        async function loadCacheStatus() {
+            try {
+                const res = await fetch('/admin/cache/status');
+                const data = await res.json();
+                if (!data.success) return;
+
+                const timeLine = document.getElementById('cache-time-line');
+                const row = document.getElementById('cache-status-row');
+
+                const last = data.last_refresh
+                    ? `อัปเดต ${data.last_refresh.slice(11, 16)} น.`
+                    : 'ยังไม่ได้โหลด';
+                const next = data.next_refresh
+                    ? ` · รีเฟรชถัดไป ${data.next_refresh.slice(11, 16)} น.`
+                    : '';
+                timeLine.textContent = last + next;
+
+                const ready = data.ready || {};
+                const counts = data.row_counts || {};
+
+                const badges = [
+                    { el: 'cs-item',    ...(_badge(ready.query_item,    'Item Plan')) },
+                    { el: 'cs-cap',     ...(_badge(ready.query_cap_ava, 'Capacity')) },
+                    { el: 'cs-booking', ...(_badge(ready.query_booking, 'Booking')) },
+                ];
+                badges.forEach(({ el, cls, text }) => {
+                    const span = document.getElementById(el);
+                    span.className = `inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${cls}`;
+                    span.textContent = text;
+                });
+
+                const fmt = n => n != null ? n.toLocaleString() + ' rows' : '-';
+                document.getElementById('cs-bm').textContent = `BookingMaster: ${fmt(counts.booking_master)}`;
+                document.getElementById('cs-mc').textContent = `Table_MC: ${fmt(counts.table_mc)}`;
+                document.getElementById('cs-ti').textContent = `Table_Item: ${fmt(counts.table_item)}`;
+
+                row.classList.remove('hidden');
+            } catch (e) {
+                console.error('loadCacheStatus error', e);
+            }
+        }
 
         async function refreshCache() {
             const btn = document.getElementById('cache-btn');
@@ -500,6 +570,7 @@
             icon.className = 'fas fa-sync';
             btn.disabled = false;
             showToast(data.success ? 'รีเฟรช Cache สำเร็จ' : 'รีเฟรชไม่สำเร็จ', data.success ? 'success' : 'error');
+            if (data.success) loadCacheStatus();
         }
 
         // ---- Token Usage ----

@@ -44,7 +44,9 @@ def _has_thai(text: str) -> bool:
 
 
 def _has_english_words(text: str) -> bool:
-    stripped = re.sub(r'\b[A-Z][A-Z0-9/\-]*\b', '', text)
+    # Strip item-code-style tokens (must contain a digit or slash, e.g. F100114/10A0, SKP28G)
+    # Pure uppercase words like "OK", "YES" are NOT stripped so they're detected as English.
+    stripped = re.sub(r'\b[A-Z][A-Z0-9/\-]*(?=[0-9/])[A-Z0-9/\-]*\b', '', text)
     return bool(re.search(r'\b[a-zA-Z]{2,}\b', stripped))
 
 
@@ -83,7 +85,7 @@ def _week_keyword_to_yw(text: str) -> list:
     patterns = [
         r'\bweek\s*(\d{1,2})\b',
         r'\bwk(\d{1,2})\b',
-        r'\bw(\d{1,2})\b',
+        r'\bw(\d{2})\b',              # "w22" (2-digit only) — avoids "w5", "w8" false positives
         r'สัปดาห์(?:ที่)?\s*(\d{1,2})',
     ]
     for pattern in patterns:
@@ -338,7 +340,9 @@ class ResponseProcessor:
             result.append(line)
 
         if result:
-            return header + '\n' + '\n'.join(result)
+            min_yw = _min_plannable_yw()
+            note = f"[หมายเหตุ: สัปดาห์เร็วที่สุดที่วางแผนได้ = YW {min_yw}]\n" if yw_filter and yw_filter < min_yw else ""
+            return note + header + '\n' + '\n'.join(result)
         if item_code:
             return f"ไม่พบ item {item_code} ใน Item Plan"
         return "ไม่พบข้อมูลที่ตรงกับเงื่อนไข"
@@ -411,7 +415,7 @@ class ResponseProcessor:
 
             if yw_filter and yw_col != yw_filter:
                 continue
-            if group and group.lower() not in group_col:
+            if group and not _group_matches(group_col, [group.lower()]):
                 continue
             result.append(line)
 
@@ -465,6 +469,11 @@ class ResponseProcessor:
         "1) กลุ่มเครื่องอะไร (ถ้ามี) และ\n"
         "2) สัปดาห์ไหน (เช่น 202624 หรือ ช่วงสัปดาห์ 202624–202626)\n"
         "แล้วน้องจะดึงข้อมูลจากระบบ I-SAVE ให้ทันทีค่ะ"
+    )
+
+    _CAPACITY_INFO_REPLY = (
+        "ขออภัยค่ะ ข้อมูล Capacity ยังไม่พร้อมในขณะนี้\n"
+        "กรุณารอสักครู่แล้วลองใหม่อีกครั้ง หรือติดต่อผู้ดูแลระบบหากปัญหายังคงอยู่ค่ะ"
     )
 
     def _get_machine_capacity_suggestions(self) -> list:

@@ -750,6 +750,12 @@ def admin_feedback():
     return jsonify({'success': True, **data})
 
 
+@app.route('/admin/cache/status')
+@admin_required
+def admin_cache_status():
+    return jsonify({'success': True, **get_data_cache().get_status()})
+
+
 @app.route('/admin/cache/refresh', methods=['POST'])
 @admin_required
 def admin_cache_refresh():
