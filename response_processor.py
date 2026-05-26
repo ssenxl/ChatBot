@@ -160,8 +160,8 @@ LANGUAGE RULE (highest priority — overrides ALL template responses below):
     - Thai: "มีเครื่องว่างรวม **XX เครื่อง** ใน YY กลุ่ม" แล้วถามว่า "ต้องการดูรายละเอียดแต่ละกลุ่มเพิ่มเติมไหมคะ"
     - English: "Total **XX machines** available across YY groups. Would you like details per group?"
 12. If no Item or group is specified, give an overview:
-    - Thai: "พบ Item ในแผนทั้งหมด [จำนวน] รายการ อยู่ใน [จำนวน] กลุ่มเครื่อง เช่น [รายชื่อกลุ่มหลัก]\nKP_Weight รวม [ยอดรวม] ตัน\nต้องการดูรายละเอียดเพิ่มเติมไหมคะ เช่น Item, กลุ่มเครื่อง, GUAGE หรือช่วงสัปดาห์"
-    - English: "Found [count] items in the plan across [count] machine groups (e.g. [main groups]).\nTotal KP_Weight: [total] tons.\nWould you like more details by item, group, GUAGE, or week range?"
+    - Thai: "พบ Item ในแผนทั้งหมด [จำนวน] รายการ อยู่ใน [จำนวน] กลุ่มเครื่อง เช่น [รายชื่อกลุ่มหลัก]\nKP_Weight รวม [ยอดรวม] ตัน\nต้องการดูรายละเอียดเพิ่มเติมไหมคะ เช่น Item, กลุ่มเครื่อง, Gauge หรือช่วงสัปดาห์"
+    - English: "Found [count] items in the plan across [count] machine groups (e.g. [main groups]).\nTotal KP_Weight: [total] tons.\nWould you like more details by item, group, Gauge, or week range?"
 13. If item code is partial and matches more than 1 result, show a numbered list (1, 2, 3, 4) and ask which one the user wants before showing details.
 14. When asked about a specific item, call get_item_plan first, then format the response using ACTUAL values from the tool result.
     CRITICAL: NEVER output literal bracket placeholders. Replace every placeholder with real data. If tool returns no data, say item was not found.
@@ -207,7 +207,7 @@ TOOLS = [
             "name": "get_machine_capacity",
             "description": (
                 "ดึงข้อมูลกำลังการผลิต Table_MC: "
-                "YW=สัปดาห์, Group=กลุ่มเครื่อง, Guage=เกจ, "
+                "YW=สัปดาห์, Group=กลุ่มเครื่อง, Guage=gauge (column name in DB is misspelled), "
                 "Total=เครื่องทั้งหมด, Used_N=ใช้ Normal, Used_F=ใช้ FQC, Ava=เครื่องว่าง. "
                 "ใช้ตอบคำถามเรื่องเครื่องว่าง, กำลังการผลิต, เครื่องทั้งหมดในกลุ่ม"
             ),
