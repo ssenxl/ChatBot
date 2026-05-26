@@ -1,7 +1,9 @@
+from collections import defaultdict
 from functools import wraps
 import asyncio
 import os
 from pathlib import Path
+import threading
 import time
 
 from flask import Flask, flash, jsonify, redirect, render_template, request, session, url_for
@@ -35,6 +37,24 @@ response_processor = get_response_processor()
 suggestion_engine = get_suggestion_engine()
 
 DEFAULT_CONVERSATION_TITLE = 'แชทใหม่'
+
+_rate_lock = threading.Lock()
+_rate_attempts: dict = defaultdict(list)
+_RATE_WINDOW = 300   # 5 นาที
+_RATE_MAX_LOGIN = 10
+_RATE_MAX_FORGOT = 5
+
+
+def _is_rate_limited(ip: str, bucket: str = 'login') -> bool:
+    max_attempts = _RATE_MAX_FORGOT if bucket == 'forgot' else _RATE_MAX_LOGIN
+    now = time.time()
+    key = f"{bucket}:{ip}"
+    with _rate_lock:
+        _rate_attempts[key] = [t for t in _rate_attempts[key] if now - t < _RATE_WINDOW]
+        if len(_rate_attempts[key]) >= max_attempts:
+            return True
+        _rate_attempts[key].append(now)
+        return False
 REQUIRED_SESSION_KEYS = ('user_id', 'username', 'user_role', 'user_email')
 SIGNUP_EMAIL_COLUMN = os.getenv('SIGNUP_EMAIL_COLUMN', 'EMPLOYEE_EMAIL').strip() or 'EMPLOYEE_EMAIL'
 SIGNUP_EMAIL_SOURCE_FILE = Path(
@@ -118,6 +138,25 @@ with app.app_context():
         print("DataCache started — pre-loading booking data in background...")
     except Exception as e:
         print(f"DataCache start failed: {e}")
+    # ตรวจสอบ default password ที่ยังไม่ถูกเปลี่ยน
+    import warnings as _w
+    from werkzeug.security import check_password_hash as _cph
+    try:
+        for _default in [('admin', 'adminscm'), ('user', 'user123')]:
+            _u = db.get_user_by_username(_default[0])
+            if _u:
+                _row = db.get_connection()
+                _c = _row.cursor()
+                _c.execute("SELECT password_hash FROM users WHERE username = %s", (_default[0],))
+                _h = _c.fetchone()
+                _row.close()
+                if _h and _cph(_h['password_hash'], _default[1]):
+                    _w.warn(
+                        f"SECURITY: ผู้ใช้ '{_default[0]}' ยังใช้รหัสผ่าน default '{_default[1]}' — กรุณาเปลี่ยนทันที!",
+                        stacklevel=1
+                    )
+    except Exception:
+        pass
 
 
 def has_valid_session():
@@ -209,6 +248,10 @@ def index():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
+        if _is_rate_limited(request.remote_addr, 'login'):
+            flash('คุณพยายาม login บ่อยเกินไป กรุณารอ 5 นาทีแล้วลองใหม่', 'error')
+            return render_template('login.html')
+
         username = request.form.get('username')
         password = request.form.get('password')
 
@@ -241,14 +284,11 @@ def login():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    allowed_signup_emails = sorted(ALLOWED_SIGNUP_EMAILS)
-    allowed_signup_email_count = len(allowed_signup_emails)
-    allowed_signup_email_preview = allowed_signup_emails[:10]
+    allowed_signup_email_count = len(ALLOWED_SIGNUP_EMAILS)
 
     def render_register_page():
         return render_template(
             'register.html',
-            allowed_signup_emails=allowed_signup_email_preview,
             allowed_signup_email_count=allowed_signup_email_count
         )
 
@@ -289,49 +329,45 @@ def register():
 @app.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
     if request.method == 'POST':
-        identifier = request.form.get('identifier', '').strip()
+        if _is_rate_limited(request.remote_addr, 'forgot'):
+            flash('คุณพยายามรีเซ็ตรหัสผ่านบ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่', 'error')
+            return render_template('forgot_password.html')
+
+        username = request.form.get('username', '').strip()
+        email = request.form.get('email', '').strip().lower()
         new_password = request.form.get('new_password', '').strip()
         confirm_password = request.form.get('confirm_password', '').strip()
-        
-        print(f"[DEBUG] Forgot password request - identifier: {identifier}")
-        print(f"[DEBUG] New password length: {len(new_password)}")
-        
-        if not identifier:
-            flash('กรุณากรอกชื่อผู้ใช้หรืออีเมล', 'error')
+
+        if not username or not email:
+            flash('กรุณากรอกชื่อผู้ใช้และอีเมล', 'error')
             return render_template('forgot_password.html')
-        
+
         if not new_password or not confirm_password:
             flash('กรุณากรอกรหัสผ่านใหม่และยืนยันรหัสผ่าน', 'error')
             return render_template('forgot_password.html')
-        
+
         if new_password != confirm_password:
             flash('รหัสผ่านใหม่ไม่ตรงกัน', 'error')
             return render_template('forgot_password.html')
-        
+
         if len(new_password) < 6:
             flash('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร', 'error')
             return render_template('forgot_password.html')
-        
-        # ค้นหาผู้ใช้และรีเซ็ตรหัสผ่าน
-        user = db.get_user_by_identifier(identifier)
-        print(f"[DEBUG] User found: {user}")
-        
-        if user:
-            print(f"[DEBUG] Updating password for user_id: {user['id']}")
-            result = db.update_user_password(user['id'], new_password)
-            print(f"[DEBUG] Password update result: {result}")
-            
+
+        user = db.get_user_by_username(username)
+        # ตรวจสอบว่า username และ email ตรงกับบัญชีเดียวกัน
+        if user and user.get('email', '').lower() == email:
+            db.update_user_password(user['id'], new_password)
             db.log_activity(user['id'], 'password_reset', {
-                'username': user['username'],
                 'ip_address': request.remote_addr,
                 'reset_method': 'forgot_password'
             })
             flash('รีเซ็ตรหัสผ่านสำเร็จ! กรุณาเข้าสู่ระบบด้วยรหัสผ่านใหม่', 'success')
             return redirect(url_for('login'))
-        else:
-            print(f"[DEBUG] User not found for identifier: {identifier}")
-            flash('ไม่พบผู้ใช้ที่ระบุ', 'error')
-    
+
+        # คำตอบเหมือนกันทั้งกรณีหา user ไม่เจอและ email ไม่ตรง (ป้องกัน user enumeration)
+        flash('ชื่อผู้ใช้หรืออีเมลไม่ถูกต้อง', 'error')
+
     return render_template('forgot_password.html')
 
 
@@ -665,6 +701,20 @@ def admin_get_conversation_messages(conversation_id):
     return jsonify({'success': True, 'messages': messages})
 
 
+@app.route('/admin/users/<int:user_id>/toggle-active', methods=['POST'])
+@admin_required
+def admin_toggle_user_active(user_id):
+    if user_id == session['user_id']:
+        return jsonify({'success': False, 'message': 'ไม่สามารถปิดใช้งานตัวเองได้'}), 400
+    data = request.get_json(silent=True) or {}
+    is_active = bool(data.get('is_active', True))
+    success = db.toggle_user_active(user_id, is_active)
+    if not success:
+        return jsonify({'success': False, 'message': 'ไม่พบผู้ใช้หรือไม่สามารถแก้ไข admin ได้'}), 404
+    db.log_activity(session['user_id'], 'toggle_user_active', {'target_user_id': user_id, 'is_active': is_active})
+    return jsonify({'success': True})
+
+
 @app.route('/admin/users/<int:user_id>/reset-password', methods=['POST'])
 @admin_required
 def admin_reset_user_password(user_id):
@@ -682,6 +732,13 @@ def admin_reset_user_password(user_id):
 
     db.log_activity(session['user_id'], 'admin_reset_password', {'target_user_id': user_id})
     return jsonify({'success': True, 'message': 'รีเซ็ตรหัสผ่านสำเร็จ'})
+
+
+@app.route('/admin/token-usage')
+@admin_required
+def admin_token_usage():
+    rows = db.get_token_usage_per_user()
+    return jsonify({'success': True, 'rows': rows})
 
 
 @app.route('/admin/cache/refresh', methods=['POST'])
@@ -776,7 +833,8 @@ def get_conversation_analytics(conversation_id):
 @app.route('/api/suggestions/<int:suggestion_id>/click', methods=['POST'])
 @login_required
 def mark_suggestion_clicked(suggestion_id):
-    """ทำเครื่องหมายว่า suggestion ถูกคลิก"""
+    if not db.suggestion_belongs_to_user(suggestion_id, session['user_id']):
+        return jsonify({'success': False, 'message': 'ไม่พบ suggestion'}), 404
     try:
         db.mark_suggestion_clicked(suggestion_id)
         return jsonify({'success': True})
@@ -785,4 +843,5 @@ def mark_suggestion_clicked(suggestion_id):
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000, use_reloader=False)
+    debug_mode = os.getenv('FLASK_DEBUG', 'false').lower() == 'true'
+    app.run(debug=debug_mode, host='0.0.0.0', port=5000, use_reloader=False)

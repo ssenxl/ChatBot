@@ -58,6 +58,23 @@
     </header>
 
     <div class="container mx-auto px-4 py-8 max-w-7xl">
+        <!-- Cache Refresh Banner -->
+        <div class="card-shadow rounded-xl p-4 mb-6 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-database text-indigo-600"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-semibold text-gray-800">Data Cache</p>
+                    <p class="text-xs text-gray-500">รีเฟรชข้อมูลจาก Power BI ด้วยตนเอง</p>
+                </div>
+            </div>
+            <button onclick="refreshCache()" id="cache-btn"
+                class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2">
+                <i class="fas fa-sync" id="cache-icon"></i>Refresh Cache
+            </button>
+        </div>
+
         <!-- Stats -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
             <div class="card-shadow rounded-xl p-5 flex items-center space-x-4">
@@ -109,6 +126,7 @@
                             <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Role</th>
                             <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">สถานะ</th>
                             <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">สมัครเมื่อ</th>
+                            <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Login ล่าสุด</th>
                             <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">จัดการ</th>
                         </tr>
                     </thead>
@@ -119,6 +137,49 @@
                             </td>
                         </tr>
                     </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Token Usage Table -->
+        <div class="card-shadow rounded-xl overflow-hidden mb-8">
+            <div class="flex items-center justify-between p-5 border-b border-gray-100">
+                <h2 class="text-lg font-bold text-gray-800">
+                    <i class="fas fa-coins mr-2 text-yellow-500"></i>Token Usage รายคน
+                </h2>
+                <button onclick="loadTokenUsage()" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm transition-all">
+                    <i class="fas fa-sync mr-2"></i>รีเฟรช
+                </button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Username</th>
+                            <th class="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase">ครั้งที่ใช้ AI</th>
+                            <th class="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Prompt Tokens</th>
+                            <th class="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Completion Tokens</th>
+                            <th class="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Total Tokens</th>
+                            <th class="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Avg Response</th>
+                        </tr>
+                    </thead>
+                    <tbody id="token-tbody">
+                        <tr>
+                            <td colspan="6" class="text-center py-12 text-gray-400">
+                                <i class="fas fa-spinner fa-spin text-2xl mb-2 block"></i>กำลังโหลด...
+                            </td>
+                        </tr>
+                    </tbody>
+                    <tfoot id="token-tfoot" class="hidden">
+                        <tr class="bg-yellow-50 font-semibold border-t-2 border-yellow-200">
+                            <td class="px-5 py-3 text-sm text-gray-700">รวมทั้งหมด</td>
+                            <td id="tfoot-calls" class="px-5 py-3 text-sm text-right text-gray-700">-</td>
+                            <td id="tfoot-prompt" class="px-5 py-3 text-sm text-right text-gray-700">-</td>
+                            <td id="tfoot-completion" class="px-5 py-3 text-sm text-right text-gray-700">-</td>
+                            <td id="tfoot-total" class="px-5 py-3 text-sm text-right text-yellow-700 font-bold">-</td>
+                            <td class="px-5 py-3"></td>
+                        </tr>
+                    </tfoot>
                 </table>
             </div>
         </div>
@@ -207,18 +268,18 @@
         let targetUserId = null;
         let activeConvId = null;
 
-        document.addEventListener('DOMContentLoaded', loadUsers);
+        document.addEventListener('DOMContentLoaded', () => { loadUsers(); loadTokenUsage(); });
 
         async function loadUsers() {
             const tbody = document.getElementById('users-tbody');
-            tbody.innerHTML = `<tr><td colspan="7" class="text-center py-12 text-gray-400">
+            tbody.innerHTML = `<tr><td colspan="8" class="text-center py-12 text-gray-400">
                 <i class="fas fa-spinner fa-spin text-2xl mb-2 block"></i>กำลังโหลด...</td></tr>`;
 
             const res = await fetch('/admin/users');
             const data = await res.json();
 
             if (!data.success) {
-                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-red-400">โหลดข้อมูลไม่สำเร็จ</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-red-400">โหลดข้อมูลไม่สำเร็จ</td></tr>`;
                 return;
             }
 
@@ -228,12 +289,12 @@
             document.getElementById('stat-admin').textContent = users.filter(u => u.role === 'admin').length;
 
             if (users.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-gray-400">ไม่มีผู้ใช้</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-gray-400">ไม่มีผู้ใช้</td></tr>`;
                 return;
             }
 
             tbody.innerHTML = users.map(u => `
-                <tr class="border-t border-gray-100 hover:bg-gray-50 transition-colors">
+                <tr class="border-t border-gray-100 hover:bg-gray-50 transition-colors" id="user-row-${u.id}">
                     <td class="px-5 py-4 text-sm text-gray-500">${u.id}</td>
                     <td class="px-5 py-4 font-medium text-gray-800">${escHtml(u.username)}</td>
                     <td class="px-5 py-4 text-sm text-gray-600">${escHtml(u.email)}</td>
@@ -243,11 +304,12 @@
                         </span>
                     </td>
                     <td class="px-5 py-4">
-                        <span class="px-2 py-1 rounded-full text-xs font-semibold ${u.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
+                        <span id="status-badge-${u.id}" class="px-2 py-1 rounded-full text-xs font-semibold ${u.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
                             ${u.is_active ? 'ใช้งาน' : 'ปิดใช้งาน'}
                         </span>
                     </td>
                     <td class="px-5 py-4 text-sm text-gray-500">${formatDate(u.created_at)}</td>
+                    <td class="px-5 py-4 text-sm text-gray-500">${u.last_login ? formatDateTime(u.last_login) : '<span class="text-gray-300">ยังไม่เคย</span>'}</td>
                     <td class="px-5 py-4 flex items-center gap-2">
                         <button onclick="openChatHistory(${u.id}, '${escHtml(u.username)}')"
                             class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-all">
@@ -255,11 +317,125 @@
                         </button>
                         <button onclick="openResetModal(${u.id}, '${escHtml(u.username)}')"
                             class="bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-all">
-                            <i class="fas fa-key mr-1"></i>รีเซ็ตรหัสผ่าน
+                            <i class="fas fa-key mr-1"></i>รีเซ็ต
                         </button>
+                        ${u.role !== 'admin' ? `
+                        <button onclick="toggleUserActive(${u.id}, ${!u.is_active})"
+                            id="toggle-btn-${u.id}"
+                            class="${u.is_active ? 'bg-red-100 hover:bg-red-200 text-red-700' : 'bg-green-100 hover:bg-green-200 text-green-700'} px-3 py-1.5 rounded-lg text-xs font-medium transition-all">
+                            <i class="fas ${u.is_active ? 'fa-ban' : 'fa-check'} mr-1"></i>${u.is_active ? 'ปิด' : 'เปิด'}
+                        </button>` : ''}
                     </td>
                 </tr>
             `).join('');
+        }
+
+        // ---- Toggle User Active ----
+
+        async function toggleUserActive(userId, newState) {
+            const btn = document.getElementById(`toggle-btn-${userId}`);
+            if (btn) btn.disabled = true;
+
+            const res = await fetch(`/admin/users/${userId}/toggle-active`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ is_active: newState })
+            });
+            const data = await res.json();
+
+            if (!data.success) {
+                showToast(data.message || 'เกิดข้อผิดพลาด', 'error');
+                if (btn) btn.disabled = false;
+                return;
+            }
+
+            const badge = document.getElementById(`status-badge-${userId}`);
+            if (badge) {
+                badge.className = `px-2 py-1 rounded-full text-xs font-semibold ${newState ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`;
+                badge.textContent = newState ? 'ใช้งาน' : 'ปิดใช้งาน';
+            }
+            if (btn) {
+                btn.className = `${newState ? 'bg-red-100 hover:bg-red-200 text-red-700' : 'bg-green-100 hover:bg-green-200 text-green-700'} px-3 py-1.5 rounded-lg text-xs font-medium transition-all`;
+                btn.innerHTML = `<i class="fas ${newState ? 'fa-ban' : 'fa-check'} mr-1"></i>${newState ? 'ปิด' : 'เปิด'}`;
+                btn.onclick = () => toggleUserActive(userId, !newState);
+                btn.disabled = false;
+            }
+            showToast(newState ? 'เปิดใช้งานผู้ใช้แล้ว' : 'ปิดใช้งานผู้ใช้แล้ว', 'success');
+        }
+
+        // ---- Cache Refresh ----
+
+        async function refreshCache() {
+            const btn = document.getElementById('cache-btn');
+            const icon = document.getElementById('cache-icon');
+            btn.disabled = true;
+            icon.className = 'fas fa-sync fa-spin';
+
+            const res = await fetch('/admin/cache/refresh', { method: 'POST' });
+            const data = await res.json();
+
+            icon.className = 'fas fa-sync';
+            btn.disabled = false;
+            showToast(data.success ? 'รีเฟรช Cache สำเร็จ' : 'รีเฟรชไม่สำเร็จ', data.success ? 'success' : 'error');
+        }
+
+        // ---- Token Usage ----
+
+        async function loadTokenUsage() {
+            const tbody = document.getElementById('token-tbody');
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-12 text-gray-400">
+                <i class="fas fa-spinner fa-spin text-2xl mb-2 block"></i>กำลังโหลด...</td></tr>`;
+
+            const res = await fetch('/admin/token-usage');
+            const data = await res.json();
+
+            if (!data.success) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-red-400">โหลดข้อมูลไม่สำเร็จ</td></tr>`;
+                return;
+            }
+
+            const rows = data.rows;
+            if (rows.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-gray-400">ยังไม่มีข้อมูล Token</td></tr>`;
+                return;
+            }
+
+            const totalCalls      = rows.reduce((s, r) => s + r.api_calls, 0);
+            const totalPrompt     = rows.reduce((s, r) => s + r.prompt_tokens, 0);
+            const totalCompletion = rows.reduce((s, r) => s + r.completion_tokens, 0);
+            const totalAll        = rows.reduce((s, r) => s + r.total_tokens, 0);
+
+            const maxTokens = Math.max(...rows.map(r => r.total_tokens), 1);
+
+            tbody.innerHTML = rows.map(r => {
+                const barPct = Math.round(r.total_tokens / maxTokens * 100);
+                const barColor = barPct > 75 ? 'bg-red-400' : barPct > 40 ? 'bg-yellow-400' : 'bg-green-400';
+                return `
+                <tr class="border-t border-gray-100 hover:bg-gray-50 transition-colors">
+                    <td class="px-5 py-3 font-medium text-gray-800 text-sm">
+                        ${escHtml(r.username)}
+                        <p class="text-xs text-gray-400 font-normal">${escHtml(r.email)}</p>
+                    </td>
+                    <td class="px-5 py-3 text-right text-sm text-gray-600">${r.api_calls.toLocaleString()}</td>
+                    <td class="px-5 py-3 text-right text-sm text-gray-600">${r.prompt_tokens.toLocaleString()}</td>
+                    <td class="px-5 py-3 text-right text-sm text-gray-600">${r.completion_tokens.toLocaleString()}</td>
+                    <td class="px-5 py-3 text-right text-sm font-semibold text-gray-800">
+                        <div class="flex items-center justify-end gap-2">
+                            <div class="w-20 bg-gray-200 rounded-full h-1.5 hidden sm:block">
+                                <div class="${barColor} h-1.5 rounded-full" style="width:${barPct}%"></div>
+                            </div>
+                            ${r.total_tokens.toLocaleString()}
+                        </div>
+                    </td>
+                    <td class="px-5 py-3 text-right text-sm text-gray-500">${r.avg_response_ms > 0 ? r.avg_response_ms.toLocaleString() + ' ms' : '-'}</td>
+                </tr>`;
+            }).join('');
+
+            document.getElementById('tfoot-calls').textContent      = totalCalls.toLocaleString();
+            document.getElementById('tfoot-prompt').textContent     = totalPrompt.toLocaleString();
+            document.getElementById('tfoot-completion').textContent = totalCompletion.toLocaleString();
+            document.getElementById('tfoot-total').textContent      = totalAll.toLocaleString();
+            document.getElementById('token-tfoot').classList.remove('hidden');
         }
 
         // ---- Chat History ----

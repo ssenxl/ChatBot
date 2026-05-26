@@ -143,7 +143,7 @@ class Database:
         if cursor.fetchone()['cnt'] == 0:
             cursor.execute(
                 "INSERT INTO users (username, email, password_hash, role) VALUES (%s, %s, %s, %s)",
-                ('admin', 'admin@powerbi.com', generate_password_hash('admin123'), 'admin')
+                ('admin', 'admin@powerbi.com', generate_password_hash('adminscm'), 'admin')
             )
             cursor.execute(
                 "INSERT INTO users (username, email, password_hash, role) VALUES (%s, %s, %s, %s)",
@@ -208,10 +208,22 @@ class Database:
     def get_all_users(self):
         conn = self.get_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT id, username, email, role, is_active, created_at FROM users ORDER BY id")
+        cursor.execute("SELECT id, username, email, role, is_active, created_at, last_login FROM users ORDER BY id")
         users = [dict(r) for r in cursor.fetchall()]
         conn.close()
         return users
+
+    def toggle_user_active(self, user_id, is_active):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE users SET is_active = %s WHERE id = %s AND role != 'admin'",
+            (is_active, user_id)
+        )
+        updated = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+        return updated
 
     def admin_reset_password(self, user_id, new_password):
         conn = self.get_connection()
@@ -222,6 +234,17 @@ class Database:
         conn.commit()
         conn.close()
         return updated
+
+    def get_user_by_username(self, username):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id, username, email, role FROM users WHERE username = %s AND is_active = TRUE",
+            (username,)
+        )
+        user = cursor.fetchone()
+        conn.close()
+        return dict(user) if user else None
 
     def get_user_by_identifier(self, identifier):
         conn = self.get_connection()
@@ -523,6 +546,18 @@ class Database:
         conn.close()
         return suggestion_ids
 
+    def suggestion_belongs_to_user(self, suggestion_id, user_id):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT s.id FROM suggestions s
+            JOIN conversations c ON s.conversation_id = c.id
+            WHERE s.id = %s AND c.user_id = %s
+        ''', (suggestion_id, user_id))
+        row = cursor.fetchone()
+        conn.close()
+        return row is not None
+
     def mark_suggestion_clicked(self, suggestion_id):
         conn = self.get_connection()
         cursor = conn.cursor()
@@ -571,6 +606,41 @@ class Database:
         return analytics
 
     # Token Usage
+    def get_token_usage_per_user(self):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT
+                u.id,
+                u.username,
+                u.email,
+                COUNT(t.id)              AS api_calls,
+                COALESCE(SUM(t.prompt_tokens), 0)      AS prompt_tokens,
+                COALESCE(SUM(t.completion_tokens), 0)  AS completion_tokens,
+                COALESCE(SUM(t.total_tokens), 0)       AS total_tokens,
+                COALESCE(AVG(t.response_time_ms), 0)   AS avg_response_ms
+            FROM users u
+            LEFT JOIN token_usage t ON t.user_id = u.id
+            WHERE u.is_active = TRUE
+            GROUP BY u.id, u.username, u.email
+            ORDER BY total_tokens DESC
+        ''')
+        rows = cursor.fetchall()
+        conn.close()
+        return [
+            {
+                'id': r['id'],
+                'username': r['username'],
+                'email': r['email'],
+                'api_calls': r['api_calls'],
+                'prompt_tokens': int(r['prompt_tokens']),
+                'completion_tokens': int(r['completion_tokens']),
+                'total_tokens': int(r['total_tokens']),
+                'avg_response_ms': round(float(r['avg_response_ms'])),
+            }
+            for r in rows
+        ]
+
     def log_token_usage(self, user_id, conversation_id, message_id, model,
                         prompt_tokens, completion_tokens, total_tokens,
                         tool_calls_count=0, response_time_ms=None):

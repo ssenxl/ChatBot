@@ -162,7 +162,7 @@ LANGUAGE RULE (highest priority — overrides ALL template responses below):
     Format template (replace ALL bracketed parts with real values from tool result):
     - Thai: "Item {{actual_item_code}} สามารถทอได้ที่กลุ่มเครื่อง {{actual_group_name}} โดยมีรายละเอียดแผนทอ ดังนี้\n1.สัปดาห์ที่ {{actual_YW}} จำนวน {{actual_KP_Weight}} ตัน\n...\nหากต้องการสอบถามเรื่องไหนเพิ่มเติม สามารถพิมพ์สอบถามได้เลยค่ะ"
     - English: "Item {{actual_item_code}} can be knitted at machine group {{actual_group_name}}. Knitting plan details:\n1. Week {{actual_YW}}: {{actual_KP_Weight}} tons\n...\nFeel free to ask if you need more information."
-    - Always use "ตัน" (Thai) or "tons" (English) as the unit (data is stored in kg but display as-is with the ton label)
+    - Always convert KP_Weight from kg to tons (divide by 1000) and display with "ตัน" (Thai) or "tons" (English). E.g. 859739 kg → 859.74 ตัน
     - If item spans multiple groups, list each group separately"""
 
 TOOLS = [
@@ -616,7 +616,7 @@ class ResponseProcessor:
             f"มีเครื่องทั้งหมด **{int(total_machines)} เครื่อง** แบ่งเป็น **{n_main} กลุ่มเครื่องหลัก** และ **{n_sub} กลุ่มย่อย** ค่ะ",
         ]
         if total_kg > 0:
-            out_lines.append(f"KP Weight รวมสัปดาห์นี้อยู่ที่ประมาณ **{int(total_kg):,} KG**")
+            out_lines.append(f"KP Weight รวมสัปดาห์นี้อยู่ที่ประมาณ **{total_kg/1000:.2f} ตัน**")
         out_lines.append(
             f"กลุ่มที่มีเครื่องมากที่สุดคือ **{max_machines_group}** ({int(group_total.get(max_machines_group, 0))} เครื่อง)"
         )
@@ -741,9 +741,9 @@ class ResponseProcessor:
             f"- จำนวนกลุ่มเครื่องที่มีข้อมูล Capacity : **{n_groups} กลุ่ม**",
         ]
         if total_kp_all > 0:
-            out.append(f"- Capacity รวมทั้งหมด (KP Weight ทุกสัปดาห์) : **{int(total_kp_all):,} KG**")
-            out.append(f"- ใช้งานไปแล้ว (สัปดาห์ที่ {week_num}) : **{int(snapshot_kp):,} KG**")
-            out.append(f"- Capacity คงเหลือในแผน : **{int(remaining_kp):,} KG**")
+            out.append(f"- Capacity รวมทั้งหมด (KP Weight ทุกสัปดาห์) : **{total_kp_all/1000:.2f} ตัน**")
+            out.append(f"- ใช้งานไปแล้ว (สัปดาห์ที่ {week_num}) : **{snapshot_kp/1000:.2f} ตัน**")
+            out.append(f"- Capacity คงเหลือในแผน : **{remaining_kp/1000:.2f} ตัน**")
         out += [
             f"- เครื่องทั้งหมด : **{int(total_machines)} เครื่อง** | ใช้งาน **{int(total_used)}** | ว่าง **{int(total_ava)}**",
             f"- % การใช้ Capacity เฉลี่ย : **{round(util_pct, 1)}%**",
@@ -823,7 +823,7 @@ class ResponseProcessor:
             "",
             "**ภาพรวม Item**",
             f"- จำนวน Item ที่มีแผนทอ : **{len(distinct_items)} Item**",
-            f"- น้ำหนักรวมทั้งหมด : **{int(total_kp):,} KG**",
+            f"- น้ำหนักรวมทั้งหมด : **{total_kp/1000:.2f} ตัน**",
             f"- จำนวนกลุ่มเครื่องที่เกี่ยวข้อง : **{len(distinct_groups)} กลุ่ม**",
             f"- จำนวนสัปดาห์ในแผน : **{len(distinct_weeks)} สัปดาห์**",
             "",
@@ -941,7 +941,7 @@ class ResponseProcessor:
             "",
             "**ภาพรวมแผนทอ**",
             f"- จำนวน Item ในแผนทั้งหมด : **{len(distinct_items)} Item**",
-            f"- น้ำหนักแผนทอรวม : **{int(total_kp):,} KG**",
+            f"- น้ำหนักแผนทอรวม : **{total_kp/1000:.2f} ตัน**",
             f"- จำนวนกลุ่มเครื่องที่เกี่ยวข้อง : **{len(distinct_groups)} กลุ่ม**",
             "",
             "**สรุปตามกลุ่มเครื่องหลัก**",
@@ -950,13 +950,13 @@ class ResponseProcessor:
         for g in sorted_groups[:6]:
             n_items = len(group_items[g])
             kp = int(group_kp[g])
-            out.append(f"- **{g}** : {n_items} Item / {kp:,} KG")
+            out.append(f"- **{g}** : {n_items} Item / {kp/1000:.2f} ตัน")
 
         out += [
             "",
             "จากภาพรวมตอนนี้",
-            f"กลุ่มที่มีแผนทอมากที่สุดคือ **{top_group}** ({len(group_items.get(top_group, set()))} Item / {int(group_kp.get(top_group, 0)):,} KG)",
-            f"สัปดาห์ที่มีแผนทอหนักที่สุดคือ สัปดาห์ที่ **{busiest_week_num}** ({int(week_kp.get(busiest_yw, 0)):,} KG)",
+            f"กลุ่มที่มีแผนทอมากที่สุดคือ **{top_group}** ({len(group_items.get(top_group, set()))} Item / {group_kp.get(top_group, 0)/1000:.2f} ตัน)",
+            f"สัปดาห์ที่มีแผนทอหนักที่สุดคือ สัปดาห์ที่ **{busiest_week_num}** ({week_kp.get(busiest_yw, 0)/1000:.2f} ตัน)",
             "ถ้าต้องการดูรายละเอียดเพิ่มเติม สามารถระบุ Item, กลุ่มเครื่อง หรือสัปดาห์ที่ต้องการได้เลยค่ะ",
         ]
         return '\n'.join(out)
