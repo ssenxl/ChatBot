@@ -139,6 +139,17 @@ class Database:
             )
         ''')
 
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS message_feedback (
+                id SERIAL PRIMARY KEY,
+                message_id INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                feedback_type TEXT NOT NULL CHECK (feedback_type IN ('like', 'dislike')),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE (message_id, user_id)
+            )
+        ''')
+
         cursor.execute("SELECT COUNT(*) AS cnt FROM users")
         if cursor.fetchone()['cnt'] == 0:
             cursor.execute(
@@ -336,7 +347,7 @@ class Database:
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute('''
-            SELECT m.sender, m.message, m.message_type, m.metadata, m.created_at
+            SELECT m.id, m.sender, m.message, m.message_type, m.metadata, m.created_at
             FROM messages m
             JOIN conversations c ON c.id = m.conversation_id
             WHERE m.conversation_id = %s AND c.user_id = %s AND c.is_active = TRUE
@@ -346,6 +357,7 @@ class Database:
         messages = []
         for row in cursor.fetchall():
             messages.append({
+                'id': row['id'],
                 'sender': row['sender'],
                 'message': row['message'],
                 'message_type': row['message_type'],
@@ -655,5 +667,29 @@ class Database:
         ''', (user_id, conversation_id, message_id, model,
               prompt_tokens, completion_tokens, total_tokens,
               tool_calls_count, response_time_ms))
+        conn.commit()
+        conn.close()
+
+    # Message Feedback
+    def message_belongs_to_user(self, message_id, user_id):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT m.id FROM messages m
+            JOIN conversations c ON m.conversation_id = c.id
+            WHERE m.id = %s AND c.user_id = %s AND c.is_active = TRUE AND m.sender = 'assistant'
+        ''', (message_id, user_id))
+        row = cursor.fetchone()
+        conn.close()
+        return row is not None
+
+    def save_message_feedback(self, message_id, user_id, feedback_type):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO message_feedback (message_id, user_id, feedback_type)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (message_id, user_id) DO UPDATE SET feedback_type = EXCLUDED.feedback_type
+        ''', (message_id, user_id, feedback_type))
         conn.commit()
         conn.close()

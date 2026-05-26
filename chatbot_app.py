@@ -498,6 +498,7 @@ def send_message(conversation_id):
             conversation_id, 'assistant',
             ai_response['message'], ai_response['type']
         )
+        ai_response['message_id'] = ai_message_id
     else:
         response_metadata = {
             'intent': processed_response.metadata.get('intent'),
@@ -597,7 +598,8 @@ def send_message(conversation_id):
             'type': processed_response.response_type,
             'metadata': response_metadata,
             'suggestions': suggestions,
-            'data': processed_response.data
+            'data': processed_response.data,
+            'message_id': ai_message_id
         }
 
     updated_conversation = db.get_conversation(conversation_id, user_id)
@@ -828,6 +830,19 @@ def get_conversation_analytics(conversation_id):
             'suggestion_analytics': suggestion_analytics
         }
     })
+
+
+@app.route('/messages/<int:message_id>/feedback', methods=['POST'])
+@login_required
+def message_feedback(message_id):
+    data = request.get_json(silent=True) or {}
+    feedback_type = (data.get('feedback_type') or '').strip()
+    if feedback_type not in ('like', 'dislike'):
+        return jsonify({'success': False, 'message': 'feedback_type ต้องเป็น like หรือ dislike'}), 400
+    if not db.message_belongs_to_user(message_id, session['user_id']):
+        return jsonify({'success': False, 'message': 'ไม่พบข้อความ'}), 404
+    db.save_message_feedback(message_id, session['user_id'], feedback_type)
+    return jsonify({'success': True})
 
 
 @app.route('/api/suggestions/<int:suggestion_id>/click', methods=['POST'])

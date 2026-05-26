@@ -334,7 +334,7 @@
                 const r = await fetch("/conversations/" + currentConversationId + "/messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message }) }), d = await r.json();
                 hideTypingIndicator();
                 if (!d.success) { showToast(d.message || "ส่งข้อความไม่สำเร็จ"); return; }
-                addMessageToChat(d.ai_response.message, "assistant", d.ai_response.suggestions);
+                addMessageToChat(d.ai_response.message, "assistant", d.ai_response.suggestions, d.ai_response.message_id);
                 if (d.conversation) setActiveConversationTitle(d.conversation.title);
                 await loadConversations(currentConversationId, true);
             } catch (_) { hideTypingIndicator(); showToast("เกิดข้อผิดพลาดในการสื่อสาร"); }
@@ -343,7 +343,7 @@
         function displayMessages(messages) {
             const c = document.getElementById("chat-messages"); c.innerHTML = "";
             if (!messages.length) { renderWelcomeState(); return; }
-            messages.forEach(m => addMessageToChat(m.message, m.sender));
+            messages.forEach(m => addMessageToChat(m.message, m.sender, null, m.sender === 'assistant' ? m.id : null));
         }
         function renderWelcomeState() {
             document.getElementById("chat-messages").innerHTML = `<div id="welcome-state" class="mx-auto max-w-md rounded-2xl border border-purple-100 bg-gradient-to-br from-purple-50 to-violet-50 p-6 text-center shadow-sm"><div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full btn-purple shadow-md"><i class="fas fa-comments text-white"></i></div><h3 class="text-lg font-bold text-gray-900">เริ่มบทสนทนาใหม่</h3><p class="mt-2 text-sm leading-6 text-gray-500">ระบบเก็บหัวข้อสนทนาแยกตามผู้ใช้ กลับมาเปิดอ่านได้ทุกเมื่อ หรือกด &ldquo;เริ่มแชทใหม่&rdquo; เพื่อเปลี่ยนเรื่องสนทนา</p></div>`;
@@ -363,7 +363,7 @@
                 .replace(/\n<div/g, '<div')
                 .replace(/\n/g, '<br>');
         }
-        function addMessageToChat(message, sender, suggestions) {
+        function addMessageToChat(message, sender, suggestions, messageId) {
             const c = document.getElementById("chat-messages"), w = document.createElement("div");
             w.className = "message-enter flex items-start gap-2 " + (sender === "user" ? "justify-end" : "justify-start");
             if (sender === "user") {
@@ -372,9 +372,54 @@
                 const chipsHtml = (suggestions && suggestions.length)
                     ? `<div class="mt-2 flex flex-wrap gap-2">${suggestions.map(s => `<button onclick="sendQuickMessage(${escapeHtml(JSON.stringify(s))})" class="text-xs px-3 py-1.5 rounded-full border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 hover:border-purple-300 transition-colors duration-200 cursor-pointer">${escapeHtml(s)}</button>`).join('')}</div>`
                     : '';
-                w.innerHTML = `<div class="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden shadow-sm bg-white"><img src="/static/chat-bot.png" alt="AI" class="w-full h-full object-cover"></div><div class="max-w-[75%] flex flex-col gap-1"><div class="rounded-2xl rounded-bl-sm border border-purple-100 bg-white px-4 py-3 text-sm leading-7 text-gray-700 shadow-sm break-words overflow-wrap-anywhere">${renderMarkdown(message)}</div>${chipsHtml}</div>`;
+                const encodedMsg = encodeURIComponent(message);
+                const feedbackHtml = messageId ? `
+                    <span class="w-px h-3 bg-gray-200 mx-0.5 self-center"></span>
+                    <button id="like-${messageId}" title="ดีมาก" onclick="submitFeedback(${messageId},'like')" class="rounded-md p-1.5 text-gray-300 hover:text-green-500 hover:bg-green-50 transition-colors"><i class="far fa-thumbs-up text-xs"></i></button>
+                    <button id="dislike-${messageId}" title="ปรับปรุงได้" onclick="submitFeedback(${messageId},'dislike')" class="rounded-md p-1.5 text-gray-300 hover:text-rose-400 hover:bg-rose-50 transition-colors"><i class="far fa-thumbs-down text-xs"></i></button>` : '';
+                const actionsHtml = `<div class="flex items-center gap-0.5 px-1 mt-0.5">
+                    <button title="คัดลอก" data-encoded="${encodedMsg}" onclick="copyMessage(this)" class="rounded-md p-1.5 text-gray-300 hover:text-blue-400 hover:bg-blue-50 transition-colors"><i class="far fa-copy text-xs"></i></button>
+                    ${feedbackHtml}
+                </div>`;
+                w.innerHTML = `<div class="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden shadow-sm bg-white"><img src="/static/chat-bot.png" alt="AI" class="w-full h-full object-cover"></div><div class="max-w-[75%] flex flex-col gap-1"><div class="rounded-2xl rounded-bl-sm border border-purple-100 bg-white px-4 py-3 text-sm leading-7 text-gray-700 shadow-sm break-words overflow-wrap-anywhere">${renderMarkdown(message)}</div>${actionsHtml}${chipsHtml}</div>`;
             }
             c.appendChild(w); c.scrollTop = c.scrollHeight;
+        }
+        async function copyMessage(btn) {
+            const text = decodeURIComponent(btn.getAttribute('data-encoded'));
+            try {
+                await navigator.clipboard.writeText(text);
+                const icon = btn.querySelector('i');
+                icon.className = 'fas fa-check text-xs';
+                btn.classList.add('text-green-500');
+                setTimeout(() => { icon.className = 'far fa-copy text-xs'; btn.classList.remove('text-green-500'); }, 1500);
+            } catch (_) { showToast('ไม่สามารถคัดลอกได้'); }
+        }
+        async function submitFeedback(messageId, type) {
+            try {
+                const r = await fetch('/messages/' + messageId + '/feedback', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ feedback_type: type })
+                });
+                const d = await r.json();
+                if (!d.success) { showToast('บันทึก feedback ไม่สำเร็จ'); return; }
+                const likeBtn = document.getElementById('like-' + messageId);
+                const dislikeBtn = document.getElementById('dislike-' + messageId);
+                if (likeBtn && dislikeBtn) {
+                    likeBtn.querySelector('i').className = 'far fa-thumbs-up text-xs';
+                    likeBtn.className = 'rounded-md p-1.5 text-gray-300 hover:text-green-500 hover:bg-green-50 transition-colors';
+                    dislikeBtn.querySelector('i').className = 'far fa-thumbs-down text-xs';
+                    dislikeBtn.className = 'rounded-md p-1.5 text-gray-300 hover:text-rose-400 hover:bg-rose-50 transition-colors';
+                    if (type === 'like') {
+                        likeBtn.querySelector('i').className = 'fas fa-thumbs-up text-xs';
+                        likeBtn.className = 'rounded-md p-1.5 text-green-500 bg-green-50 transition-colors';
+                    } else {
+                        dislikeBtn.querySelector('i').className = 'fas fa-thumbs-down text-xs';
+                        dislikeBtn.className = 'rounded-md p-1.5 text-rose-400 bg-rose-50 transition-colors';
+                    }
+                }
+                showToast(type === 'like' ? 'ขอบคุณสำหรับ Feedback ค่ะ' : 'รับทราบ จะนำไปปรับปรุงค่ะ');
+            } catch (_) { showToast('เกิดข้อผิดพลาด'); }
         }
         function showTypingIndicator() {
             const c = document.getElementById("chat-messages"), w = document.createElement("div");
