@@ -693,3 +693,41 @@ class Database:
         ''', (message_id, user_id, feedback_type))
         conn.commit()
         conn.close()
+
+    def get_feedback_summary(self):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT
+                u.username,
+                COUNT(CASE WHEN f.feedback_type = 'like' THEN 1 END)::int    AS likes,
+                COUNT(CASE WHEN f.feedback_type = 'dislike' THEN 1 END)::int AS dislikes,
+                COUNT(f.id)::int                                              AS total
+            FROM message_feedback f
+            JOIN messages m ON f.message_id = m.id
+            JOIN conversations c ON m.conversation_id = c.id
+            JOIN users u ON f.user_id = u.id
+            GROUP BY u.id, u.username
+            ORDER BY total DESC
+        ''')
+        per_user = [dict(r) for r in cursor.fetchall()]
+
+        cursor.execute('''
+            SELECT u.username, m.message, f.feedback_type, f.created_at
+            FROM message_feedback f
+            JOIN messages m ON f.message_id = m.id
+            JOIN conversations c ON m.conversation_id = c.id
+            JOIN users u ON f.user_id = u.id
+            WHERE f.feedback_type = 'dislike'
+            ORDER BY f.created_at DESC
+            LIMIT 10
+        ''')
+        recent_dislikes = []
+        for r in cursor.fetchall():
+            recent_dislikes.append({
+                'username': r['username'],
+                'message': r['message'][:200],
+                'created_at': str(r['created_at']),
+            })
+        conn.close()
+        return {'per_user': per_user, 'recent_dislikes': recent_dislikes}

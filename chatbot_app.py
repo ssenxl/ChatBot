@@ -743,6 +743,13 @@ def admin_token_usage():
     return jsonify({'success': True, 'rows': rows})
 
 
+@app.route('/admin/feedback')
+@admin_required
+def admin_feedback():
+    data = db.get_feedback_summary()
+    return jsonify({'success': True, **data})
+
+
 @app.route('/admin/cache/refresh', methods=['POST'])
 @admin_required
 def admin_cache_refresh():

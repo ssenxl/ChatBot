@@ -387,12 +387,24 @@
         }
         async function copyMessage(btn) {
             const text = decodeURIComponent(btn.getAttribute('data-encoded'));
-            try {
-                await navigator.clipboard.writeText(text);
-                const icon = btn.querySelector('i');
+            const icon = btn.querySelector('i');
+            const markSuccess = () => {
                 icon.className = 'fas fa-check text-xs';
                 btn.classList.add('text-green-500');
                 setTimeout(() => { icon.className = 'far fa-copy text-xs'; btn.classList.remove('text-green-500'); }, 1500);
+            };
+            if (navigator.clipboard && window.isSecureContext) {
+                try { await navigator.clipboard.writeText(text); markSuccess(); return; } catch (_) {}
+            }
+            try {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.cssText = 'position:fixed;top:-999px;left:-999px;opacity:0;pointer-events:none';
+                document.body.appendChild(ta);
+                ta.focus(); ta.select();
+                const ok = document.execCommand('copy');
+                document.body.removeChild(ta);
+                if (ok) { markSuccess(); } else { showToast('ไม่สามารถคัดลอกได้'); }
             } catch (_) { showToast('ไม่สามารถคัดลอกได้'); }
         }
         async function submitFeedback(messageId, type) {
