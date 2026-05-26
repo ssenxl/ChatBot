@@ -126,10 +126,11 @@ LANGUAGE RULE (highest priority — overrides ALL template responses below):
 - get_knit_plan        : แผนการทอ (item, กลุ่ม, KP_Weight ตามสัปดาห์)
 
 กฎสำคัญ:
-1. ก่อนตอบทุกครั้ง ให้ตรวจ conversation history ก่อนเสมอว่าคำถามนั้นตอบไปแล้วหรือยัง:
-   - ถ้าคำถามนั้น (ไม่ว่าจะเป็น item, กลุ่มเครื่อง, สัปดาห์ หรืออื่นใด) ถูกตอบไปแล้วใน history → ห้ามตอบซ้ำ ข้ามไปเลย
-   - ตอบเฉพาะสิ่งที่ยังไม่ได้ตอบใน message ปัจจุบันเท่านั้น
-   - ห้าม re-fetch หรือแสดงข้อมูลจาก message ก่อนหน้าซ้ำเด็ดขาด
+1. ตรวจ conversation history ก่อนตอบ — ห้ามตอบซ้ำเฉพาะเมื่อ **ทั้ง item/กลุ่ม/สัปดาห์ AND ประเด็นคำถาม** เหมือนกันทุกอย่าง:
+   - ห้ามซ้ำ: ถามซ้ำทุกอย่างเหมือนเดิม เช่น "item X week 22 มีกี่ตัน" แล้วถาม "item X week 22 มีกี่ตัน" อีกรอบ
+   - ต้องตอบใหม่: item เดิมแต่ **สัปดาห์ต่างกัน**, item เดิมแต่ **ถามคนละหน่วย (kg vs ตัน)**, item เดิมแต่ **ถามคนละประเด็น (กลุ่มเครื่อง vs KP Weight vs capacity)**
+   - ต้องตอบใหม่: คำถามที่เพิ่มเงื่อนไข เช่น "สัปดาห์ที่ 28 มีไหม" หลังจากเคยถามภาพรวมแล้ว
+   - ห้าม re-fetch ข้อมูลชุดเดิมที่ตอบไปแล้วทุกประเด็นครบถ้วนแล้ว
    - ถ้า message ใหม่ไม่ได้ถามเรื่องข้อมูล ห้ามเรียก tool เด็ดขาด
 2. ถ้าคำถามเกี่ยวกับข้อมูลในระบบ ให้เรียก tool ก่อนเสมอ อย่าตอบจากความรู้ตัวเอง
 3. ต้องการข้อมูลหลายอย่าง → เรียก tool ได้หลายครั้ง
@@ -137,9 +138,12 @@ LANGUAGE RULE (highest priority — overrides ALL template responses below):
 5. Earliest plannable week = YW {min_yw} (current +2 weeks) — exclude YW below this
 6. Ava = available machines (Total − Used_N − Used_F)
 7. Be concise. Use bold (**text**) for key numbers. No blank lines anywhere in the response — not between paragraphs, not between bullets, not between a paragraph and a bullet.
-8. When user greets (สวัสดี, hello, hi, etc.):
+   - If tool result contains a line starting with [หมายเหตุ:...], you MUST include that warning in your response.
+   - If tool result contains TOTAL_KP_WEIGHT=..., use that exact value for the total — never compute the sum yourself.
+8. When user greets (สวัสดี, hello, hi, etc.) — greeting คือคำทักทายล้วนๆ เท่านั้น:
    - Thai: "สวัสดีค่ะ น้อง I-SAVE Chatbot ค่ะพี่ๆ สามารถสอบถามข้อมูล หรือพิมพ์คำถามที่ต้องการได้เลยนะคะ น้องยินดีช่วยเหลือค่ะ"
    - English: "Hello! I'm I-SAVE Chatbot. Feel free to ask me anything about the I-SAVE system. I'm happy to help!"
+   - คำถามเช่น "มีอะไรบ้าง", "ดูข้อมูล", "มีข้อมูลอะไร" ไม่ใช่การทักทาย → ให้ถือว่าถามภาพรวม I-SAVE แล้วตอบตามข้อ 12
 9. FIRST check: does the message relate to any of these I-SAVE topics?
    → items / item codes / item plan / แผน item / ข้อมูล item
    → machine groups / เครื่องจักร / เครื่องทอ / ข้อมูลเครื่อง
@@ -341,8 +345,21 @@ class ResponseProcessor:
 
         if result:
             min_yw = _min_plannable_yw()
-            note = f"[หมายเหตุ: สัปดาห์เร็วที่สุดที่วางแผนได้ = YW {min_yw}]\n" if yw_filter and yw_filter < min_yw else ""
-            return note + header + '\n' + '\n'.join(result)
+            if yw_filter and yw_filter < min_yw:
+                note = f"[หมายเหตุ: YW {yw_filter} ผ่านมาแล้ว สัปดาห์เร็วที่สุดที่วางแผนได้ = YW {min_yw}]\n"
+            else:
+                past = [l for l in result if len(l.split(',')) > 3 and l.split(',')[3].strip() < min_yw]
+                note = f"[หมายเหตุ: มี {len(past)} รายการที่อยู่ใน YW ที่ผ่านมาแล้ว (ก่อน YW {min_yw})]\n" if past else ""
+            total_kg = 0.0
+            for l in result:
+                cols = l.split(',')
+                if len(cols) > 2:
+                    try:
+                        total_kg += float(cols[2].strip())
+                    except ValueError:
+                        pass
+            footer = f"[TOTAL_KP_WEIGHT={total_kg:.2f} kg = {total_kg/1000:.4f} ตัน — ใช้ค่านี้เท่านั้น ห้ามคำนวณเอง]\n"
+            return note + header + '\n' + '\n'.join(result) + '\n' + footer
         if item_code:
             return f"ไม่พบ item {item_code} ใน Item Plan"
         return "ไม่พบข้อมูลที่ตรงกับเงื่อนไข"
