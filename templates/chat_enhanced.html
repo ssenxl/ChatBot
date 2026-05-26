@@ -63,6 +63,10 @@
                 <button onclick="deleteCurrentConversation()" class="w-full rounded-xl border border-rose-300 bg-rose-50 px-3 py-2.5 text-sm font-semibold text-rose-600 transition hover:bg-rose-100">
                     <i class="fas fa-trash mr-2"></i>ลบหัวข้อ
                 </button>
+                <button onclick="openSupportModal()" class="relative w-full rounded-xl border border-blue-300 bg-blue-50 px-3 py-2.5 text-sm font-semibold text-blue-700 transition hover:bg-blue-100">
+                    <i class="fas fa-headset mr-2"></i>ติดต่อ Admin
+                    <span id="support-badge" class="hidden absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white"></span>
+                </button>
                 <div class="relative">
                     <input id="search-input" type="search" name="chat-srch" placeholder="ค้นหาหัวข้อ..." autocomplete="off" spellcheck="false" oninput="searchConversations()"
                         class="w-full rounded-xl border border-blue-200 px-4 py-2.5 pl-10 text-sm text-gray-800 outline-none transition focus:border-blue-400 placeholder-gray-400" style="background:#EEEEEE;">
@@ -261,6 +265,58 @@
             <div class="mt-5 flex justify-end gap-2">
                 <button onclick="closeAdminResetModal()" class="rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-100">ยกเลิก</button>
                 <button onclick="confirmAdminReset()" class="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white shadow transition hover:bg-rose-700">รีเซ็ตรหัสผ่าน</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Support Modal -->
+    <div id="support-modal" style="display:none;" class="fixed inset-0 z-[9999999] flex items-center justify-center bg-black/40 p-4">
+        <div class="flex w-full max-w-lg flex-col rounded-2xl bg-white shadow-2xl" style="max-height:85vh; border:1px solid #e2e8f0;">
+            <!-- Header -->
+            <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+                <div class="flex items-center gap-2">
+                    <div class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100">
+                        <i class="fas fa-headset text-blue-600 text-sm"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-gray-800">ติดต่อ Admin</h3>
+                        <p class="text-xs text-gray-400">ส่งข้อความหรือรายงานปัญหา</p>
+                    </div>
+                </div>
+                <button onclick="closeSupportModal()" class="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 transition"><i class="fas fa-xmark"></i></button>
+            </div>
+            <!-- Tabs -->
+            <div class="flex border-b border-gray-100">
+                <button id="tab-new" onclick="switchSupportTab('new')" class="flex-1 py-2.5 text-sm font-semibold text-blue-600 border-b-2 border-blue-500 transition">✉️ ข้อความใหม่</button>
+                <button id="tab-history" onclick="switchSupportTab('history')" class="flex-1 py-2.5 text-sm font-semibold text-gray-400 border-b-2 border-transparent transition hover:text-gray-600">📋 ประวัติ</button>
+            </div>
+            <!-- New Message Panel -->
+            <div id="support-panel-new" class="flex flex-col gap-3 p-5">
+                <textarea id="support-message-input" rows="4" placeholder="อธิบายปัญหาหรือข้อความที่ต้องการส่ง Admin..."
+                    class="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800 outline-none focus:border-blue-400 transition placeholder-gray-400"></textarea>
+                <button onclick="submitSupportTicket()" class="btn-purple w-full rounded-xl py-2.5 text-sm font-semibold text-white shadow">
+                    <i class="fas fa-paper-plane mr-2"></i>ส่งข้อความ
+                </button>
+            </div>
+            <!-- History Panel -->
+            <div id="support-panel-history" class="hidden flex min-h-0 flex-1 flex-col overflow-hidden">
+                <!-- Ticket list -->
+                <div id="support-ticket-list" class="flex flex-col gap-1 overflow-y-auto p-3" style="max-height:220px;"></div>
+                <!-- Thread view -->
+                <div id="support-thread" class="hidden flex-1 flex-col border-t border-gray-100">
+                    <div class="flex items-center gap-2 px-4 py-2 bg-gray-50 border-b border-gray-100">
+                        <button onclick="backToTicketList()" class="text-gray-400 hover:text-blue-500 text-xs transition"><i class="fas fa-arrow-left mr-1"></i>กลับ</button>
+                        <span id="thread-status" class="text-xs px-2 py-0.5 rounded-full font-semibold"></span>
+                    </div>
+                    <div id="support-thread-messages" class="flex-1 space-y-2 overflow-y-auto p-4" style="max-height:220px;"></div>
+                    <div class="flex gap-2 border-t border-gray-100 p-3">
+                        <textarea id="support-reply-input" rows="2" placeholder="พิมพ์ข้อความเพิ่มเติม..."
+                            class="flex-1 resize-none rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 outline-none focus:border-blue-400 transition placeholder-gray-400"></textarea>
+                        <button onclick="submitUserReply()" class="btn-purple self-end flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl text-white shadow">
+                            <i class="fas fa-paper-plane text-xs"></i>
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -609,6 +665,125 @@
             if (!d.success) { showToast(d.message || "รีเซ็ตรหัสผ่านไม่สำเร็จ"); return; }
             closeAdminResetModal(); showToast("รีเซ็ตรหัสผ่านสำเร็จ");
         }
+
+        // ---- Support Ticket ----
+        let currentTicketId = null;
+
+        async function loadUnreadCount() {
+            try {
+                const r = await fetch('/support/unread-count');
+                const d = await r.json();
+                const badge = document.getElementById('support-badge');
+                if (d.count > 0) {
+                    badge.textContent = d.count;
+                    badge.classList.remove('hidden');
+                    badge.classList.add('flex');
+                } else {
+                    badge.classList.add('hidden');
+                    badge.classList.remove('flex');
+                }
+            } catch (_) {}
+        }
+
+        async function openSupportModal() {
+            document.getElementById('support-modal').style.display = 'flex';
+            switchSupportTab('new');
+            await loadUnreadCount();
+        }
+
+        function closeSupportModal() {
+            document.getElementById('support-modal').style.display = 'none';
+            loadUnreadCount();
+        }
+
+        function switchSupportTab(tab) {
+            const isNew = tab === 'new';
+            document.getElementById('support-panel-new').classList.toggle('hidden', !isNew);
+            document.getElementById('support-panel-history').classList.toggle('hidden', isNew);
+            document.getElementById('tab-new').className = `flex-1 py-2.5 text-sm font-semibold transition border-b-2 ${isNew ? 'text-blue-600 border-blue-500' : 'text-gray-400 border-transparent hover:text-gray-600'}`;
+            document.getElementById('tab-history').className = `flex-1 py-2.5 text-sm font-semibold transition border-b-2 ${!isNew ? 'text-blue-600 border-blue-500' : 'text-gray-400 border-transparent hover:text-gray-600'}`;
+            if (!isNew) loadTicketHistory();
+        }
+
+        async function submitSupportTicket() {
+            const msg = document.getElementById('support-message-input').value.trim();
+            if (!msg) { showToast('กรุณาระบุข้อความ'); return; }
+            const r = await fetch('/support/tickets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: msg }) });
+            const d = await r.json();
+            if (!d.success) { showToast(d.message || 'เกิดข้อผิดพลาด'); return; }
+            document.getElementById('support-message-input').value = '';
+            showToast('ส่งข้อความถึง Admin แล้ว');
+            switchSupportTab('history');
+        }
+
+        async function loadTicketHistory() {
+            backToTicketList();
+            const list = document.getElementById('support-ticket-list');
+            list.innerHTML = '<p class="text-center text-xs text-gray-400 py-4">กำลังโหลด...</p>';
+            const r = await fetch('/support/tickets');
+            const d = await r.json();
+            if (!d.tickets || !d.tickets.length) {
+                list.innerHTML = '<p class="text-center text-xs text-gray-400 py-4">ยังไม่มีข้อความ</p>';
+                return;
+            }
+            const statusLabel = { pending: ['bg-yellow-100 text-yellow-700', 'รอตอบ'], answered: ['bg-green-100 text-green-700', 'ตอบแล้ว'], closed: ['bg-gray-100 text-gray-500', 'ปิดแล้ว'] };
+            list.innerHTML = d.tickets.map(t => {
+                const [cls, label] = statusLabel[t.status] || statusLabel.pending;
+                const hasUnread = t.unread_count > 0;
+                return `<button onclick="openThread(${t.id})" class="w-full text-left rounded-xl border ${hasUnread ? 'border-blue-300 bg-blue-50' : 'border-gray-100 bg-gray-50'} px-3 py-2.5 transition hover:bg-blue-50">
+                    <div class="flex items-center justify-between gap-2">
+                        <p class="text-sm font-medium text-gray-800 truncate flex-1">${escapeHtml((t.first_message || '').substring(0, 60))}</p>
+                        <div class="flex items-center gap-1.5 flex-shrink-0">
+                            ${hasUnread ? `<span class="flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">${t.unread_count}</span>` : ''}
+                            <span class="text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${cls}">${label}</span>
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-0.5">${formatDate(t.updated_at)}</p>
+                </button>`;
+            }).join('');
+        }
+
+        async function openThread(ticketId) {
+            currentTicketId = ticketId;
+            document.getElementById('support-ticket-list').classList.add('hidden');
+            document.getElementById('support-thread').classList.remove('hidden');
+            document.getElementById('support-thread').classList.add('flex');
+            const r = await fetch(`/support/tickets/${ticketId}/replies`);
+            const d = await r.json();
+            if (!d.success) return;
+            const msgs = document.getElementById('support-thread-messages');
+            msgs.innerHTML = d.replies.map(rep => {
+                const isUser = rep.sender_role === 'user';
+                return `<div class="flex ${isUser ? 'justify-end' : 'justify-start'}">
+                    <div class="max-w-[80%] rounded-2xl ${isUser ? 'rounded-br-sm bg-blue-500 text-white' : 'rounded-bl-sm bg-gray-100 text-gray-800'} px-3 py-2 text-sm leading-relaxed">
+                        ${!isUser ? '<p class="text-[10px] font-bold text-blue-500 mb-0.5">Admin</p>' : ''}
+                        ${escapeHtml(rep.message).replace(/\n/g, '<br>')}
+                    </div>
+                </div>`;
+            }).join('');
+            msgs.scrollTop = msgs.scrollHeight;
+            await loadUnreadCount();
+        }
+
+        function backToTicketList() {
+            currentTicketId = null;
+            document.getElementById('support-ticket-list').classList.remove('hidden');
+            document.getElementById('support-thread').classList.add('hidden');
+            document.getElementById('support-thread').classList.remove('flex');
+        }
+
+        async function submitUserReply() {
+            if (!currentTicketId) return;
+            const msg = document.getElementById('support-reply-input').value.trim();
+            if (!msg) return;
+            const r = await fetch(`/support/tickets/${currentTicketId}/replies`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: msg }) });
+            const d = await r.json();
+            if (!d.success) { showToast('ส่งข้อความไม่สำเร็จ'); return; }
+            document.getElementById('support-reply-input').value = '';
+            await openThread(currentTicketId);
+        }
+
+        loadUnreadCount();
     </script>
 </body>
 </html>

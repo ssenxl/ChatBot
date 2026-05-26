@@ -184,6 +184,55 @@
             </div>
         </div>
 
+        <!-- Support Tickets Section -->
+        <div class="card-shadow rounded-xl overflow-hidden mb-8">
+            <div class="flex items-center justify-between p-5 border-b border-gray-100">
+                <h2 class="text-lg font-bold text-gray-800">
+                    <i class="fas fa-headset mr-2 text-blue-500"></i>ข้อความจากผู้ใช้
+                    <span id="pending-badge" class="hidden ml-2 rounded-full bg-red-500 px-2 py-0.5 text-xs font-bold text-white"></span>
+                </h2>
+                <button onclick="loadSupportTickets()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition-all">
+                    <i class="fas fa-sync mr-2"></i>รีเฟรช
+                </button>
+            </div>
+            <div class="flex" style="height:480px;">
+                <!-- Ticket List -->
+                <div class="w-72 border-r border-gray-100 flex flex-col flex-shrink-0">
+                    <div class="flex gap-1 p-2 border-b border-gray-100 bg-gray-50">
+                        <button id="filter-all" onclick="filterTickets('all')" class="flex-1 rounded-lg py-1.5 text-xs font-semibold bg-blue-500 text-white transition">ทั้งหมด</button>
+                        <button id="filter-pending" onclick="filterTickets('pending')" class="flex-1 rounded-lg py-1.5 text-xs font-semibold text-gray-500 hover:bg-gray-100 transition">รอตอบ</button>
+                        <button id="filter-answered" onclick="filterTickets('answered')" class="flex-1 rounded-lg py-1.5 text-xs font-semibold text-gray-500 hover:bg-gray-100 transition">ตอบแล้ว</button>
+                    </div>
+                    <div id="admin-ticket-list" class="flex-1 overflow-y-auto space-y-0.5 p-2">
+                        <div class="text-center py-8 text-gray-400 text-sm"><i class="fas fa-spinner fa-spin block mb-2"></i>กำลังโหลด...</div>
+                    </div>
+                </div>
+                <!-- Thread View -->
+                <div class="flex-1 flex flex-col">
+                    <div id="admin-thread-placeholder" class="flex-1 flex items-center justify-center text-gray-300">
+                        <div class="text-center"><i class="fas fa-comments text-4xl mb-3 block"></i><p class="text-sm">เลือกข้อความเพื่อดูรายละเอียด</p></div>
+                    </div>
+                    <div id="admin-thread-view" class="hidden flex-1 flex-col">
+                        <div class="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-100">
+                            <div>
+                                <span class="text-sm font-semibold text-gray-700" id="admin-thread-user"></span>
+                                <span id="admin-thread-status" class="ml-2 text-[10px] px-2 py-0.5 rounded-full font-semibold"></span>
+                            </div>
+                            <button id="admin-close-btn" onclick="adminCloseTicket()" class="text-xs text-gray-400 hover:text-rose-500 transition border border-gray-200 rounded-lg px-2 py-1"><i class="fas fa-lock mr-1"></i>ปิด ticket</button>
+                        </div>
+                        <div id="admin-thread-messages" class="flex-1 space-y-2 overflow-y-auto p-4"></div>
+                        <div class="flex gap-2 border-t border-gray-100 p-3">
+                            <textarea id="admin-reply-input" rows="2" placeholder="พิมพ์คำตอบ..."
+                                class="flex-1 resize-none rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 outline-none focus:border-blue-400 transition placeholder-gray-400"></textarea>
+                            <button onclick="submitAdminReply()" class="self-end flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl text-white shadow" style="background:linear-gradient(135deg,#0096ff,#00bfff)">
+                                <i class="fas fa-paper-plane text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Feedback Section -->
         <div class="card-shadow rounded-xl overflow-hidden mb-8">
             <div class="flex items-center justify-between p-5 border-b border-gray-100">
@@ -320,7 +369,7 @@
         let targetUserId = null;
         let activeConvId = null;
 
-        document.addEventListener('DOMContentLoaded', () => { loadUsers(); loadTokenUsage(); loadFeedback(); });
+        document.addEventListener('DOMContentLoaded', () => { loadUsers(); loadTokenUsage(); loadFeedback(); loadSupportTickets(); });
 
         async function loadUsers() {
             const tbody = document.getElementById('users-tbody');
@@ -699,6 +748,111 @@
             if (!dateStr) return '-';
             return new Date(dateStr).toLocaleString('th-TH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
         }
+
+        // ---- Support Tickets ----
+        let allTickets = [];
+        let activeTicketFilter = 'all';
+        let activeAdminTicketId = null;
+
+        async function loadSupportTickets() {
+            const r = await fetch('/admin/support/tickets');
+            const d = await r.json();
+            if (!d.success) return;
+            allTickets = d.tickets;
+            const pending = allTickets.filter(t => t.status === 'pending').length;
+            const badge = document.getElementById('pending-badge');
+            if (pending > 0) { badge.textContent = pending + ' รอตอบ'; badge.classList.remove('hidden'); }
+            else { badge.classList.add('hidden'); }
+            renderTicketList();
+        }
+
+        function filterTickets(f) {
+            activeTicketFilter = f;
+            ['all','pending','answered'].forEach(k => {
+                const btn = document.getElementById('filter-' + k);
+                btn.className = `flex-1 rounded-lg py-1.5 text-xs font-semibold transition ${k === f ? 'bg-blue-500 text-white' : 'text-gray-500 hover:bg-gray-100'}`;
+            });
+            renderTicketList();
+        }
+
+        function renderTicketList() {
+            const list = document.getElementById('admin-ticket-list');
+            const filtered = activeTicketFilter === 'all' ? allTickets : allTickets.filter(t => t.status === activeTicketFilter);
+            if (!filtered.length) { list.innerHTML = '<p class="text-center text-xs text-gray-400 py-6">ไม่มีข้อความ</p>'; return; }
+            const statusCls = { pending: 'bg-yellow-100 text-yellow-700', answered: 'bg-green-100 text-green-700', closed: 'bg-gray-100 text-gray-500' };
+            const statusTxt = { pending: 'รอตอบ', answered: 'ตอบแล้ว', closed: 'ปิดแล้ว' };
+            list.innerHTML = filtered.map(t => `
+                <button onclick="openAdminThread(${t.id})" id="atkt-${t.id}"
+                    class="w-full text-left rounded-lg px-3 py-2.5 transition hover:bg-blue-50 ${t.id === activeAdminTicketId ? 'bg-blue-50 border border-blue-200' : ''}">
+                    <div class="flex items-center justify-between gap-1 mb-0.5">
+                        <span class="text-xs font-bold text-blue-600">${escHtml(t.username)}</span>
+                        <span class="text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${statusCls[t.status] || statusCls.pending}">${statusTxt[t.status] || t.status}</span>
+                    </div>
+                    <p class="text-xs text-gray-600 truncate">${escHtml((t.first_message || '').substring(0, 55))}</p>
+                    <p class="text-[10px] text-gray-400 mt-0.5">${formatDateTime(t.updated_at)}</p>
+                </button>`).join('');
+        }
+
+        async function openAdminThread(ticketId) {
+            activeAdminTicketId = ticketId;
+            renderTicketList();
+            document.getElementById('admin-thread-placeholder').classList.add('hidden');
+            document.getElementById('admin-thread-view').classList.remove('hidden');
+            document.getElementById('admin-thread-view').classList.add('flex');
+            const ticket = allTickets.find(t => t.id === ticketId);
+            if (ticket) {
+                document.getElementById('admin-thread-user').textContent = ticket.username;
+                const statusCls = { pending: 'bg-yellow-100 text-yellow-700', answered: 'bg-green-100 text-green-700', closed: 'bg-gray-100 text-gray-500' };
+                const statusTxt = { pending: 'รอตอบ', answered: 'ตอบแล้ว', closed: 'ปิดแล้ว' };
+                const s = document.getElementById('admin-thread-status');
+                s.textContent = statusTxt[ticket.status] || ticket.status;
+                s.className = `ml-2 text-[10px] px-2 py-0.5 rounded-full font-semibold ${statusCls[ticket.status] || statusCls.pending}`;
+                document.getElementById('admin-close-btn').classList.toggle('hidden', ticket.status === 'closed');
+                document.getElementById('admin-reply-input').disabled = ticket.status === 'closed';
+            }
+            const r = await fetch(`/admin/support/tickets/${ticketId}/replies`);
+            const d = await r.json();
+            if (!d.success) return;
+            const msgs = document.getElementById('admin-thread-messages');
+            msgs.innerHTML = d.replies.map(rep => {
+                const isUser = rep.sender_role === 'user';
+                return `<div class="flex ${isUser ? 'justify-start' : 'justify-end'}">
+                    <div class="max-w-[80%] rounded-2xl ${isUser ? 'rounded-bl-sm bg-gray-100 text-gray-800' : 'rounded-br-sm text-white'} px-3 py-2 text-sm leading-relaxed" style="${!isUser ? 'background:linear-gradient(135deg,#0096ff,#00bfff)' : ''}">
+                        ${isUser ? `<p class="text-[10px] font-bold text-blue-500 mb-0.5">${escHtml(ticket?.username || 'ผู้ใช้')}</p>` : '<p class="text-[10px] font-bold text-blue-100 mb-0.5">Admin</p>'}
+                        ${escHtml(rep.message).replace(/\n/g, '<br>')}
+                        <p class="text-[9px] mt-1 opacity-60">${formatDateTime(rep.created_at)}</p>
+                    </div>
+                </div>`;
+            }).join('');
+            msgs.scrollTop = msgs.scrollHeight;
+            document.getElementById('admin-reply-input').focus();
+        }
+
+        async function submitAdminReply() {
+            if (!activeAdminTicketId) return;
+            const msg = document.getElementById('admin-reply-input').value.trim();
+            if (!msg) return;
+            const r = await fetch(`/admin/support/tickets/${activeAdminTicketId}/reply`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: msg })
+            });
+            const d = await r.json();
+            if (!d.success) { showToast('ส่งคำตอบไม่สำเร็จ', 'error'); return; }
+            document.getElementById('admin-reply-input').value = '';
+            await loadSupportTickets();
+            await openAdminThread(activeAdminTicketId);
+            showToast('ส่งคำตอบแล้ว', 'success');
+        }
+
+        async function adminCloseTicket() {
+            if (!activeAdminTicketId) return;
+            await fetch(`/admin/support/tickets/${activeAdminTicketId}/close`, { method: 'POST' });
+            await loadSupportTickets();
+            await openAdminThread(activeAdminTicketId);
+        }
+
+        document.getElementById('admin-reply-input').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitAdminReply(); }
+        });
 
         function escHtml(str) {
             return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');

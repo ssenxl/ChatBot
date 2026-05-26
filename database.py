@@ -140,6 +140,28 @@ class Database:
         ''')
 
         cursor.execute('''
+            CREATE TABLE IF NOT EXISTS support_tickets (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                subject TEXT,
+                status TEXT DEFAULT 'pending',
+                user_read_at TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS support_replies (
+                id SERIAL PRIMARY KEY,
+                ticket_id INTEGER NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE,
+                sender_role TEXT NOT NULL CHECK (sender_role IN ('user', 'admin')),
+                message TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
+        cursor.execute('''
             CREATE TABLE IF NOT EXISTS message_feedback (
                 id SERIAL PRIMARY KEY,
                 message_id INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
@@ -747,3 +769,117 @@ class Database:
             'total_ai_messages': total_ai_messages,
             'total_rated': total_rated,
         }
+
+    # Support Tickets
+    def create_support_ticket(self, user_id, message, subject=None):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO support_tickets (user_id, subject) VALUES (%s, %s) RETURNING id",
+            (user_id, subject or '')
+        )
+        ticket_id = cursor.fetchone()['id']
+        cursor.execute(
+            "INSERT INTO support_replies (ticket_id, sender_role, message) VALUES (%s, 'user', %s)",
+            (ticket_id, message)
+        )
+        conn.commit()
+        conn.close()
+        return ticket_id
+
+    def get_user_tickets(self, user_id):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT t.id, t.subject, t.status, t.user_read_at, t.created_at, t.updated_at,
+                   (SELECT r.message FROM support_replies r WHERE r.ticket_id = t.id ORDER BY r.created_at LIMIT 1) AS first_message,
+                   (SELECT COUNT(*) FROM support_replies r WHERE r.ticket_id = t.id AND r.sender_role = 'admin'
+                    AND (t.user_read_at IS NULL OR r.created_at > t.user_read_at))::int AS unread_count
+            FROM support_tickets t
+            WHERE t.user_id = %s
+            ORDER BY t.updated_at DESC
+        ''', (user_id,))
+        rows = cursor.fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
+
+    def get_ticket_replies(self, ticket_id, user_id=None):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        if user_id is not None:
+            cursor.execute("SELECT id FROM support_tickets WHERE id = %s AND user_id = %s", (ticket_id, user_id))
+            if not cursor.fetchone():
+                conn.close()
+                return None
+        cursor.execute(
+            "SELECT id, sender_role, message, created_at FROM support_replies WHERE ticket_id = %s ORDER BY created_at ASC",
+            (ticket_id,)
+        )
+        replies = [dict(r) for r in cursor.fetchall()]
+        for r in replies:
+            r['created_at'] = str(r['created_at'])
+        if user_id is not None:
+            cursor.execute(
+                "UPDATE support_tickets SET user_read_at = CURRENT_TIMESTAMP WHERE id = %s",
+                (ticket_id,)
+            )
+            conn.commit()
+        conn.close()
+        return replies
+
+    def add_ticket_reply(self, ticket_id, sender_role, message, user_id=None):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        if user_id is not None:
+            cursor.execute("SELECT id FROM support_tickets WHERE id = %s AND user_id = %s", (ticket_id, user_id))
+            if not cursor.fetchone():
+                conn.close()
+                return False
+        new_status = 'pending' if sender_role == 'user' else 'answered'
+        cursor.execute(
+            "INSERT INTO support_replies (ticket_id, sender_role, message) VALUES (%s, %s, %s)",
+            (ticket_id, sender_role, message)
+        )
+        cursor.execute(
+            "UPDATE support_tickets SET status = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s",
+            (new_status, ticket_id)
+        )
+        conn.commit()
+        conn.close()
+        return True
+
+    def get_unread_reply_count(self, user_id):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT COUNT(DISTINCT t.id)::int AS cnt
+            FROM support_tickets t
+            JOIN support_replies r ON r.ticket_id = t.id
+            WHERE t.user_id = %s AND r.sender_role = 'admin'
+              AND (t.user_read_at IS NULL OR r.created_at > t.user_read_at)
+        ''', (user_id,))
+        row = cursor.fetchone()
+        conn.close()
+        return row['cnt'] if row else 0
+
+    def get_all_tickets_admin(self):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT t.id, u.username, t.subject, t.status, t.created_at, t.updated_at,
+                   (SELECT r.message FROM support_replies r WHERE r.ticket_id = t.id ORDER BY r.created_at LIMIT 1) AS first_message,
+                   (SELECT COUNT(*) FROM support_replies r WHERE r.ticket_id = t.id)::int AS reply_count
+            FROM support_tickets t
+            JOIN users u ON t.user_id = u.id
+            ORDER BY t.updated_at DESC
+        ''')
+        rows = cursor.fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
+
+    def close_ticket(self, ticket_id):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE support_tickets SET status = 'closed' WHERE id = %s", (ticket_id,))
+        conn.commit()
+        conn.close()

@@ -864,6 +864,98 @@ def mark_suggestion_clicked(suggestion_id):
         return jsonify({'success': False, 'message': str(e)}), 400
 
 
+# Support Ticket routes
+@app.route('/support/tickets', methods=['GET'])
+@login_required
+def get_my_tickets():
+    tickets = db.get_user_tickets(session['user_id'])
+    for t in tickets:
+        t['created_at'] = str(t['created_at'])
+        t['updated_at'] = str(t['updated_at'])
+        t['user_read_at'] = str(t['user_read_at']) if t['user_read_at'] else None
+    return jsonify({'success': True, 'tickets': tickets})
+
+
+@app.route('/support/tickets', methods=['POST'])
+@login_required
+def create_ticket():
+    data = request.get_json(silent=True) or {}
+    message = (data.get('message') or '').strip()
+    subject = (data.get('subject') or '').strip()[:100]
+    if not message:
+        return jsonify({'success': False, 'message': 'กรุณาระบุข้อความ'}), 400
+    ticket_id = db.create_support_ticket(session['user_id'], message, subject)
+    db.log_activity(session['user_id'], 'create_support_ticket', {'ticket_id': ticket_id})
+    return jsonify({'success': True, 'ticket_id': ticket_id})
+
+
+@app.route('/support/tickets/<int:ticket_id>/replies', methods=['GET'])
+@login_required
+def get_ticket_replies(ticket_id):
+    replies = db.get_ticket_replies(ticket_id, user_id=session['user_id'])
+    if replies is None:
+        return jsonify({'success': False, 'message': 'ไม่พบ ticket'}), 404
+    return jsonify({'success': True, 'replies': replies})
+
+
+@app.route('/support/tickets/<int:ticket_id>/replies', methods=['POST'])
+@login_required
+def add_user_reply(ticket_id):
+    data = request.get_json(silent=True) or {}
+    message = (data.get('message') or '').strip()
+    if not message:
+        return jsonify({'success': False, 'message': 'กรุณาระบุข้อความ'}), 400
+    ok = db.add_ticket_reply(ticket_id, 'user', message, user_id=session['user_id'])
+    if not ok:
+        return jsonify({'success': False, 'message': 'ไม่พบ ticket'}), 404
+    return jsonify({'success': True})
+
+
+@app.route('/support/unread-count')
+@login_required
+def support_unread_count():
+    count = db.get_unread_reply_count(session['user_id'])
+    return jsonify({'success': True, 'count': count})
+
+
+@app.route('/admin/support/tickets')
+@admin_required
+def admin_get_tickets():
+    tickets = db.get_all_tickets_admin()
+    for t in tickets:
+        t['created_at'] = str(t['created_at'])
+        t['updated_at'] = str(t['updated_at'])
+    return jsonify({'success': True, 'tickets': tickets})
+
+
+@app.route('/admin/support/tickets/<int:ticket_id>/replies', methods=['GET'])
+@admin_required
+def admin_get_ticket_replies(ticket_id):
+    replies = db.get_ticket_replies(ticket_id)
+    if replies is None:
+        return jsonify({'success': False, 'message': 'ไม่พบ ticket'}), 404
+    return jsonify({'success': True, 'replies': replies})
+
+
+@app.route('/admin/support/tickets/<int:ticket_id>/reply', methods=['POST'])
+@admin_required
+def admin_reply_ticket(ticket_id):
+    data = request.get_json(silent=True) or {}
+    message = (data.get('message') or '').strip()
+    if not message:
+        return jsonify({'success': False, 'message': 'กรุณาระบุข้อความ'}), 400
+    db.add_ticket_reply(ticket_id, 'admin', message)
+    db.log_activity(session['user_id'], 'admin_reply_ticket', {'ticket_id': ticket_id})
+    return jsonify({'success': True})
+
+
+@app.route('/admin/support/tickets/<int:ticket_id>/close', methods=['POST'])
+@admin_required
+def admin_close_ticket(ticket_id):
+    db.close_ticket(ticket_id)
+    return jsonify({'success': True})
+
+
 if __name__ == '__main__':
     debug_mode = os.getenv('FLASK_DEBUG', 'false').lower() == 'true'
     app.run(debug=debug_mode, host='0.0.0.0', port=5000, use_reloader=False)
