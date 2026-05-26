@@ -108,13 +108,21 @@
 
         <!-- User Table -->
         <div class="card-shadow rounded-xl overflow-hidden mb-8">
-            <div class="flex items-center justify-between p-5 border-b border-gray-100">
+            <div class="flex flex-wrap items-center justify-between gap-3 p-5 border-b border-gray-100">
                 <h2 class="text-lg font-bold text-gray-800">
                     <i class="fas fa-users mr-2 text-blue-500"></i>รายชื่อผู้ใช้งาน
                 </h2>
-                <button onclick="loadUsers()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition-all">
-                    <i class="fas fa-sync mr-2"></i>รีเฟรช
-                </button>
+                <div class="flex items-center gap-2">
+                    <div class="relative">
+                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                        <input id="user-search" type="search" placeholder="ค้นหา Username / Email..."
+                            oninput="filterUsers()"
+                            class="rounded-lg border border-gray-200 bg-gray-50 pl-8 pr-3 py-2 text-sm text-gray-800 outline-none focus:border-blue-400 transition w-56 placeholder-gray-400">
+                    </div>
+                    <button onclick="loadUsers()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition-all">
+                        <i class="fas fa-sync mr-2"></i>รีเฟรช
+                    </button>
+                </div>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full">
@@ -368,6 +376,7 @@
     <script>
         let targetUserId = null;
         let activeConvId = null;
+        let allUsers = [];
 
         document.addEventListener('DOMContentLoaded', () => { loadUsers(); loadTokenUsage(); loadFeedback(); loadSupportTickets(); });
 
@@ -384,13 +393,26 @@
                 return;
             }
 
-            const users = data.users;
-            document.getElementById('stat-total').textContent = users.length;
-            document.getElementById('stat-active').textContent = users.filter(u => u.is_active).length;
-            document.getElementById('stat-admin').textContent = users.filter(u => u.role === 'admin').length;
+            allUsers = data.users;
+            document.getElementById('stat-total').textContent = allUsers.length;
+            document.getElementById('stat-active').textContent = allUsers.filter(u => u.is_active).length;
+            document.getElementById('stat-admin').textContent = allUsers.filter(u => u.role === 'admin').length;
+            document.getElementById('user-search').value = '';
+            renderUsers(allUsers);
+        }
 
+        function filterUsers() {
+            const q = document.getElementById('user-search').value.trim().toLowerCase();
+            const filtered = q ? allUsers.filter(u =>
+                u.username.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+            ) : allUsers;
+            renderUsers(filtered);
+        }
+
+        function renderUsers(users) {
+            const tbody = document.getElementById('users-tbody');
             if (users.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-gray-400">ไม่มีผู้ใช้</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-gray-400">ไม่พบผู้ใช้</td></tr>`;
                 return;
             }
 
