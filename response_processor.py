@@ -124,7 +124,11 @@ LANGUAGE RULE (highest priority — overrides ALL template responses below):
 - get_knit_plan        : แผนการทอ (item, กลุ่ม, KP_Weight ตามสัปดาห์)
 
 กฎสำคัญ:
-1. ตอบเฉพาะ message ปัจจุบันเท่านั้น — ห้าม re-fetch หรือแสดงข้อมูลจาก message ก่อนหน้าซ้ำ ถ้า message ใหม่ไม่ได้ถามเรื่องข้อมูล ห้ามเรียก tool เด็ดขาด
+1. ก่อนตอบทุกครั้ง ให้ตรวจ conversation history ก่อนเสมอว่าคำถามนั้นตอบไปแล้วหรือยัง:
+   - ถ้าคำถามนั้น (ไม่ว่าจะเป็น item, กลุ่มเครื่อง, สัปดาห์ หรืออื่นใด) ถูกตอบไปแล้วใน history → ห้ามตอบซ้ำ ข้ามไปเลย
+   - ตอบเฉพาะสิ่งที่ยังไม่ได้ตอบใน message ปัจจุบันเท่านั้น
+   - ห้าม re-fetch หรือแสดงข้อมูลจาก message ก่อนหน้าซ้ำเด็ดขาด
+   - ถ้า message ใหม่ไม่ได้ถามเรื่องข้อมูล ห้ามเรียก tool เด็ดขาด
 2. ถ้าคำถามเกี่ยวกับข้อมูลในระบบ ให้เรียก tool ก่อนเสมอ อย่าตอบจากความรู้ตัวเอง
 3. ต้องการข้อมูลหลายอย่าง → เรียก tool ได้หลายครั้ง
 4. YW = week code in format YYYYWW e.g. 202622 = year 2026 week 22
@@ -134,8 +138,15 @@ LANGUAGE RULE (highest priority — overrides ALL template responses below):
 8. When user greets (สวัสดี, hello, hi, etc.):
    - Thai: "สวัสดีค่ะ น้อง I-SAVE Chatbot ค่ะพี่ๆ สามารถสอบถามข้อมูล หรือพิมพ์คำถามที่ต้องการได้เลยนะคะ น้องยินดีช่วยเหลือค่ะ"
    - English: "Hello! I'm I-SAVE Chatbot. Feel free to ask me anything about the I-SAVE system. I'm happy to help!"
-9. I-SAVE topics include: items, item codes, item plan, machine groups, machine capacity, booking, knit plan, KP Weight, week/YW, gauge, available machines (เครื่องว่าง), เครื่องจักร, แผนทอ, การจอง — always call a tool for these.
-   If message is truly unrelated to I-SAVE (e.g. weather, cooking, general knowledge), reply with this only (no extra text, no empathy):
+9. FIRST check: does the message relate to any of these I-SAVE topics?
+   → items / item codes / item plan / แผน item / ข้อมูล item
+   → machine groups / เครื่องจักร / เครื่องทอ / ข้อมูลเครื่อง
+   → machine capacity / กำลังการผลิต / เครื่องว่าง / capacity
+   → booking / การจอง / ข้อมูลการจอง
+   → knit plan / แผนทอ / แผนการทอ / ข้อมูลแผนทอ / แผนการผลิต
+   → KP Weight / week / YW / gauge
+   If YES → ALWAYS call the appropriate tool. Even if no item/group/week is specified, still call the tool with no filter and give an overview per rule 12. NEVER reject an I-SAVE topic.
+   If the message is clearly unrelated to I-SAVE (e.g. weather, cooking, today's date, general knowledge) → reply with this only (no extra text):
    - Thai: "ขออภัยค่ะ น้อง I-SAVE Chatbot ยังไม่สามารถตอบคำถามนี้ได้ในขณะนี้\nรบกวนพี่ๆ สอบถามเฉพาะข้อมูลที่เกี่ยวข้องกับระบบ I-SAVE หรือหัวข้อที่น้องรองรับนะคะ"
    - English: "Sorry, I'm unable to answer this question. Please ask only about I-SAVE system data or supported topics."
 10. Week terminology: Thai responses → always use "สัปดาห์" (e.g. "สัปดาห์ที่ 22") — never "week 22" or "วีค 22". English responses → use "week" (e.g. "Week 22").
@@ -143,8 +154,8 @@ LANGUAGE RULE (highest priority — overrides ALL template responses below):
     - Thai: "มีเครื่องว่างรวม **XX เครื่อง** ใน YY กลุ่ม" แล้วถามว่า "ต้องการดูรายละเอียดแต่ละกลุ่มเพิ่มเติมไหมคะ"
     - English: "Total **XX machines** available across YY groups. Would you like details per group?"
 12. If no Item or group is specified, give an overview:
-    - Thai: "พบ Item ในแผนทั้งหมด [จำนวน] รายการ อยู่ใน [จำนวน] กลุ่มเครื่อง เช่น [รายชื่อกลุ่มหลัก]\nKP_Weight รวม [ยอดรวม] ตัน\nต้องการดูรายละเอียดเพิ่มเติมไหมคะ เช่น Item, กลุ่มเครื่อง, Gauge หรือช่วงสัปดาห์"
-    - English: "Found [count] items in the plan across [count] machine groups (e.g. [main groups]).\nTotal KP_Weight: [total] tons.\nWould you like more details by item, group, gauge, or week range?"
+    - Thai: "พบ Item ในแผนทั้งหมด [จำนวน] รายการ อยู่ใน [จำนวน] กลุ่มเครื่อง เช่น [รายชื่อกลุ่มหลัก]\nKP_Weight รวม [ยอดรวม] ตัน\nต้องการดูรายละเอียดเพิ่มเติมไหมคะ เช่น Item, กลุ่มเครื่อง, GUAGE หรือช่วงสัปดาห์"
+    - English: "Found [count] items in the plan across [count] machine groups (e.g. [main groups]).\nTotal KP_Weight: [total] tons.\nWould you like more details by item, group, GUAGE, or week range?"
 13. If item code is partial and matches more than 1 result, show a numbered list (1, 2, 3, 4) and ask which one the user wants before showing details.
 14. When asked about a specific item, call get_item_plan first, then format the response using ACTUAL values from the tool result.
     CRITICAL: NEVER output literal bracket placeholders. Replace every placeholder with real data. If tool returns no data, say item was not found.
@@ -444,12 +455,592 @@ class ResponseProcessor:
             )
         return f"ไม่รู้จัก tool: {name}"
 
+    _MACHINE_INFO_REPLY = (
+        "ตอนนี้น้อง I-SAVE Chatbot ยังไม่รู้เลยว่าพี่ๆ ต้องการดูข้อมูลเครื่องจักรส่วนไหนค่ะ เช่น\n"
+        "• เครื่องว่าง (Ava) ตามสัปดาห์\n"
+        "• กำลังการผลิตรวมของแต่ละกลุ่มเครื่อง\n"
+        "• การจองเครื่องของแต่ละกลุ่ม / สัปดาห์\n"
+        "• หรือข้อมูลของกลุ่มเครื่องใดกลุ่มหนึ่ง (เช่น SKP, SKPLE, SKPTA)\n"
+        "รบกวนพิมพ์เพิ่มให้หน่อยนะคะว่าอยากดู\n"
+        "1) กลุ่มเครื่องอะไร (ถ้ามี) และ\n"
+        "2) สัปดาห์ไหน (เช่น 202624 หรือ ช่วงสัปดาห์ 202624–202626)\n"
+        "แล้วน้องจะดึงข้อมูลจากระบบ I-SAVE ให้ทันทีค่ะ"
+    )
+
+    def _get_machine_capacity_suggestions(self) -> list:
+        cached, ready = get_data_cache().get('query_cap_ava')
+        if not ready or not cached:
+            return ['เครื่องว่าง SKP สัปดาห์นี้', 'กำลังการผลิตรวม', 'การจองเครื่อง', 'ดูแผนทอ']
+        data = cached.get('data', {})
+        mc_csv = data.get('mc', '') if isinstance(data, dict) else ''
+        if not mc_csv:
+            return ['เครื่องว่าง SKP สัปดาห์นี้', 'กำลังการผลิตรวม', 'การจองเครื่อง', 'ดูแผนทอ']
+
+        min_yw = _min_plannable_yw()
+        rows = []
+        for line in mc_csv.splitlines()[1:]:
+            cols = line.split(',')
+            if len(cols) >= 7:
+                try:
+                    rows.append({
+                        'yw': cols[0].strip(),
+                        'group': cols[1].strip(),
+                        'total': float(cols[3]) if cols[3].strip() else 0,
+                        'ava': float(cols[6]) if cols[6].strip() else 0,
+                    })
+                except ValueError:
+                    pass
+
+        snapshot_rows = [r for r in rows if r['yw'] == min_yw]
+        if not snapshot_rows:
+            future = [r for r in rows if r['yw'] >= min_yw]
+            if future:
+                first_yw = min(r['yw'] for r in future)
+                snapshot_rows = [r for r in rows if r['yw'] == first_yw]
+        if not snapshot_rows:
+            return ['เครื่องว่าง SKP สัปดาห์นี้', 'กำลังการผลิตรวม', 'การจองเครื่อง', 'ดูแผนทอ']
+
+        snapshot_yw = snapshot_rows[0]['yw']
+        try:
+            week_num = int(snapshot_yw[4:]) if len(snapshot_yw) == 6 else int(snapshot_yw)
+        except ValueError:
+            week_num = 0
+
+        group_ava: dict = {}
+        for r in snapshot_rows:
+            group_ava[r['group']] = group_ava.get(r['group'], 0) + r['ava']
+
+        sorted_groups = sorted(group_ava, key=lambda g: group_ava[g], reverse=True)
+        suggestions = []
+        for g in sorted_groups[:2]:
+            suggestions.append(f"Capacity กลุ่ม {g} สัปดาห์ที่ {week_num}")
+        suggestions.append(f"เครื่องว่างทุกกลุ่ม สัปดาห์ที่ {week_num}")
+        suggestions.append("การจองเครื่องทั้งหมด")
+        return suggestions[:4]
+
+    def _build_machine_capacity_overview(self) -> str:
+        cached, ready = get_data_cache().get('query_cap_ava')
+        if not ready or not cached:
+            return self._MACHINE_INFO_REPLY
+
+        data = cached.get('data', {})
+        mc_csv = data.get('mc', '') if isinstance(data, dict) else ''
+        if not mc_csv:
+            return self._MACHINE_INFO_REPLY
+
+        lines = mc_csv.splitlines()
+        # columns: YW,Group,Guage,Total,Used_N,Used_F,Ava
+
+        rows = []
+        for line in lines[1:]:
+            cols = line.split(',')
+            if len(cols) < 7:
+                continue
+            try:
+                rows.append({
+                    'yw': cols[0].strip(),
+                    'group': cols[1].strip(),
+                    'guage': cols[2].strip(),
+                    'total': float(cols[3]) if cols[3].strip() else 0,
+                    'used_n': float(cols[4]) if cols[4].strip() else 0,
+                    'used_f': float(cols[5]) if cols[5].strip() else 0,
+                    'ava': float(cols[6]) if cols[6].strip() else 0,
+                })
+            except ValueError:
+                continue
+
+        if not rows:
+            return self._MACHINE_INFO_REPLY
+
+        min_yw = _min_plannable_yw()
+
+        # Use nearest plannable week as snapshot
+        snapshot_rows = [r for r in rows if r['yw'] == min_yw]
+        if not snapshot_rows:
+            future_rows = [r for r in rows if r['yw'] >= min_yw]
+            if future_rows:
+                first_yw = min(r['yw'] for r in future_rows)
+                snapshot_rows = [r for r in rows if r['yw'] == first_yw]
+        if not snapshot_rows:
+            snapshot_rows = rows
+
+        snapshot_yw = snapshot_rows[0]['yw'] if snapshot_rows else min_yw
+        try:
+            week_num = int(snapshot_yw[4:]) if len(snapshot_yw) == 6 else int(snapshot_yw)
+        except ValueError:
+            week_num = 0
+
+        # Distinct main groups and sub-groups across all data
+        all_groups = set(r['group'] for r in rows if r['group'])
+        all_subgroups = set((r['group'], r['guage']) for r in rows if r['group'])
+
+        # Aggregate by group for snapshot week
+        group_total: dict = {}
+        group_ava: dict = {}
+        for r in snapshot_rows:
+            g = r['group']
+            group_total[g] = group_total.get(g, 0) + r['total']
+            group_ava[g] = group_ava.get(g, 0) + r['ava']
+
+        total_machines = sum(group_total.values())
+        total_ava = sum(group_ava.values())
+
+        group_util = {
+            g: (group_total[g] - group_ava.get(g, 0)) / group_total[g]
+            for g in group_total if group_total[g] > 0
+        }
+
+        max_machines_group = max(group_total, key=lambda g: group_total[g]) if group_total else '-'
+        tightest_group = max(group_util, key=lambda g: group_util[g]) if group_util else '-'
+
+        # KP Weight total from item plan for snapshot week
+        total_kg = 0.0
+        item_cached, item_ready = get_data_cache().get('query_item')
+        if item_ready and item_cached:
+            item_data = item_cached.get('data', '')
+            for item_line in item_data.splitlines()[1:]:
+                item_cols = item_line.split(',')
+                if len(item_cols) >= 4 and item_cols[3].strip() == snapshot_yw:
+                    try:
+                        total_kg += float(item_cols[2].strip())
+                    except ValueError:
+                        pass
+
+        n_main = len(all_groups)
+        n_sub = len(all_subgroups)
+        tightest_util_pct = round(group_util.get(tightest_group, 0) * 100)
+        tightest_ava = int(group_ava.get(tightest_group, 0))
+
+        out_lines = [
+            f"ภาพรวม Machine Capacity สัปดาห์ที่ {week_num}",
+            f"มีเครื่องทั้งหมด **{int(total_machines)} เครื่อง** แบ่งเป็น **{n_main} กลุ่มเครื่องหลัก** และ **{n_sub} กลุ่มย่อย** ค่ะ",
+        ]
+        if total_kg > 0:
+            out_lines.append(f"KP Weight รวมสัปดาห์นี้อยู่ที่ประมาณ **{int(total_kg):,} KG**")
+        out_lines.append(
+            f"กลุ่มที่มีเครื่องมากที่สุดคือ **{max_machines_group}** ({int(group_total.get(max_machines_group, 0))} เครื่อง)"
+        )
+        if tightest_group and tightest_group != '-':
+            out_lines.append(
+                f"กลุ่มที่ Capacity ค่อนข้างตึงคือ **{tightest_group}** "
+                f"(ใช้ไปแล้ว {tightest_util_pct}% เครื่องว่าง {tightest_ava} เครื่อง)"
+            )
+        out_lines.append(f"เครื่องว่างรวม **{int(total_ava)} เครื่อง** จาก {int(total_machines)} เครื่องทั้งหมด")
+        out_lines.append("ถ้าต้องการดูรายละเอียดเพิ่มเติม สามารถเลือกกลุ่มเครื่อง หรือระบุสัปดาห์ที่ต้องการได้เลยค่ะ")
+
+        return '\n'.join(out_lines)
+
+
+    def _parse_mc_snapshot(self):
+        """Return (snapshot_rows, snapshot_yw, week_num, group_total, group_used, group_ava) or None if no data."""
+        cached, ready = get_data_cache().get('query_cap_ava')
+        if not ready or not cached:
+            return None
+        data = cached.get('data', {})
+        mc_csv = data.get('mc', '') if isinstance(data, dict) else ''
+        if not mc_csv:
+            return None
+
+        min_yw = _min_plannable_yw()
+        rows = []
+        for line in mc_csv.splitlines()[1:]:
+            cols = line.split(',')
+            if len(cols) < 7:
+                continue
+            try:
+                rows.append({
+                    'yw': cols[0].strip(), 'group': cols[1].strip(),
+                    'total': float(cols[3]) if cols[3].strip() else 0,
+                    'used_n': float(cols[4]) if cols[4].strip() else 0,
+                    'used_f': float(cols[5]) if cols[5].strip() else 0,
+                    'ava': float(cols[6]) if cols[6].strip() else 0,
+                })
+            except ValueError:
+                continue
+        if not rows:
+            return None
+
+        snap = [r for r in rows if r['yw'] == min_yw]
+        if not snap:
+            future = [r for r in rows if r['yw'] >= min_yw]
+            if future:
+                first_yw = min(r['yw'] for r in future)
+                snap = [r for r in rows if r['yw'] == first_yw]
+        if not snap:
+            snap = rows
+
+        snapshot_yw = snap[0]['yw']
+        try:
+            week_num = int(snapshot_yw[4:]) if len(snapshot_yw) == 6 else int(snapshot_yw)
+        except ValueError:
+            week_num = 0
+
+        group_total: dict = {}
+        group_used: dict = {}
+        group_ava: dict = {}
+        for r in snap:
+            g = r['group']
+            group_total[g] = group_total.get(g, 0) + r['total']
+            group_used[g] = group_used.get(g, 0) + r['used_n'] + r['used_f']
+            group_ava[g] = group_ava.get(g, 0) + r['ava']
+
+        return snap, snapshot_yw, week_num, group_total, group_used, group_ava
+
+    def _build_capacity_overview(self) -> str:
+        parsed = self._parse_mc_snapshot()
+        if not parsed:
+            return self._CAPACITY_INFO_REPLY
+
+        _, snapshot_yw, week_num, group_total, group_used, group_ava = parsed
+
+        total_machines = sum(group_total.values())
+        total_used = sum(group_used.values())
+        total_ava = sum(group_ava.values())
+        util_pct = (total_used / total_machines * 100) if total_machines > 0 else 0
+        n_groups = len(group_total)
+        min_yw = _min_plannable_yw()
+
+        # KP Weight: sum across ALL plannable weeks = total planned load
+        total_kp_all = 0.0
+        snapshot_kp = 0.0
+        item_cached, item_ready = get_data_cache().get('query_item')
+        if item_ready and item_cached:
+            item_data = item_cached.get('data', '')
+            for item_line in item_data.splitlines()[1:]:
+                cols = item_line.split(',')
+                if len(cols) < 4:
+                    continue
+                yw_col = cols[3].strip()
+                kp_raw = cols[2].strip()
+                if yw_col >= min_yw and kp_raw:
+                    try:
+                        kp = float(kp_raw)
+                        total_kp_all += kp
+                        if yw_col == snapshot_yw:
+                            snapshot_kp += kp
+                    except ValueError:
+                        pass
+
+        remaining_kp = total_kp_all - snapshot_kp
+
+        # Per-group utilization %
+        group_util_pct = {
+            g: (group_used[g] / group_total[g] * 100) if group_total.get(g, 0) > 0 else 0
+            for g in group_total
+        }
+        highest_util_group = max(group_util_pct, key=lambda g: group_util_pct[g]) if group_util_pct else '-'
+        most_ava_group = max(group_ava, key=lambda g: group_ava[g]) if group_ava else '-'
+        critical_threshold = 85.0
+        critical = {g: u for g, u in group_util_pct.items() if u > critical_threshold}
+        critical_group = max(critical, key=lambda g: critical[g]) if critical else None
+
+        out = [
+            f"ตอนนี้ข้อมูล Capacity ในระบบครอบคลุมตั้งแต่สัปดาห์ที่ **{week_num}** เป็นต้นไป",
+            "",
+            "**ภาพรวม Capacity ทั้งหมด**",
+            f"- จำนวนกลุ่มเครื่องที่มีข้อมูล Capacity : **{n_groups} กลุ่ม**",
+        ]
+        if total_kp_all > 0:
+            out.append(f"- Capacity รวมทั้งหมด (KP Weight ทุกสัปดาห์) : **{int(total_kp_all):,} KG**")
+            out.append(f"- ใช้งานไปแล้ว (สัปดาห์ที่ {week_num}) : **{int(snapshot_kp):,} KG**")
+            out.append(f"- Capacity คงเหลือในแผน : **{int(remaining_kp):,} KG**")
+        out += [
+            f"- เครื่องทั้งหมด : **{int(total_machines)} เครื่อง** | ใช้งาน **{int(total_used)}** | ว่าง **{int(total_ava)}**",
+            f"- % การใช้ Capacity เฉลี่ย : **{round(util_pct, 1)}%**",
+            "",
+            "จากภาพรวมตอนนี้",
+        ]
+        if highest_util_group != '-':
+            out.append(f"กลุ่มที่ใช้ Capacity สูงที่สุดคือ **{highest_util_group}** (ใช้งาน {round(group_util_pct[highest_util_group], 1)}%)")
+        if most_ava_group != '-':
+            out.append(f"กลุ่มที่ยังมี Capacity เหลือมากที่สุดคือ **{most_ava_group}** ({int(group_ava[most_ava_group])} เครื่องว่าง)")
+        if critical_group:
+            out.append(f"และกลุ่มที่ควรติดตามใกล้ชิดคือ **{critical_group}** เพราะมีการใช้ Capacity เกิน {round(critical[critical_group], 1)}%")
+        out.append("ถ้าต้องการดูรายละเอียดเพิ่มเติม สามารถระบุกลุ่มเครื่องหรือสัปดาห์ที่ต้องการได้เลยค่ะ")
+        return '\n'.join(out)
+
+    def _get_capacity_suggestions(self) -> list:
+        parsed = self._parse_mc_snapshot()
+        if not parsed:
+            return ['ขอดู Capacity กลุ่ม SKP', 'เครื่องว่างรวมทุกกลุ่ม', 'การจองเครื่อง', 'ดูแผนทอ']
+
+        _, _, week_num, group_total, group_used, _ = parsed
+        group_util_pct = {
+            g: (group_used[g] / group_total[g] * 100) if group_total.get(g, 0) > 0 else 0
+            for g in group_total
+        }
+        # Top 2 by utilization — most actionable groups
+        top2 = sorted(group_util_pct, key=lambda g: group_util_pct[g], reverse=True)[:2]
+        suggestions = [f"Capacity กลุ่ม {g} สัปดาห์ที่ {week_num}" for g in top2]
+        suggestions.append(f"เครื่องว่างทุกกลุ่ม สัปดาห์ที่ {week_num}")
+        suggestions.append("KP Weight รวมทุกกลุ่ม")
+        return suggestions[:4]
+
+    def _build_item_overview(self) -> str:
+        item_cached, item_ready = get_data_cache().get('query_item')
+        if not item_ready or not item_cached:
+            return "ข้อมูล Item Plan ยังไม่พร้อม กรุณาลองใหม่อีกครั้งค่ะ"
+        item_data = item_cached.get('data', '')
+        if not item_data:
+            return "ไม่มีข้อมูล Item Plan ในระบบค่ะ"
+
+        min_yw = _min_plannable_yw()
+        distinct_items: set = set()
+        distinct_groups: set = set()
+        distinct_weeks: set = set()
+        total_kp = 0.0
+
+        for line in item_data.splitlines()[1:]:
+            cols = line.split(',')
+            if len(cols) < 4:
+                continue
+            item_code = cols[0].strip()
+            group = cols[1].strip()
+            yw = cols[3].strip()
+            if not item_code or not yw or yw < min_yw:
+                continue
+            try:
+                kp = float(cols[2].strip()) if cols[2].strip() else 0.0
+            except ValueError:
+                kp = 0.0
+            distinct_items.add(item_code)
+            distinct_groups.add(group)
+            distinct_weeks.add(yw)
+            total_kp += kp
+
+        if not distinct_items:
+            return "ไม่พบข้อมูล Item Plan ในช่วงสัปดาห์ที่วางแผนได้ค่ะ"
+
+        min_week_yw = min(distinct_weeks)
+        try:
+            min_week_num = int(min_week_yw[4:]) if len(min_week_yw) == 6 else int(min_week_yw)
+        except ValueError:
+            min_week_num = 0
+
+        out = [
+            f"ตอนนี้ระบบมีข้อมูล Item Plan ทั้งหมด **{len(distinct_items)} Item**",
+            f"ครอบคลุมตั้งแต่สัปดาห์ที่ **{min_week_num}** เป็นต้นไป",
+            "",
+            "**ภาพรวม Item**",
+            f"- จำนวน Item ที่มีแผนทอ : **{len(distinct_items)} Item**",
+            f"- น้ำหนักรวมทั้งหมด : **{int(total_kp):,} KG**",
+            f"- จำนวนกลุ่มเครื่องที่เกี่ยวข้อง : **{len(distinct_groups)} กลุ่ม**",
+            f"- จำนวนสัปดาห์ในแผน : **{len(distinct_weeks)} สัปดาห์**",
+            "",
+            'ถ้าต้องการดูละเอียดขึ้น สามารถระบุรหัส Item, กลุ่มเครื่อง หรือสัปดาห์ได้เลยค่ะ',
+            'เช่น "ขอดู Item F100114/10A0" หรือ "Item ในกลุ่ม SKP สัปดาห์ที่ ' + str(min_week_num) + '"',
+        ]
+        return '\n'.join(out)
+
+    def _get_item_suggestions(self) -> list:
+        item_cached, item_ready = get_data_cache().get('query_item')
+        if not item_ready or not item_cached:
+            return ['ดู Item ในกลุ่ม SKP', 'ดูแผนทอ Item', 'ดูเครื่องว่าง', 'ข้อมูลแผนทอ']
+
+        item_data = item_cached.get('data', '')
+        min_yw = _min_plannable_yw()
+
+        group_items: dict = {}
+        min_week_yw = None
+        for line in item_data.splitlines()[1:]:
+            cols = line.split(',')
+            if len(cols) < 4:
+                continue
+            item_code = cols[0].strip()
+            group = cols[1].strip()
+            yw = cols[3].strip()
+            if not item_code or not yw or yw < min_yw:
+                continue
+            group_items.setdefault(group, set()).add(item_code)
+            if min_week_yw is None or yw < min_week_yw:
+                min_week_yw = yw
+
+        if not group_items:
+            return ['ดู Item ในกลุ่ม SKP', 'ดูแผนทอ Item', 'ดูเครื่องว่าง', 'ข้อมูลแผนทอ']
+
+        try:
+            min_w = int(min_week_yw[4:]) if min_week_yw and len(min_week_yw) == 6 else 0
+        except ValueError:
+            min_w = 0
+
+        top_groups = sorted(group_items, key=lambda g: len(group_items[g]), reverse=True)[:2]
+        suggestions = [f"Item ในกลุ่ม {g}" for g in top_groups]
+        if min_w:
+            suggestions.append(f"Item ทั้งหมดสัปดาห์ที่ {min_w}")
+        suggestions.append("น้ำหนัก KP Weight ของ Item")
+        return suggestions[:4]
+
+    def _build_knit_plan_overview(self) -> str:
+        item_cached, item_ready = get_data_cache().get('query_item')
+        if not item_ready or not item_cached:
+            return "ข้อมูลแผนทอยังไม่พร้อม กรุณาลองใหม่อีกครั้งค่ะ"
+        item_data = item_cached.get('data', '')
+        if not item_data:
+            return "ไม่มีข้อมูลแผนทอในระบบค่ะ"
+
+        min_yw = _min_plannable_yw()
+        rows = []
+        for line in item_data.splitlines()[1:]:
+            cols = line.split(',')
+            if len(cols) < 4:
+                continue
+            item_code = cols[0].strip()
+            group = cols[1].strip()
+            yw = cols[3].strip()
+            if not item_code or not yw or yw < min_yw:
+                continue
+            try:
+                kp = float(cols[2].strip()) if cols[2].strip() else 0.0
+            except ValueError:
+                kp = 0.0
+            rows.append({'item': item_code, 'group': group, 'kp': kp, 'yw': yw})
+
+        if not rows:
+            return "ไม่พบข้อมูลแผนทอในช่วงสัปดาห์ที่วางแผนได้ค่ะ"
+
+        total_records = len(rows)
+        distinct_items = set(r['item'] for r in rows)
+        distinct_groups = set(r['group'] for r in rows)
+        distinct_weeks = set(r['yw'] for r in rows)
+        total_kp = sum(r['kp'] for r in rows)
+
+        min_week_in_data = min(distinct_weeks)
+        max_week_in_data = max(distinct_weeks)
+        try:
+            min_w = int(min_week_in_data[4:]) if len(min_week_in_data) == 6 else int(min_week_in_data)
+            max_w = int(max_week_in_data[4:]) if len(max_week_in_data) == 6 else int(max_week_in_data)
+        except ValueError:
+            min_w, max_w = 0, 0
+
+        # Per-group aggregation
+        group_items: dict = {}
+        group_kp: dict = {}
+        for r in rows:
+            g = r['group']
+            group_items.setdefault(g, set()).add(r['item'])
+            group_kp[g] = group_kp.get(g, 0.0) + r['kp']
+
+        # Per-week aggregation
+        week_kp: dict = {}
+        for r in rows:
+            week_kp[r['yw']] = week_kp.get(r['yw'], 0.0) + r['kp']
+
+        top_group = max(group_kp, key=lambda g: group_kp[g]) if group_kp else '-'
+        busiest_yw = max(week_kp, key=lambda w: week_kp[w]) if week_kp else '-'
+        try:
+            busiest_week_num = int(busiest_yw[4:]) if len(busiest_yw) == 6 else int(busiest_yw)
+        except ValueError:
+            busiest_week_num = 0
+
+        # Sort groups by KP_Weight descending
+        sorted_groups = sorted(group_kp.keys(), key=lambda g: group_kp[g], reverse=True)
+
+        out = [
+            f"ตอนนี้ระบบมีข้อมูลแผนทอทั้งหมด **{total_records:,} รายการ**",
+            f"ครอบคลุมตั้งแต่สัปดาห์ที่ **{min_w}** ถึง **{max_w}** ({len(distinct_weeks)} สัปดาห์)",
+            "",
+            "**ภาพรวมแผนทอ**",
+            f"- จำนวน Item ในแผนทั้งหมด : **{len(distinct_items)} Item**",
+            f"- น้ำหนักแผนทอรวม : **{int(total_kp):,} KG**",
+            f"- จำนวนกลุ่มเครื่องที่เกี่ยวข้อง : **{len(distinct_groups)} กลุ่ม**",
+            "",
+            "**สรุปตามกลุ่มเครื่องหลัก**",
+        ]
+
+        for g in sorted_groups[:6]:
+            n_items = len(group_items[g])
+            kp = int(group_kp[g])
+            out.append(f"- **{g}** : {n_items} Item / {kp:,} KG")
+
+        out += [
+            "",
+            "จากภาพรวมตอนนี้",
+            f"กลุ่มที่มีแผนทอมากที่สุดคือ **{top_group}** ({len(group_items.get(top_group, set()))} Item / {int(group_kp.get(top_group, 0)):,} KG)",
+            f"สัปดาห์ที่มีแผนทอหนักที่สุดคือ สัปดาห์ที่ **{busiest_week_num}** ({int(week_kp.get(busiest_yw, 0)):,} KG)",
+            "ถ้าต้องการดูรายละเอียดเพิ่มเติม สามารถระบุ Item, กลุ่มเครื่อง หรือสัปดาห์ที่ต้องการได้เลยค่ะ",
+        ]
+        return '\n'.join(out)
+
+    def _get_knit_plan_suggestions(self) -> list:
+        item_cached, item_ready = get_data_cache().get('query_item')
+        if not item_ready or not item_cached:
+            return ['แผนทอสัปดาห์นี้', 'ดูแผนทอกลุ่ม SKP', 'ดูเครื่องว่าง', 'ข้อมูล Item']
+
+        item_data = item_cached.get('data', '')
+        min_yw = _min_plannable_yw()
+
+        group_kp: dict = {}
+        week_kp: dict = {}
+        for line in item_data.splitlines()[1:]:
+            cols = line.split(',')
+            if len(cols) < 4:
+                continue
+            yw = cols[3].strip()
+            g = cols[1].strip()
+            if not yw or yw < min_yw:
+                continue
+            try:
+                kp = float(cols[2].strip()) if cols[2].strip() else 0.0
+            except ValueError:
+                kp = 0.0
+            group_kp[g] = group_kp.get(g, 0.0) + kp
+            week_kp[yw] = week_kp.get(yw, 0.0) + kp
+
+        top_groups = sorted(group_kp, key=lambda g: group_kp[g], reverse=True)[:2]
+        busiest_yw = max(week_kp, key=lambda w: week_kp[w]) if week_kp else None
+
+        suggestions = [f"แผนทอกลุ่ม {g}" for g in top_groups]
+        if busiest_yw:
+            try:
+                wn = int(busiest_yw[4:]) if len(busiest_yw) == 6 else int(busiest_yw)
+                suggestions.append(f"แผนทอสัปดาห์ที่ {wn}")
+            except ValueError:
+                pass
+        suggestions.append("ดูเครื่องว่างในแผนทอ")
+        return suggestions[:4]
+
     async def process_message(
         self,
         user_message: str,
         username: str = 'คุณ',  # noqa: ARG002 — kept for API compatibility
         conversation_history: Optional[List[Dict]] = None,
     ) -> ProcessedResponse:
+        if user_message.strip() == 'ข้อมูลเครื่องจักร':
+            return ProcessedResponse(
+                message=self._build_machine_capacity_overview(),
+                response_type='text',
+                processing_path='shortcut',
+                metadata={'intent': 'machine_info_menu', 'confidence': 1.0, 'matched_keywords': []},
+                suggestions=self._get_machine_capacity_suggestions(),
+            )
+
+        if user_message.strip() == 'ข้อมูล Capacity':
+            return ProcessedResponse(
+                message=self._build_capacity_overview(),
+                response_type='text',
+                processing_path='shortcut',
+                metadata={'intent': 'capacity_menu', 'confidence': 1.0, 'matched_keywords': []},
+                suggestions=self._get_capacity_suggestions(),
+            )
+
+        if user_message.strip() == 'ข้อมูลแผนทอ':
+            return ProcessedResponse(
+                message=self._build_knit_plan_overview(),
+                response_type='text',
+                processing_path='shortcut',
+                metadata={'intent': 'knitting_plan', 'confidence': 1.0, 'matched_keywords': []},
+                suggestions=self._get_knit_plan_suggestions(),
+            )
+
+        if user_message.strip() == 'ข้อมูล Item':
+            return ProcessedResponse(
+                message=self._build_item_overview(),
+                response_type='text',
+                processing_path='shortcut',
+                metadata={'intent': 'item_data', 'confidence': 1.0, 'matched_keywords': []},
+                suggestions=self._get_item_suggestions(),
+            )
+
         history_msgs = self._build_history_messages(conversation_history or [])
         system_prompt = SYSTEM_PROMPT_TEMPLATE.format(min_yw=_min_plannable_yw())
         lang = _detect_reply_language(user_message, conversation_history)

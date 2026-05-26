@@ -514,11 +514,14 @@ def send_message(conversation_id):
             print(f"[WARN] log_mcp_interaction failed: {e}")
 
         try:
-            suggestions = suggestion_engine.generate_suggestions(
-                current_intent=processed_response.metadata.get('intent', 'unknown'),
-                conversation_history=db.get_conversation_messages(conversation_id, user_id),
-                user_context={'role': session.get('user_role', 'user')}
-            )
+            if processed_response.processing_path == 'shortcut' and processed_response.suggestions:
+                suggestions = processed_response.suggestions
+            else:
+                suggestions = suggestion_engine.generate_suggestions(
+                    current_intent=processed_response.metadata.get('intent', 'unknown'),
+                    conversation_history=db.get_conversation_messages(conversation_id, user_id),
+                    user_context={'role': session.get('user_role', 'user')}
+                )
             db.save_suggestions(conversation_id, ai_message_id, suggestions)
         except Exception as e:
             print(f"[WARN] suggestions failed: {e}")
@@ -625,11 +628,41 @@ def change_password():
     return jsonify({'success': True, 'message': 'เปลี่ยนรหัสผ่านสำเร็จ'})
 
 
+@app.route('/admin')
+@admin_required
+def admin_panel():
+    return render_template('admin.html')
+
+
 @app.route('/admin/users')
 @admin_required
 def admin_get_users():
     users = db.get_all_users()
     return jsonify({'success': True, 'users': users})
+
+
+@app.route('/admin/users/<int:user_id>/conversations')
+@admin_required
+def admin_get_user_conversations(user_id):
+    conversations = db.get_user_conversations(user_id, limit=100)
+    return jsonify({'success': True, 'conversations': conversations})
+
+
+@app.route('/admin/conversations/<int:conversation_id>/messages')
+@admin_required
+def admin_get_conversation_messages(conversation_id):
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        'SELECT user_id FROM conversations WHERE id = %s AND is_active = TRUE',
+        (conversation_id,)
+    )
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        return jsonify({'success': False, 'message': 'ไม่พบการสนทนา'}), 404
+    messages = db.get_conversation_messages(conversation_id, row['user_id'])
+    return jsonify({'success': True, 'messages': messages})
 
 
 @app.route('/admin/users/<int:user_id>/reset-password', methods=['POST'])

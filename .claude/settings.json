@@ -52,7 +52,9 @@
       "Bash(git init *)",
       "Bash(git commit -m ' *)",
       "Bash(git config *)",
-      "PowerShell(.\\\\deploy_to_webchat.ps1)"
+      "PowerShell(.\\\\deploy_to_webchat.ps1)",
+      "PowerShell(Get-ChildItem \"c:\\\\vscode\\\\Chatbot\" | Where-Object { $_.Name -ne \".venv\" } | Select-Object Name)",
+      "PowerShell(docker exec webchat-postgres psql -U webchat -d webchat -c \"SELECT id, username, email, role, is_active FROM users ORDER BY id;\")"
     ]
   }
 }

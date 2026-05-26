@@ -293,10 +293,11 @@
                 if (d.user.role === "admin") { const b = document.getElementById("admin-menu-btn"); b.classList.remove("hidden"); b.classList.add("flex"); }
             }
         }
-        async function loadConversations(preferredId = null) {
+        async function loadConversations(preferredId = null, skipRerender = false) {
             const r = await fetch("/conversations"), d = await r.json();
             if (!d.success) { showToast("โหลดหัวข้อสนทนาไม่สำเร็จ"); return; }
             conversations = d.conversations; filteredConversations = [...conversations]; updateConversationList();
+            if (skipRerender) return;
             if (!conversations.length) { await createNewConversation(); return; }
             const toOpen = preferredId && conversations.some(c => c.id === preferredId) ? preferredId
                 : currentConversationId && conversations.some(c => c.id === currentConversationId) ? currentConversationId
@@ -333,9 +334,9 @@
                 const r = await fetch("/conversations/" + currentConversationId + "/messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message }) }), d = await r.json();
                 hideTypingIndicator();
                 if (!d.success) { showToast(d.message || "ส่งข้อความไม่สำเร็จ"); return; }
-                addMessageToChat(d.ai_response.message, "assistant");
+                addMessageToChat(d.ai_response.message, "assistant", d.ai_response.suggestions);
                 if (d.conversation) setActiveConversationTitle(d.conversation.title);
-                await loadConversations(currentConversationId);
+                await loadConversations(currentConversationId, true);
             } catch (_) { hideTypingIndicator(); showToast("เกิดข้อผิดพลาดในการสื่อสาร"); }
         }
         function sendQuickMessage(msg) { document.getElementById("message-input").value = msg; sendMessage(); }
@@ -362,12 +363,17 @@
                 .replace(/\n<div/g, '<div')
                 .replace(/\n/g, '<br>');
         }
-        function addMessageToChat(message, sender) {
+        function addMessageToChat(message, sender, suggestions) {
             const c = document.getElementById("chat-messages"), w = document.createElement("div");
             w.className = "message-enter flex items-start gap-2 " + (sender === "user" ? "justify-end" : "justify-start");
-            w.innerHTML = sender === "user"
-                ? `<div class="max-w-[75%] rounded-2xl rounded-br-sm px-4 py-3 text-sm leading-7 text-gray-800 shadow-md break-words overflow-wrap-anywhere" style="background:#D9EAFD;">${escapeHtml(message).replace(/\n/g, "<br>")}</div><div class="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-cyan-600 text-white font-bold text-sm flex items-center justify-center shadow-sm">${userInitial}</div>`
-                : `<div class="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden shadow-sm bg-white"><img src="/static/chat-bot.png" alt="AI" class="w-full h-full object-cover"></div><div class="max-w-[75%] rounded-2xl rounded-bl-sm border border-purple-100 bg-white px-4 py-3 text-sm leading-7 text-gray-700 shadow-sm break-words overflow-wrap-anywhere">${renderMarkdown(message)}</div>`;
+            if (sender === "user") {
+                w.innerHTML = `<div class="max-w-[75%] rounded-2xl rounded-br-sm px-4 py-3 text-sm leading-7 text-gray-800 shadow-md break-words overflow-wrap-anywhere" style="background:#D9EAFD;">${escapeHtml(message).replace(/\n/g, "<br>")}</div><div class="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-cyan-600 text-white font-bold text-sm flex items-center justify-center shadow-sm">${userInitial}</div>`;
+            } else {
+                const chipsHtml = (suggestions && suggestions.length)
+                    ? `<div class="mt-2 flex flex-wrap gap-2">${suggestions.map(s => `<button onclick="sendQuickMessage(${escapeHtml(JSON.stringify(s))})" class="text-xs px-3 py-1.5 rounded-full border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 hover:border-purple-300 transition-colors duration-200 cursor-pointer">${escapeHtml(s)}</button>`).join('')}</div>`
+                    : '';
+                w.innerHTML = `<div class="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden shadow-sm bg-white"><img src="/static/chat-bot.png" alt="AI" class="w-full h-full object-cover"></div><div class="max-w-[75%] flex flex-col gap-1"><div class="rounded-2xl rounded-bl-sm border border-purple-100 bg-white px-4 py-3 text-sm leading-7 text-gray-700 shadow-sm break-words overflow-wrap-anywhere">${renderMarkdown(message)}</div>${chipsHtml}</div>`;
+            }
             c.appendChild(w); c.scrollTop = c.scrollHeight;
         }
         function showTypingIndicator() {
