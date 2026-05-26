@@ -697,6 +697,16 @@ class Database:
     def get_feedback_summary(self):
         conn = self.get_connection()
         cursor = conn.cursor()
+
+        # Total assistant messages ever sent
+        cursor.execute("SELECT COUNT(*)::int AS cnt FROM messages WHERE sender = 'assistant'")
+        total_ai_messages = cursor.fetchone()['cnt']
+
+        # Total messages that have received any feedback
+        cursor.execute("SELECT COUNT(DISTINCT message_id)::int AS cnt FROM message_feedback")
+        total_rated = cursor.fetchone()['cnt']
+
+        # Per-user feedback breakdown
         cursor.execute('''
             SELECT
                 u.username,
@@ -712,8 +722,9 @@ class Database:
         ''')
         per_user = [dict(r) for r in cursor.fetchall()]
 
+        # Recent dislikes with AI message preview
         cursor.execute('''
-            SELECT u.username, m.message, f.feedback_type, f.created_at
+            SELECT u.username, m.message, f.created_at
             FROM message_feedback f
             JOIN messages m ON f.message_id = m.id
             JOIN conversations c ON m.conversation_id = c.id
@@ -730,4 +741,9 @@ class Database:
                 'created_at': str(r['created_at']),
             })
         conn.close()
-        return {'per_user': per_user, 'recent_dislikes': recent_dislikes}
+        return {
+            'per_user': per_user,
+            'recent_dislikes': recent_dislikes,
+            'total_ai_messages': total_ai_messages,
+            'total_rated': total_rated,
+        }
