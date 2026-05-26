@@ -188,6 +188,13 @@
                             </div>
                         </button>
                     </div>
+                    <div id="quote-banner" class="hidden mb-2 flex items-start gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2">
+                        <i class="fas fa-quote-left text-blue-400 text-xs mt-0.5 flex-shrink-0"></i>
+                        <p id="quote-banner-text" class="text-xs text-blue-700 leading-relaxed flex-1 line-clamp-2 break-words"></p>
+                        <button onclick="clearQuote()" class="flex-shrink-0 text-blue-300 hover:text-blue-500 transition-colors ml-1">
+                            <i class="fas fa-xmark text-xs"></i>
+                        </button>
+                    </div>
                     <div class="flex items-end gap-2">
                         <textarea id="message-input" rows="1" oninput="autoResize(this)" onkeypress="handleKeyPress(event)"
                             placeholder="พิมพ์ข้อความ..."
@@ -329,9 +336,12 @@
         async function sendMessage() {
             const input = document.getElementById("message-input"), message = input.value.trim();
             if (!message || !currentConversationId) return;
-            removeWelcomeState(); addMessageToChat(message, "user"); input.value = ""; input.style.height = "auto"; showTypingIndicator();
+            const quote = selectedQuoteText;
+            const payload = quote ? `[อ้างอิงข้อความ]: "${quote}"\n\n${message}` : message;
+            removeWelcomeState(); addMessageToChat(message, "user"); input.value = ""; input.style.height = "auto";
+            clearQuote(); showTypingIndicator();
             try {
-                const r = await fetch("/conversations/" + currentConversationId + "/messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message }) }), d = await r.json();
+                const r = await fetch("/conversations/" + currentConversationId + "/messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: payload }) }), d = await r.json();
                 hideTypingIndicator();
                 if (!d.success) { showToast(d.message || "ส่งข้อความไม่สำเร็จ"); return; }
                 addMessageToChat(d.ai_response.message, "assistant", d.ai_response.suggestions, d.ai_response.message_id);
@@ -385,6 +395,71 @@
             }
             c.appendChild(w); c.scrollTop = c.scrollHeight;
         }
+        // ---- Text Quote Selection ----
+        let selectedQuoteText = null;
+
+        document.addEventListener('mouseup', (e) => {
+            if (e.target.closest('#selection-popup')) return;
+            const chatEl = document.getElementById('chat-messages');
+            const sel = window.getSelection();
+            const text = sel ? sel.toString().trim() : '';
+            if (text.length > 3 && chatEl.contains(sel.anchorNode)) {
+                showSelectionPopup(text, sel);
+            } else if (!e.target.closest('#selection-popup')) {
+                hideSelectionPopup();
+            }
+        });
+
+        document.addEventListener('mousedown', (e) => {
+            if (!e.target.closest('#selection-popup')) hideSelectionPopup();
+        });
+
+        function showSelectionPopup(text, sel) {
+            let popup = document.getElementById('selection-popup');
+            if (!popup) {
+                popup = document.createElement('div');
+                popup.id = 'selection-popup';
+                popup.style.cssText = 'position:fixed;z-index:99999;display:none;cursor:pointer;user-select:none;';
+                popup.innerHTML = `<div style="background:linear-gradient(135deg,#0096ff,#00bfff);color:white;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;box-shadow:0 4px 14px rgba(0,150,255,0.45);display:flex;align-items:center;gap:6px;white-space:nowrap;"><i class="fas fa-quote-right" style="font-size:10px"></i>ถาม AI เกี่ยวกับข้อความนี้</div>`;
+                popup.addEventListener('mousedown', (ev) => ev.stopPropagation());
+                popup.onclick = () => { quoteText(text); hideSelectionPopup(); window.getSelection()?.removeAllRanges(); };
+                document.body.appendChild(popup);
+            }
+            popup.style.display = 'block';
+            requestAnimationFrame(() => {
+                const range = sel.getRangeAt(0);
+                const rect = range.getBoundingClientRect();
+                const pw = popup.offsetWidth || 220;
+                const ph = popup.offsetHeight || 34;
+                let left = rect.left + rect.width / 2 - pw / 2;
+                let top  = rect.top - ph - 10;
+                if (left < 8) left = 8;
+                if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
+                if (top < 8) top = rect.bottom + 8;
+                popup.style.left = left + 'px';
+                popup.style.top  = top  + 'px';
+            });
+        }
+
+        function hideSelectionPopup() {
+            const popup = document.getElementById('selection-popup');
+            if (popup) popup.style.display = 'none';
+        }
+
+        function quoteText(text) {
+            selectedQuoteText = text;
+            const maxLen = 120;
+            document.getElementById('quote-banner-text').textContent =
+                text.length > maxLen ? text.substring(0, maxLen) + '…' : text;
+            document.getElementById('quote-banner').classList.remove('hidden');
+            document.getElementById('message-input').focus();
+        }
+
+        function clearQuote() {
+            selectedQuoteText = null;
+            document.getElementById('quote-banner').classList.add('hidden');
+        }
+
         async function copyMessage(btn) {
             const text = decodeURIComponent(btn.getAttribute('data-encoded'));
             const icon = btn.querySelector('i');
