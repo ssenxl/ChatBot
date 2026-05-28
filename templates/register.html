@@ -173,13 +173,14 @@
                     </div>
 
                     <div class="mb-6">
-                        <label class="flex items-center">
-                            <input type="checkbox" required class="mr-2 rounded text-blue-600 focus:ring-blue-500">
+                        <label class="flex items-start gap-2">
+                            <input type="checkbox" required class="mt-0.5 rounded text-blue-600 focus:ring-blue-500 flex-shrink-0">
                             <span class="text-sm text-gray-600">
-                                ฉันยอมรับ 
-                                <a href="#" class="text-blue-600 hover:text-blue-800">เงื่อนไขการใช้งาน</a> 
-                                และ 
-                                <a href="#" class="text-blue-600 hover:text-blue-800">นโยบายความเป็นส่วนตัว</a>
+                                ฉันยอมรับ
+                                <button type="button" onclick="document.getElementById('tos-modal').style.display='flex'" class="text-blue-600 hover:text-blue-800 underline underline-offset-2">เงื่อนไขการใช้งาน</button>
+                                และ
+                                <button type="button" onclick="document.getElementById('tos-modal').style.display='flex'" class="text-blue-600 hover:text-blue-800 underline underline-offset-2">นโยบายความเป็นส่วนตัว</button>
+                                ของระบบ I-SAVE
                             </span>
                         </label>
                     </div>
@@ -200,7 +201,32 @@
 
             <!-- Footer -->
             <div class="text-center mt-8 text-gray-500 text-sm">
-                <p>&copy; 2024 I-SAVE. All rights reserved.</p>
+                <p>&copy; 2025 I-SAVE. All rights reserved.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Terms of Service Modal -->
+    <div id="tos-modal" style="display:none;" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div class="w-full max-w-md rounded-2xl bg-white shadow-2xl flex flex-col" style="max-height:80vh; border:1px solid #e2e8f0;">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                <h3 class="text-base font-bold text-gray-800">เงื่อนไขการใช้งาน & นโยบายความเป็นส่วนตัว</h3>
+                <button onclick="document.getElementById('tos-modal').style.display='none'" class="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 transition">
+                    <i class="fas fa-xmark"></i>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto px-5 py-4 text-sm text-gray-600 space-y-3 leading-relaxed">
+                <p class="font-semibold text-gray-800">1. การใช้งานระบบ</p>
+                <p>ระบบ I-SAVE จัดทำขึ้นเพื่อใช้งานภายในองค์กรเท่านั้น ผู้ใช้งานต้องใช้ข้อมูลเพื่อวัตถุประสงค์ที่ได้รับอนุญาตเท่านั้น</p>
+                <p class="font-semibold text-gray-800">2. ข้อมูลส่วนตัว</p>
+                <p>ระบบจัดเก็บชื่อผู้ใช้ อีเมล และประวัติการสนทนา เพื่อให้บริการเท่านั้น ไม่มีการเผยแพร่ข้อมูลแก่บุคคลภายนอก</p>
+                <p class="font-semibold text-gray-800">3. ความปลอดภัย</p>
+                <p>ผู้ใช้งานต้องรักษาความลับของรหัสผ่านและไม่แชร์บัญชีกับผู้อื่น</p>
+                <p class="font-semibold text-gray-800">4. การยกเลิกสิทธิ์</p>
+                <p>ผู้ดูแลระบบสามารถระงับหรือยกเลิกบัญชีที่ละเมิดเงื่อนไขได้โดยไม่ต้องแจ้งล่วงหน้า</p>
+            </div>
+            <div class="border-t border-gray-100 px-5 py-3 flex justify-end">
+                <button onclick="document.getElementById('tos-modal').style.display='none'" class="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition">รับทราบ</button>
             </div>
         </div>
     </div>

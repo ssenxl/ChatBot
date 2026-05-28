@@ -163,6 +163,18 @@ def has_valid_session():
     return all(session.get(key) for key in REQUIRED_SESSION_KEYS)
 
 
+@app.before_request
+def track_user_activity():
+    """อัปเดต last_activity ทุก request สำหรับ user ที่ login อยู่ (ใช้แสดง online status ใน admin)"""
+    if has_valid_session():
+        user_id = session.get('user_id')
+        if user_id:
+            try:
+                db.update_last_activity(user_id)
+            except Exception:
+                pass  # ไม่ให้ error ใน tracking กระทบ request หลัก
+
+
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):

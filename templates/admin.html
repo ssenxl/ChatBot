@@ -389,8 +389,27 @@
         let activeConvId = null;
         let allUsers = [];
 
+        // ---- Online Status Helper ----
+        // ถือว่า "ออนไลน์" ถ้า last_activity ภายใน 5 นาทีที่ผ่านมา
+        function onlineBadge(lastActivity) {
+            if (!lastActivity) {
+                return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-400">
+                    <span class="w-1.5 h-1.5 rounded-full bg-gray-300 inline-block"></span>ออฟไลน์</span>`;
+            }
+            const diffMs = Date.now() - new Date(lastActivity).getTime();
+            const diffMin = diffMs / 60000;
+            if (diffMin <= 5) {
+                return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                    <span class="w-1.5 h-1.5 rounded-full bg-green-500 inline-block animate-pulse"></span>ออนไลน์</span>`;
+            }
+            return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-400">
+                <span class="w-1.5 h-1.5 rounded-full bg-gray-300 inline-block"></span>ออฟไลน์</span>`;
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             loadUsers(); loadTokenUsage(); loadFeedback(); loadSupportTickets(); loadCacheStatus();
+            // refresh online status ทุก 30 วินาที
+            setInterval(() => loadUsers(), 30000);
             setInterval(async () => {
                 const prevPending = allTickets.filter(t => t.status === 'pending').length;
                 await loadSupportTickets();
@@ -447,9 +466,7 @@
                         </span>
                     </td>
                     <td class="px-5 py-4">
-                        <span id="status-badge-${u.id}" class="px-2 py-1 rounded-full text-xs font-semibold ${u.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
-                            ${u.is_active ? 'ใช้งาน' : 'ปิดใช้งาน'}
-                        </span>
+                        ${onlineBadge(u.last_activity)}
                     </td>
                     <td class="px-5 py-4 text-sm text-gray-500">${formatDate(u.created_at)}</td>
                     <td class="px-5 py-4 text-sm text-gray-500">${u.last_login ? formatDateTime(u.last_login) : '<span class="text-gray-300">ยังไม่เคย</span>'}</td>
@@ -479,12 +496,23 @@
             const btn = document.getElementById(`toggle-btn-${userId}`);
             if (btn) btn.disabled = true;
 
-            const res = await fetch(`/admin/users/${userId}/toggle-active`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ is_active: newState })
-            });
-            const data = await res.json();
+            let data;
+            try {
+                const res = await fetch(`/admin/users/${userId}/toggle-active`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ is_active: newState })
+                });
+                // ถ้า server ตอบมาไม่ใช่ JSON (เช่น HTML 404/500) จะ throw ที่นี่
+                if (!res.ok && res.headers.get('content-type')?.includes('text/html')) {
+                    throw new Error(`HTTP ${res.status}`);
+                }
+                data = await res.json();
+            } catch (err) {
+                showToast(`เกิดข้อผิดพลาด: ${err.message}`, 'error');
+                if (btn) btn.disabled = false;
+                return;
+            }
 
             if (!data.success) {
                 showToast(data.message || 'เกิดข้อผิดพลาด', 'error');
@@ -492,18 +520,9 @@
                 return;
             }
 
-            const badge = document.getElementById(`status-badge-${userId}`);
-            if (badge) {
-                badge.className = `px-2 py-1 rounded-full text-xs font-semibold ${newState ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`;
-                badge.textContent = newState ? 'ใช้งาน' : 'ปิดใช้งาน';
-            }
-            if (btn) {
-                btn.className = `${newState ? 'bg-red-100 hover:bg-red-200 text-red-700' : 'bg-green-100 hover:bg-green-200 text-green-700'} px-3 py-1.5 rounded-lg text-xs font-medium transition-all`;
-                btn.innerHTML = `<i class="fas ${newState ? 'fa-ban' : 'fa-check'} mr-1"></i>${newState ? 'ปิด' : 'เปิด'}`;
-                btn.onclick = () => toggleUserActive(userId, !newState);
-                btn.disabled = false;
-            }
             showToast(newState ? 'เปิดใช้งานผู้ใช้แล้ว' : 'ปิดใช้งานผู้ใช้แล้ว', 'success');
+            // reload จาก DB เพื่อยืนยันว่า persist จริง (badge/toggle จะอัปเดตพร้อมกัน)
+            await loadUsers();
         }
 
         // ---- Cache Status & Refresh ----
@@ -761,11 +780,14 @@
 
             msgPanel.innerHTML = data.messages.map(m => {
                 const isUser = m.sender === 'user';
+                const content = isUser
+                    ? escHtml(m.message).replace(/\n/g, '<br>')
+                    : renderMarkdown(m.message);
                 return `
                 <div class="flex ${isUser ? 'justify-end' : 'justify-start'}">
                     <div class="max-w-[75%]">
                         <div class="${isUser ? 'chat-bubble-user' : 'chat-bubble-bot'} px-4 py-2.5 text-sm leading-relaxed">
-                            ${escHtml(m.message)}
+                            ${content}
                         </div>
                         <p class="text-xs text-gray-400 mt-1 ${isUser ? 'text-right' : 'text-left'}">
                             ${isUser ? 'ผู้ใช้' : 'AI'} · ${formatDateTime(m.created_at)}
@@ -949,6 +971,21 @@
 
         function escHtml(str) {
             return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
+        function renderMarkdown(text) {
+            return String(text)
+                .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+                .replace(/^#{3}\s+(.+)$/gm, '<h3 style="font-weight:700;font-size:0.95em;margin:0.6em 0 0.2em">$1</h3>')
+                .replace(/^#{2}\s+(.+)$/gm, '<h2 style="font-weight:700;font-size:1.05em;margin:0.6em 0 0.2em">$1</h2>')
+                .replace(/^#{1}\s+(.+)$/gm, '<h2 style="font-weight:800;font-size:1.1em;margin:0.6em 0 0.2em">$1</h2>')
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                .replace(/^---+$/gm, '<hr style="border:0;border-top:1px solid #e5e7eb;margin:0.5em 0">')
+                .replace(/^[-*•]\s*(.+)$/gm, '<div style="padding-left:1em;margin:0.1em 0">• $1</div>')
+                .replace(/<\/div>\n/g, '</div>')
+                .replace(/\n<div/g, '<div')
+                .replace(/\n/g, '<br>');
         }
 
         document.getElementById('reset-modal').addEventListener('click', function(e) {

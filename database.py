@@ -18,6 +18,7 @@ class Database:
         self._pool = psycopg2.pool.ThreadedConnectionPool(
             _POOL_MIN, _POOL_MAX, self._dsn,
             cursor_factory=psycopg2.extras.RealDictCursor,
+            options="-c timezone=Asia/Bangkok",
         )
         self.init_database()
 
@@ -39,7 +40,7 @@ class Database:
     def get_connection(self):
         """Direct connection for external callers (e.g. admin routes).
         Caller is responsible for calling conn.close()."""
-        return psycopg2.connect(self._dsn, cursor_factory=psycopg2.extras.RealDictCursor)
+        return psycopg2.connect(self._dsn, cursor_factory=psycopg2.extras.RealDictCursor, options="-c timezone=Asia/Bangkok")
 
     def init_database(self):
         with self._conn() as conn:
@@ -222,6 +223,25 @@ class Database:
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_support_replies_ticket_created ON support_replies (ticket_id, created_at ASC)")
             # message_feedback: UNIQUE(message_id, user_id) สร้าง index อัตโนมัติอยู่แล้ว
 
+            # --- Column migrations (safe for existing databases) ---
+            # เพิ่ม is_active ให้ tables เก่าที่สร้างก่อนจะมี column นี้
+            cursor.execute("""
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE
+            """)
+            cursor.execute("""
+                ALTER TABLE conversations
+                ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE
+            """)
+            # เพิ่ม last_activity สำหรับ online presence tracking
+            cursor.execute("""
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS last_activity TIMESTAMP
+            """)
+            # backfill NULL → TRUE สำหรับ rows ที่สร้างก่อน DEFAULT ถูก set
+            cursor.execute("UPDATE users SET is_active = TRUE WHERE is_active IS NULL")
+            cursor.execute("UPDATE conversations SET is_active = TRUE WHERE is_active IS NULL")
+
             cursor.execute("SELECT COUNT(*) AS cnt FROM users")
             if cursor.fetchone()['cnt'] == 0:
                 cursor.execute(
@@ -269,6 +289,16 @@ class Database:
             cursor.execute("UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = %s", (user_id,))
             conn.commit()
 
+    def update_last_activity(self, user_id):
+        """อัปเดต timestamp ล่าสุดที่ user ใช้งาน (เรียกทุก request ที่ login อยู่)"""
+        with self._conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE users SET last_activity = CURRENT_TIMESTAMP WHERE id = %s",
+                (user_id,)
+            )
+            conn.commit()
+
     def change_password(self, user_id, old_password, new_password):
         with self._conn() as conn:
             cursor = conn.cursor()
@@ -286,7 +316,7 @@ class Database:
     def get_all_users(self):
         with self._conn() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT id, username, email, role, is_active, created_at, last_login FROM users ORDER BY id")
+            cursor.execute("SELECT id, username, email, role, is_active, created_at, last_login, last_activity FROM users ORDER BY id")
             return [dict(r) for r in cursor.fetchall()]
 
     def toggle_user_active(self, user_id, is_active):

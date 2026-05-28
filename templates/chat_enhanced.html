@@ -123,6 +123,10 @@
                                         <i class="fas fa-users w-4 text-rose-500"></i>
                                         <span>จัดการผู้ใช้</span>
                                     </button>
+                                    <a id="admin-panel-btn" href="http://docker-webchat/admin" target="_blank" rel="noopener noreferrer" class="hidden w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-amber-700 rounded-lg transition hover:bg-amber-50">
+                                        <i class="fas fa-shield-halved w-4 text-amber-500"></i>
+                                        <span>Admin Panel</span>
+                                    </a>
                                 </div>
                             </div>
                         </div>
@@ -203,7 +207,7 @@
                         <textarea id="message-input" rows="1" oninput="autoResize(this)" onkeypress="handleKeyPress(event)"
                             placeholder="พิมพ์ข้อความ..."
                             class="min-h-[46px] flex-1 resize-none rounded-xl border-2 bg-gray-50 px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-blue-500 placeholder-gray-400 break-words overflow-hidden" style="border-color:#AAC4F5;"></textarea>
-                        <button onclick="sendMessage()" class="btn-purple flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl text-white shadow-md">
+                        <button id="send-btn" onclick="sendMessage()" class="btn-purple flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl text-white shadow-md disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none">
                             <i class="fas fa-paper-plane text-sm"></i>
                         </button>
                     </div>
@@ -212,7 +216,7 @@
         </main>
     </div>
 
-    <div id="toast" class="fixed top-10 left-1/2 transform -translate-x-1/2 z-50 hidden rounded-xl px-4 py-3 text-sm font-medium text-white shadow-2xl"></div>
+    <div id="toast" class="fixed top-10 left-1/2 transform -translate-x-1/2 z-[999999999] hidden rounded-xl px-4 py-3 text-sm font-medium text-white shadow-2xl"></div>
 
     <!-- Rename Modal -->
     <div id="rename-modal" style="display: none;" class="fixed inset-0 z-[9999999] flex items-center justify-center bg-black/40 p-4">
@@ -243,7 +247,7 @@
     </div>
 
     <!-- Admin Users Modal -->
-    <div id="admin-users-modal" class="fixed inset-0 z-0 hidden items-center justify-center bg-black/40 p-4">
+    <div id="admin-users-modal" class="fixed inset-0 z-[9999999] hidden items-center justify-center bg-black/40 p-4">
         <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
             <div class="flex items-center justify-between">
                 <div>
@@ -257,7 +261,7 @@
     </div>
 
     <!-- Admin Reset Password Modal -->
-    <div id="admin-reset-password-modal" style="display: none;" class="fixed inset-0 z-0 hidden items-center justify-center bg-black/40 p-4">
+    <div id="admin-reset-password-modal" style="display: none;" class="fixed inset-0 z-[9999999] hidden items-center justify-center bg-black/40 p-4">
         <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
             <h3 class="text-lg font-bold text-gray-900">รีเซ็ตรหัสผ่าน</h3>
             <p id="admin-reset-target-name" class="mt-1 text-sm font-medium text-gray-600"></p>
@@ -321,6 +325,23 @@
         </div>
     </div>
 
+    <!-- Custom Confirm Modal -->
+    <div id="confirm-modal" style="display:none;" class="fixed inset-0 z-[99999999] flex items-center justify-center bg-black/40 p-4">
+        <div class="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl" style="border: 1px solid #e2e8f0;">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="flex h-10 w-10 items-center justify-center rounded-full bg-rose-100 flex-shrink-0">
+                    <i class="fas fa-trash text-rose-500"></i>
+                </div>
+                <h3 id="confirm-modal-title" class="text-base font-bold text-gray-800">ยืนยันการลบ</h3>
+            </div>
+            <p id="confirm-modal-body" class="text-sm text-gray-500 mb-5">ต้องการลบหัวข้อสนทนานี้หรือไม่</p>
+            <div class="flex justify-end gap-2">
+                <button onclick="closeConfirmModal()" class="rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-100">ยกเลิก</button>
+                <button id="confirm-modal-ok" class="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white shadow transition hover:bg-rose-700">ลบ</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let conversations = [], filteredConversations = [], currentConversationId = null;
         let userInitial = 'A'; // Global variable to store user's initial
@@ -333,6 +354,26 @@
             const menu = document.getElementById("user-menu"), trigger = document.getElementById("user-menu-trigger");
             if (menu && menu.style.display !== "none" && !menu.contains(e.target) && trigger && !trigger.contains(e.target)) menu.style.display = "none";
         });
+        // ---- Custom Confirm Modal ----
+        let _confirmCallback = null;
+        function showConfirmModal(title, body, okLabel, onConfirm) {
+            document.getElementById('confirm-modal-title').textContent = title;
+            document.getElementById('confirm-modal-body').textContent = body;
+            document.getElementById('confirm-modal-ok').textContent = okLabel || 'ยืนยัน';
+            _confirmCallback = onConfirm;
+            document.getElementById('confirm-modal').style.display = 'flex';
+        }
+        function closeConfirmModal() {
+            document.getElementById('confirm-modal').style.display = 'none';
+            _confirmCallback = null;
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('confirm-modal-ok').addEventListener('click', () => {
+                closeConfirmModal();
+                if (_confirmCallback) _confirmCallback();
+            });
+        });
+
         function showToast(msg) {
             const t = document.getElementById("toast"); t.textContent = msg; t.classList.remove("hidden");
             // Set red background for delete notifications
@@ -353,7 +394,10 @@
             if (d.success) {
                 userInitial = d.user.username[0].toUpperCase();
                 document.getElementById("user-name").textContent = d.user.username;
-                if (d.user.role === "admin") { const b = document.getElementById("admin-menu-btn"); b.classList.remove("hidden"); b.classList.add("flex"); }
+                if (d.user.role === "admin") {
+                    const b = document.getElementById("admin-menu-btn"); b.classList.remove("hidden"); b.classList.add("flex");
+                    const p = document.getElementById("admin-panel-btn"); p.classList.remove("hidden"); p.classList.add("flex");
+                }
             }
         }
         async function loadConversations(preferredId = null, skipRerender = false) {
@@ -392,10 +436,14 @@
         async function sendMessage() {
             const input = document.getElementById("message-input"), message = input.value.trim();
             if (!message || !currentConversationId) return;
+            const sendBtn = document.getElementById("send-btn");
             const quote = selectedQuoteText;
             const payload = quote ? `[อ้างอิงข้อความ]: "${quote}"\n\n${message}` : message;
             removeWelcomeState(); addMessageToChat(message, "user"); input.value = ""; input.style.height = "auto";
             clearQuote(); showTypingIndicator();
+            // Disable send button while waiting
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin text-sm"></i>';
             try {
                 const r = await fetch("/conversations/" + currentConversationId + "/messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: payload }) }), d = await r.json();
                 hideTypingIndicator();
@@ -403,19 +451,37 @@
                 addMessageToChat(d.ai_response.message, "assistant", d.ai_response.suggestions, d.ai_response.message_id);
                 if (d.conversation) setActiveConversationTitle(d.conversation.title);
                 await loadConversations(currentConversationId, true);
-            } catch (_) { hideTypingIndicator(); showToast("เกิดข้อผิดพลาดในการสื่อสาร"); }
+            } catch (err) {
+                hideTypingIndicator();
+                let msg = "เกิดข้อผิดพลาดในการสื่อสาร กรุณาลองใหม่";
+                if (!navigator.onLine) msg = "ไม่มีการเชื่อมต่ออินเทอร์เน็ต";
+                else if (err && err.name === 'AbortError') msg = "การเชื่อมต่อหมดเวลา กรุณาลองใหม่";
+                showToast(msg);
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = '<i class="fas fa-paper-plane text-sm"></i>';
+                input.focus();
+            }
         }
-        function sendQuickMessage(msg) { document.getElementById("message-input").value = msg; sendMessage(); }
+        function sendQuickMessage(msg) {
+            const btn = document.getElementById("send-btn");
+            if (btn && btn.disabled) return; // Don't send while AI is responding
+            document.getElementById("message-input").value = msg;
+            sendMessage();
+        }
         function displayMessages(messages) {
             const c = document.getElementById("chat-messages"); c.innerHTML = "";
             if (!messages.length) { renderWelcomeState(); return; }
-            messages.forEach(m => addMessageToChat(m.message, m.sender, null, m.sender === 'assistant' ? m.id : null, m.feedback_type));
+            messages.forEach(m => addMessageToChat(m.message, m.sender, null, m.sender === 'assistant' ? m.id : null, m.feedback_type, m.created_at));
         }
         function renderWelcomeState() {
-            document.getElementById("chat-messages").innerHTML = `<div id="welcome-state" class="mx-auto max-w-md rounded-2xl border border-purple-100 bg-gradient-to-br from-purple-50 to-violet-50 p-6 text-center shadow-sm"><div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full btn-purple shadow-md"><i class="fas fa-comments text-white"></i></div><h3 class="text-lg font-bold text-gray-900">เริ่มบทสนทนาใหม่</h3><p class="mt-2 text-sm leading-6 text-gray-500">ระบบเก็บหัวข้อสนทนาแยกตามผู้ใช้ กลับมาเปิดอ่านได้ทุกเมื่อ หรือกด &ldquo;เริ่มแชทใหม่&rdquo; เพื่อเปลี่ยนเรื่องสนทนา</p></div>`;
+            document.getElementById("chat-messages").innerHTML = `<div id="welcome-state" class="mx-auto max-w-md rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 to-sky-50 p-6 text-center shadow-sm"><div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full btn-purple shadow-md"><i class="fas fa-comments text-white"></i></div><h3 class="text-lg font-bold text-gray-900">เริ่มบทสนทนาใหม่</h3><p class="mt-2 text-sm leading-6 text-gray-500">ระบบเก็บหัวข้อสนทนาแยกตามผู้ใช้ กลับมาเปิดอ่านได้ทุกเมื่อ หรือกด &ldquo;เริ่มแชทใหม่&rdquo; เพื่อเปลี่ยนเรื่องสนทนา</p></div>`;
         }
         function removeWelcomeState() { document.getElementById("welcome-state")?.remove(); }
         function renderMarkdown(text) {
+            // Ensure bullet markers not preceded by newline get one (e.g. "...เครื่อง• RAP 22G:")
+            // Use (?<!\*)\*(?!\*) to exclude ** bold markers from matching as bullets
+            text = text.replace(/([^\n])([ \t]*(?:[•\-]|(?<!\*)\*(?!\*))[ \t]+)/g, '$1\n$2');
             return text
                 .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
                 .replace(/^#{3}\s+(.+)$/gm, '<h3 style="font-weight:700;font-size:0.95em;margin:0.6em 0 0.2em">$1</h3>')
@@ -424,19 +490,23 @@
                 .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
                 .replace(/\*(.+?)\*/g, '<em>$1</em>')
                 .replace(/^---+$/gm, '<hr style="border:0;border-top:1px solid #e5e7eb;margin:0.5em 0">')
-                .replace(/^[-*•]\s*(.+)$/gm, '<div style="padding-left:1em;margin:0.1em 0">• $1</div>')
+                .replace(/^[-*•]\s*(.+)$/gm, '<div style="padding-left:1em;margin:0.25em 0">• $1</div>')
                 .replace(/<\/div>\n/g, '</div>')
                 .replace(/\n<div/g, '<div')
                 .replace(/\n/g, '<br>');
         }
-        function addMessageToChat(message, sender, suggestions, messageId, feedbackType) {
+        function addMessageToChat(message, sender, suggestions, messageId, feedbackType, rawTimestamp) {
             const c = document.getElementById("chat-messages"), w = document.createElement("div");
             w.className = "message-enter flex items-start gap-2 " + (sender === "user" ? "justify-end" : "justify-start");
+            const tsDate = rawTimestamp ? new Date(rawTimestamp) : new Date();
+            const nowStr = isNaN(tsDate.getTime())
+                ? new Date().toLocaleString('th-TH', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })
+                : tsDate.toLocaleString('th-TH', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' });
             if (sender === "user") {
-                w.innerHTML = `<div class="max-w-[75%] rounded-2xl rounded-br-sm px-4 py-3 text-sm leading-7 text-gray-800 shadow-md break-words overflow-wrap-anywhere" style="background:#D9EAFD;">${escapeHtml(message).replace(/\n/g, "<br>")}</div><div class="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-cyan-600 text-white font-bold text-sm flex items-center justify-center shadow-sm">${userInitial}</div>`;
+                w.innerHTML = `<div class="flex flex-col items-end gap-0.5"><div class="max-w-full rounded-2xl rounded-br-sm px-4 py-3 text-sm leading-7 text-gray-800 shadow-md break-words overflow-wrap-anywhere" style="background:#D9EAFD;" title="${nowStr}">${escapeHtml(message).replace(/\n/g, "<br>")}</div><span class="text-[10px] text-gray-400 pr-1">${nowStr}</span></div><div class="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-cyan-600 text-white font-bold text-sm flex items-center justify-center shadow-sm">${userInitial}</div>`;
             } else {
                 const chipsHtml = (suggestions && suggestions.length)
-                    ? `<div class="mt-2 flex flex-wrap gap-2">${suggestions.map(s => `<button onclick="sendQuickMessage(${escapeHtml(JSON.stringify(s))})" class="text-xs px-3 py-1.5 rounded-full border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 hover:border-purple-300 transition-colors duration-200 cursor-pointer">${escapeHtml(s)}</button>`).join('')}</div>`
+                    ? `<div class="mt-2 flex flex-wrap gap-2">${suggestions.map(s => `<button onclick="sendQuickMessage(${escapeHtml(JSON.stringify(s))})" class="text-xs px-3 py-1.5 rounded-full border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:border-blue-300 transition-colors duration-200 cursor-pointer">${escapeHtml(s)}</button>`).join('')}</div>`
                     : '';
                 const encodedMsg = encodeURIComponent(message);
                 const likeActive = feedbackType === 'like';
@@ -449,7 +519,7 @@
                     <button title="คัดลอก" data-encoded="${encodedMsg}" onclick="copyMessage(this)" class="rounded-md p-1.5 text-gray-300 hover:text-blue-400 hover:bg-blue-50 transition-colors"><i class="far fa-copy text-xs"></i></button>
                     ${feedbackHtml}
                 </div>`;
-                w.innerHTML = `<div class="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden shadow-sm bg-white"><img src="/static/chat-bot.png" alt="AI" class="w-full h-full object-cover"></div><div class="max-w-[75%] flex flex-col gap-1"><div class="rounded-2xl rounded-bl-sm border border-purple-100 bg-white px-4 py-3 text-sm leading-7 text-gray-700 shadow-sm break-words overflow-wrap-anywhere">${renderMarkdown(message)}</div>${actionsHtml}${chipsHtml}</div>`;
+                w.innerHTML = `<div class="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden shadow-sm bg-white"><img src="/static/chat-bot.png" alt="AI" class="w-full h-full object-cover"></div><div class="max-w-[75%] flex flex-col gap-1"><div class="rounded-2xl rounded-bl-sm border border-blue-100 bg-white px-4 py-3 text-sm leading-7 text-gray-700 shadow-sm break-words overflow-wrap-anywhere" title="${nowStr}">${renderMarkdown(message)}</div>${actionsHtml}<span class="text-[10px] text-gray-400 pl-1">${nowStr}</span>${chipsHtml}</div>`;
             }
             c.appendChild(w); c.scrollTop = c.scrollHeight;
         }
@@ -592,17 +662,29 @@
         }
         async function deleteCurrentConversation() { if (currentConversationId) await deleteConversation(currentConversationId); }
         async function deleteConversation(id) {
-            if (!confirm("ต้องการลบหัวข้อสนทนานี้หรือไม่")) return;
-            const r = await fetch("/conversations/" + id, { method: "DELETE" }), d = await r.json();
-            if (!d.success) { showToast(d.message || "ลบหัวข้อไม่สำเร็จ"); return; }
-            if (currentConversationId === id) currentConversationId = null;
-            await loadConversations(); showToast("ลบหัวข้อแล้ว");
+            showConfirmModal(
+                'ลบหัวข้อสนทนา',
+                'ต้องการลบหัวข้อสนทนานี้หรือไม่? การดำเนินการนี้ไม่สามารถย้อนกลับได้',
+                'ลบ',
+                async () => {
+                    const r = await fetch("/conversations/" + id, { method: "DELETE" }), d = await r.json();
+                    if (!d.success) { showToast(d.message || "ลบหัวข้อไม่สำเร็จ"); return; }
+                    if (currentConversationId === id) currentConversationId = null;
+                    await loadConversations(); showToast("ลบหัวข้อแล้ว");
+                }
+            );
         }
         async function clearAllConversations() {
             if (!conversations.length) return;
-            if (!confirm("ต้องการลบหัวข้อสนทนาทั้งหมดหรือไม่")) return;
-            for (const c of conversations) await fetch("/conversations/" + c.id, { method: "DELETE" });
-            currentConversationId = null; await loadConversations(); showToast("ลบหัวข้อทั้งหมดแล้ว");
+            showConfirmModal(
+                'ลบหัวข้อทั้งหมด',
+                `ต้องการลบหัวข้อสนทนาทั้งหมด ${conversations.length} หัวข้อหรือไม่? การดำเนินการนี้ไม่สามารถย้อนกลับได้`,
+                'ลบทั้งหมด',
+                async () => {
+                    for (const c of conversations) await fetch("/conversations/" + c.id, { method: "DELETE" });
+                    currentConversationId = null; await loadConversations(); showToast("ลบหัวข้อทั้งหมดแล้ว");
+                }
+            );
         }
         function setActiveConversationTitle(t) { document.getElementById("active-conversation-title").textContent = t || "แชทใหม่"; }
         function formatDate(v) { const d = new Date(v); return isNaN(d.getTime()) ? v : d.toLocaleString("th-TH"); }
@@ -633,10 +715,16 @@
         }
         async function openAdminUsersModal() {
             document.getElementById("user-menu").style.display = "none";
-            document.getElementById("admin-users-modal").style.display = "flex";
+            const modal = document.getElementById("admin-users-modal");
+            modal.classList.remove("hidden");
+            modal.classList.add("flex");
             await loadAdminUsers();
         }
-        function closeAdminUsersModal() { document.getElementById("admin-users-modal").style.display = "none"; }
+        function closeAdminUsersModal() {
+            const modal = document.getElementById("admin-users-modal");
+            modal.classList.add("hidden");
+            modal.classList.remove("flex");
+        }
         async function loadAdminUsers() {
             const r = await fetch("/admin/users"), d = await r.json();
             if (!d.success) { showToast("โหลดรายชื่อผู้ใช้ไม่สำเร็จ"); return; }
