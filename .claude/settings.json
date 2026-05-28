@@ -54,7 +54,28 @@
       "Bash(git config *)",
       "PowerShell(.\\\\deploy_to_webchat.ps1)",
       "PowerShell(Get-ChildItem \"c:\\\\vscode\\\\Chatbot\" | Where-Object { $_.Name -ne \".venv\" } | Select-Object Name)",
-      "PowerShell(docker exec webchat-postgres psql -U webchat -d webchat -c \"SELECT id, username, email, role, is_active FROM users ORDER BY id;\")"
+      "PowerShell(docker exec webchat-postgres psql -U webchat -d webchat -c \"SELECT id, username, email, role, is_active FROM users ORDER BY id;\")",
+      "Bash(python -c \"import chatbot_app; print\\('OK'\\)\")",
+      "Bash(python -m py_compile chatbot_app.py)",
+      "Bash(python -m py_compile database.py)",
+      "Bash(python -m py_compile chatbot_app.py database.py)",
+      "Bash(python -m py_compile database.py chatbot_app.py)",
+      "Bash(Select-Object -First 30)",
+      "Bash(Get-Content \"c:\\\\vscode\\\\Chatbot\\\\templates\\\\admin.html\")",
+      "Bash(Measure-Object -Line)",
+      "PowerShell(\\(Get-Content \"c:\\\\vscode\\\\Chatbot\\\\templates\\\\admin.html\" | Measure-Object -Line\\).Lines)",
+      "Bash(python -c \"import sys; print\\(sys.version\\)\")",
+      "Bash(pip show *)",
+      "Bash(python -c \"import os; k=os.getenv\\('OPENAI_API_KEY',''\\); print\\('OPENAI_API_KEY set:', bool\\(k\\)\\)\")",
+      "Bash(netstat -ano)",
+      "Bash(findstr \":5000\")",
+      "Bash(docker --version)",
+      "Bash(docker-compose --version)",
+      "Bash(where docker *)",
+      "PowerShell(Get-Command docker -ErrorAction SilentlyContinue)",
+      "PowerShell(docker --version 2>&1)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:80/)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:5000/)"
     ]
   }
 }

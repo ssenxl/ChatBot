@@ -1,6 +1,10 @@
 # Secrets — ห้าม push เด็ดขาด
 .env
 *.env
+.claude/settings.local.json
+
+# Local test scripts (may contain credentials)
+perf_test.py
 
 # Python
 .venv/
