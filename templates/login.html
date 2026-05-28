@@ -117,6 +117,7 @@
                 {% endwith %}
 
                 <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-6">
                         <label class="block text-gray-700 text-sm font-semibold mb-2">ชื่อผู้ใช้</label>
                         <div class="input-group">

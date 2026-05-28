@@ -238,6 +238,11 @@ class Database:
                 ALTER TABLE users
                 ADD COLUMN IF NOT EXISTS last_activity TIMESTAMP
             """)
+            # session_version สำหรับ invalidate session เมื่อเปลี่ยนรหัสผ่าน
+            cursor.execute("""
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS session_version INTEGER DEFAULT 1
+            """)
             # backfill NULL → TRUE สำหรับ rows ที่สร้างก่อน DEFAULT ถูก set
             cursor.execute("UPDATE users SET is_active = TRUE WHERE is_active IS NULL")
             cursor.execute("UPDATE conversations SET is_active = TRUE WHERE is_active IS NULL")
@@ -275,12 +280,12 @@ class Database:
         with self._conn() as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "SELECT id, username, email, password_hash, role, is_active FROM users WHERE username = %s",
+                "SELECT id, username, email, password_hash, role, is_active, COALESCE(session_version, 1) AS session_version FROM users WHERE username = %s",
                 (username,)
             )
             user = cursor.fetchone()
         if user and user['is_active'] and check_password_hash(user['password_hash'], password):
-            return {'id': user['id'], 'username': user['username'], 'email': user['email'], 'role': user['role']}
+            return {'id': user['id'], 'username': user['username'], 'email': user['email'], 'role': user['role'], 'session_version': user['session_version']}
         return None
 
     def update_last_login(self, user_id):
@@ -289,15 +294,24 @@ class Database:
             cursor.execute("UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = %s", (user_id,))
             conn.commit()
 
-    def update_last_activity(self, user_id):
-        """อัปเดต timestamp ล่าสุดที่ user ใช้งาน (เรียกทุก request ที่ login อยู่)"""
+    def update_last_activity(self, user_id, session_version=None):
+        """อัปเดต timestamp และตรวจ session_version — คืน False ถ้า version ไม่ตรง (session ถูก invalidate)"""
         with self._conn() as conn:
             cursor = conn.cursor()
-            cursor.execute(
-                "UPDATE users SET last_activity = CURRENT_TIMESTAMP WHERE id = %s",
-                (user_id,)
-            )
+            if session_version is not None:
+                cursor.execute(
+                    "UPDATE users SET last_activity = CURRENT_TIMESTAMP WHERE id = %s AND COALESCE(session_version, 1) = %s RETURNING id",
+                    (user_id, session_version)
+                )
+                valid = cursor.fetchone() is not None
+            else:
+                cursor.execute(
+                    "UPDATE users SET last_activity = CURRENT_TIMESTAMP WHERE id = %s",
+                    (user_id,)
+                )
+                valid = True
             conn.commit()
+            return valid
 
     def change_password(self, user_id, old_password, new_password):
         with self._conn() as conn:
@@ -307,7 +321,7 @@ class Database:
             if not row or not check_password_hash(row['password_hash'], old_password):
                 return False
             cursor.execute(
-                "UPDATE users SET password_hash = %s WHERE id = %s",
+                "UPDATE users SET password_hash = %s, session_version = COALESCE(session_version, 1) + 1 WHERE id = %s",
                 (generate_password_hash(new_password), user_id)
             )
             conn.commit()
@@ -334,7 +348,7 @@ class Database:
         with self._conn() as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "UPDATE users SET password_hash = %s WHERE id = %s",
+                "UPDATE users SET password_hash = %s, session_version = COALESCE(session_version, 1) + 1 WHERE id = %s",
                 (generate_password_hash(new_password), user_id)
             )
             updated = cursor.rowcount > 0
@@ -365,7 +379,7 @@ class Database:
         with self._conn() as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "UPDATE users SET password_hash = %s WHERE id = %s",
+                "UPDATE users SET password_hash = %s, session_version = COALESCE(session_version, 1) + 1 WHERE id = %s",
                 (generate_password_hash(new_password), user_id)
             )
             updated = cursor.rowcount > 0

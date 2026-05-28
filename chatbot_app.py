@@ -6,7 +6,11 @@ from pathlib import Path
 import threading
 import time
 
+from datetime import datetime as _dt, timezone as _tz, timedelta as _td
+
 from flask import Flask, flash, jsonify, redirect, render_template, request, session, url_for
+from flask.json.provider import DefaultJSONProvider
+from flask_wtf.csrf import CSRFProtect
 from openpyxl import load_workbook
 
 from database import Database
@@ -16,8 +20,21 @@ from response_processor import get_response_processor
 from suggestion_engine import get_suggestion_engine
 from data_cache import get_data_cache
 
+_BKK = _tz(_td(hours=7))
+
+
+class _BkkJSON(DefaultJSONProvider):
+    def default(self, o):
+        if isinstance(o, _dt) and o.tzinfo is None:
+            return o.replace(tzinfo=_BKK).isoformat()
+        return super().default(o)
+
+
 app = Flask(__name__)
+app.json_provider_class = _BkkJSON
+app.json = _BkkJSON(app)
 app.config['TEMPLATES_AUTO_RELOAD'] = True
+csrf = CSRFProtect(app)
 
 _secret_key = os.environ.get('FLASK_SECRET_KEY')
 if not _secret_key:
@@ -163,14 +180,33 @@ def has_valid_session():
     return all(session.get(key) for key in REQUIRED_SESSION_KEYS)
 
 
+@app.after_request
+def set_security_headers(response):
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com; "
+        "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; "
+        "font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; "
+        "img-src 'self' data:;"
+    )
+    return response
+
+
 @app.before_request
 def track_user_activity():
-    """อัปเดต last_activity ทุก request สำหรับ user ที่ login อยู่ (ใช้แสดง online status ใน admin)"""
+    """อัปเดต last_activity ทุก request และตรวจ session_version — ถ้า version ไม่ตรงจะ kick ออกทันที"""
     if has_valid_session():
         user_id = session.get('user_id')
         if user_id:
             try:
-                db.update_last_activity(user_id)
+                valid = db.update_last_activity(user_id, session.get('session_version', 1))
+                if not valid:
+                    session.clear()
+                    return redirect(url_for('login'))
             except Exception:
                 pass  # ไม่ให้ error ใน tracking กระทบ request หลัก
 
@@ -278,6 +314,7 @@ def login():
             session['username'] = user['username']
             session['user_role'] = user['role']
             session['user_email'] = user['email']
+            session['session_version'] = user['session_version']
 
             db.update_last_login(user['id'])
             db.log_activity(user['id'], 'login', {
