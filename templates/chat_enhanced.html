@@ -7,208 +7,289 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
         html, body { height: 100%; overflow: hidden; overflow-x: hidden; max-width: 100vw; }
-        body { font-family: "Noto Sans Thai", sans-serif; background: #f0f4f8; }
-        .floating-shapes { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
-        .shape { position: absolute; opacity: 0.06; animation: float 6s ease-in-out infinite; background: #0096ff; }
-        .shape:nth-child(1) { width: 90px; height: 90px; border-radius: 50%; top: 8%; left: 6%; animation-delay: 0s; }
-        .shape:nth-child(2) { width: 130px; height: 130px; border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%; top: 65%; right: 8%; animation-delay: 2s; }
-        .shape:nth-child(3) { width: 80px; height: 80px; border-radius: 63% 37% 54% 46% / 55% 48% 52% 45%; bottom: 12%; left: 25%; animation-delay: 4s; }
-        @keyframes float { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-18px) rotate(180deg); } }
-        .glass { background: #ffffff; backdrop-filter: blur(12px); border: 1px solid #e2e8f0; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06); }
-        .btn-purple { background: linear-gradient(135deg, #0096ff 0%, #00bfff 100%); transition: all 0.25s ease; }
-        .btn-purple:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(0, 150, 255, 0.4); }
-        .conversation-item { transition: all 0.2s ease; border: 1px solid transparent; border-radius: 12px; background: #EEEEEE; }
-        .conversation-item:hover { background: #EEEEEE; border-color: rgba(0, 150, 255, 0.15); transform: translateX(2px); }
-        .conversation-item.active { background: #EEEEEE; border-color: rgba(0, 150, 255, 0.3); }
+        body {
+            font-family: "Noto Sans Thai", sans-serif;
+            background-color: #070b14;
+            background-image:
+                linear-gradient(rgba(0,212,255,0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,212,255,0.025) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+        body::before {
+            content: '';
+            position: fixed; top: -25%; left: -15%;
+            width: 70%; height: 70%;
+            background: radial-gradient(ellipse, rgba(0,212,255,0.04) 0%, transparent 65%);
+            pointer-events: none; z-index: 0;
+        }
+        body::after {
+            content: '';
+            position: fixed; bottom: -25%; right: -15%;
+            width: 60%; height: 60%;
+            background: radial-gradient(ellipse, rgba(99,102,241,0.05) 0%, transparent 65%);
+            pointer-events: none; z-index: 0;
+        }
+        .glass {
+            background: rgba(11,17,30,0.88);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(0,212,255,0.14);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #0090bb 0%, #00d4ff 100%);
+            transition: all 0.25s ease;
+        }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 22px rgba(0,212,255,0.45); }
+        .sidebar-btn {
+            background: rgba(0,212,255,0.05);
+            border: 1px solid rgba(0,212,255,0.12);
+            color: #94a3b8;
+            transition: all 0.2s;
+        }
+        .sidebar-btn:hover { background: rgba(0,212,255,0.1); border-color: rgba(0,212,255,0.3); color: #e2e8f0; }
+        .sidebar-btn-danger {
+            background: rgba(239,68,68,0.05);
+            border: 1px solid rgba(239,68,68,0.15);
+            color: #f87171;
+            transition: all 0.2s;
+        }
+        .sidebar-btn-danger:hover { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3); }
+        .sidebar-btn-cyan {
+            background: rgba(0,212,255,0.05);
+            border: 1px solid rgba(0,212,255,0.18);
+            color: #67e8f9;
+            transition: all 0.2s;
+        }
+        .sidebar-btn-cyan:hover { background: rgba(0,212,255,0.12); border-color: rgba(0,212,255,0.35); }
+        .input-tech {
+            background: rgba(7,11,20,0.9) !important;
+            border: 1.5px solid rgba(0,212,255,0.16) !important;
+            color: #e2e8f0 !important;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .input-tech:focus {
+            border-color: rgba(0,212,255,0.55) !important;
+            box-shadow: 0 0 0 3px rgba(0,212,255,0.08), 0 0 18px rgba(0,212,255,0.08) !important;
+            outline: none !important;
+        }
+        .input-tech::placeholder { color: #374151; }
+        .conversation-item {
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+            border-radius: 10px;
+            background: transparent;
+            color: #94a3b8;
+        }
+        .conversation-item:hover { background: rgba(0,212,255,0.06); border-color: rgba(0,212,255,0.2); transform: translateX(2px); color: #e2e8f0; }
+        .conversation-item.active { background: rgba(0,212,255,0.1); border-color: rgba(0,212,255,0.32); color: #e2e8f0; }
+        .quick-btn {
+            background: rgba(11,17,30,0.9);
+            border: 1px solid rgba(0,212,255,0.13);
+            transition: all 0.25s ease;
+        }
+        .quick-btn:hover { border-color: rgba(0,212,255,0.4); background: rgba(0,212,255,0.07); box-shadow: 0 4px 20px rgba(0,212,255,0.1); transform: translateY(-2px); }
+        .msg-user { background: rgba(0,140,180,0.16); border: 1px solid rgba(0,212,255,0.24); color: #e2e8f0; }
+        .msg-ai { background: rgba(17,24,39,0.95); border: 1px solid rgba(0,212,255,0.1); color: #cbd5e1; }
         .message-enter { animation: msgIn 0.25s ease-out; }
-        @keyframes msgIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-        .typing-dot { width: 7px; height: 7px; border-radius: 50%; background: #9ca3af; animation: blink 1.2s infinite ease-in-out; }
+        @keyframes msgIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .typing-dot { width: 7px; height: 7px; border-radius: 50%; background: #00d4ff; box-shadow: 0 0 8px rgba(0,212,255,0.6); animation: blink 1.2s infinite ease-in-out; }
         .typing-dot:nth-child(2) { animation-delay: 0.15s; }
         .typing-dot:nth-child(3) { animation-delay: 0.3s; }
-        @keyframes blink { 0%, 80%, 100% { transform: translateY(0); opacity: 0.35; } 40% { transform: translateY(-3px); opacity: 1; } }
+        @keyframes blink { 0%, 80%, 100% { transform: translateY(0); opacity: 0.3; } 40% { transform: translateY(-4px); opacity: 1; } }
         .scrollbar-thin::-webkit-scrollbar { width: 4px; }
         .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-        .scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(0, 150, 255, 0.3); border-radius: 4px; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.18); border-radius: 4px; }
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: rgba(0,212,255,0.38); }
+        .scan-overlay { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; pointer-events: none; }
+        .scan-overlay::after {
+            content: ''; position: absolute; top: 0; bottom: 0; width: 30%;
+            background: linear-gradient(90deg, transparent, rgba(0,212,255,0.05), transparent);
+            animation: scanline 5s ease-in-out infinite;
+        }
+        @keyframes scanline { 0% { transform: translateX(-200%); } 100% { transform: translateX(500%); } }
+        .status-online { width: 7px; height: 7px; border-radius: 50%; background: #22d3ee; box-shadow: 0 0 6px rgba(34,211,238,0.9); animation: pulse-dot 2.5s infinite; }
+        @keyframes pulse-dot { 0%, 100% { box-shadow: 0 0 5px rgba(34,211,238,0.7); } 50% { box-shadow: 0 0 12px rgba(34,211,238,1), 0 0 22px rgba(34,211,238,0.3); } }
+        .tech-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: #00d4ff; opacity: 0.75; }
+        .neon-top { position: relative; }
+        .neon-top::before { content: ''; position: absolute; top: 0; left: 20%; right: 20%; height: 1px; background: linear-gradient(90deg, transparent, #00d4ff, transparent); opacity: 0.5; }
+        .dropdown-dark { background: #080e1a; border: 1px solid rgba(0,212,255,0.18); box-shadow: 0 10px 40px rgba(0,0,0,0.7), 0 0 30px rgba(0,212,255,0.04); }
+        .dropdown-item { color: #94a3b8; transition: all 0.15s; border-radius: 0.5rem; }
+        .dropdown-item:hover { background: rgba(0,212,255,0.06); color: #e2e8f0; }
+        .modal-card { background: #080e1a; border: 1px solid rgba(0,212,255,0.18); box-shadow: 0 24px 64px rgba(0,0,0,0.8), 0 0 40px rgba(0,212,255,0.04); }
+        .modal-title { color: #e2e8f0; }
+        .modal-sub { color: #4b5563; }
+        .modal-input { background: rgba(7,11,20,0.85); border: 1.5px solid rgba(0,212,255,0.15); color: #e2e8f0; border-radius: 0.75rem; width: 100%; padding: 0.75rem 1rem; font-size: 0.875rem; transition: all 0.2s; outline: none; font-family: "Noto Sans Thai", sans-serif; }
+        .modal-input:focus { border-color: rgba(0,212,255,0.5); box-shadow: 0 0 0 3px rgba(0,212,255,0.08); }
+        .modal-input::placeholder { color: #374151; }
+        .modal-cancel { color: #4b5563; transition: color 0.15s, background 0.15s; border-radius: 0.75rem; padding: 0.625rem 1rem; font-size: 0.875rem; font-weight: 600; }
+        .modal-cancel:hover { background: rgba(255,255,255,0.04); color: #94a3b8; }
+        .thread-user-msg { background: rgba(0,140,180,0.2); border: 1px solid rgba(0,212,255,0.2); color: #e2e8f0; }
+        .thread-admin-msg { background: rgba(17,24,39,0.9); border: 1px solid rgba(0,212,255,0.1); color: #cbd5e1; }
+        .tab-active { color: #00d4ff !important; border-color: #00d4ff !important; }
+        .tab-inactive { color: #374151 !important; border-color: transparent !important; }
+        .tab-inactive:hover { color: #94a3b8 !important; }
     </style>
 </head>
 <body>
-    <div class="floating-shapes"><div class="shape"></div><div class="shape"></div><div class="shape"></div></div>
-    <div class="relative z-10 flex h-screen gap-3 p-3 lg:gap-4 lg:p-4">
+    <div class="relative z-10 flex h-screen gap-2 p-2 lg:gap-3 lg:p-3">
 
-        <!-- Sidebar -->
-        <aside id="sidebar" class="glass fixed inset-y-3 left-3 z-30 flex w-[84vw] max-w-[300px] flex-col rounded-2xl p-4 shadow-2xl transition-transform duration-300 lg:static lg:w-72 lg:translate-x-0 -translate-x-[120%]" style="background: #D9EAFD; border-color: #c0d4f0;">
-            <div class="flex items-center justify-between pb-4 border-b border-blue-200">
-                <div class="flex items-center gap-2">
-                    <div class="flex h-9 w-9 items-center justify-center rounded-xl btn-purple shadow overflow-hidden">
+        <!-- SIDEBAR -->
+        <aside id="sidebar" class="glass neon-top fixed inset-y-2 left-2 z-30 flex w-[84vw] max-w-[285px] flex-col rounded-2xl p-4 shadow-2xl transition-transform duration-300 lg:static lg:w-[270px] lg:translate-x-0 -translate-x-[120%]">
+            <div class="flex items-center justify-between pb-4" style="border-bottom: 1px solid rgba(0,212,255,0.1);">
+                <div class="flex items-center gap-2.5">
+                    <div class="relative flex h-9 w-9 items-center justify-center rounded-xl overflow-hidden" style="background: linear-gradient(135deg,#0090bb,#00d4ff); box-shadow: 0 0 18px rgba(0,212,255,0.4);">
                         <img src="/static/logonew.png" alt="I-SAVE Logo" class="w-full h-full object-cover">
                     </div>
                     <div>
-                        <p class="text-[10px] font-bold uppercase tracking-widest text-gray-600">I-SAVE</p>
-                        <h1 class="text-base font-bold text-gray-800 leading-tight">หัวข้อสนทนา</h1>
+                        <p class="tech-label">I-SAVE SYSTEM</p>
+                        <h1 class="text-sm font-bold leading-tight" style="color: #e2e8f0;">หัวข้อสนทนา</h1>
                     </div>
                 </div>
-                <button onclick="toggleSidebar()" class="rounded-lg bg-white/50 p-2 text-gray-600 lg:hidden hover:bg-white/70">
+                <button onclick="toggleSidebar()" class="sidebar-btn rounded-lg p-2 lg:hidden">
                     <i class="fas fa-xmark text-sm"></i>
                 </button>
             </div>
-            <div class="mt-4 space-y-3">
-                <button onclick="createNewConversation()" class="btn-purple w-full rounded-xl py-2.5 text-sm font-semibold text-white shadow-md">
+            <div class="mt-4 space-y-2">
+                <button onclick="createNewConversation()" class="btn-primary w-full rounded-xl py-2.5 text-sm font-semibold text-white">
                     <i class="fas fa-pen-to-square mr-2"></i>เริ่มแชทใหม่
                 </button>
-                <button onclick="openRenameModal()" class="w-full rounded-xl border border-blue-200 bg-white/50 px-3 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-white/70">
+                <button onclick="openRenameModal()" class="sidebar-btn w-full rounded-xl px-3 py-2.5 text-sm font-semibold">
                     <i class="fas fa-pencil mr-2"></i>แก้ชื่อหัวข้อ
                 </button>
-                <button onclick="deleteCurrentConversation()" class="w-full rounded-xl border border-rose-300 bg-rose-50 px-3 py-2.5 text-sm font-semibold text-rose-600 transition hover:bg-rose-100">
+                <button onclick="deleteCurrentConversation()" class="sidebar-btn-danger w-full rounded-xl px-3 py-2.5 text-sm font-semibold">
                     <i class="fas fa-trash mr-2"></i>ลบหัวข้อ
                 </button>
-                <button onclick="openSupportModal()" class="relative w-full rounded-xl border border-blue-300 bg-blue-50 px-3 py-2.5 text-sm font-semibold text-blue-700 transition hover:bg-blue-100">
+                <button onclick="openSupportModal()" class="relative sidebar-btn-cyan w-full rounded-xl px-3 py-2.5 text-sm font-semibold">
                     <i class="fas fa-headset mr-2"></i>ติดต่อ Admin
                     <span id="support-badge" class="hidden absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white"></span>
                 </button>
                 <div class="relative">
                     <input id="search-input" type="search" name="chat-srch" placeholder="ค้นหาหัวข้อ..." autocomplete="off" spellcheck="false" oninput="searchConversations()"
-                        class="w-full rounded-xl border border-blue-200 px-4 py-2.5 pl-10 text-sm text-gray-800 outline-none transition focus:border-blue-400 placeholder-gray-400" style="background:#EEEEEE;">
-                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                        class="input-tech w-full rounded-xl px-4 py-2.5 pl-10 text-sm">
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-sm" style="color: rgba(0,212,255,0.35);"></i>
                 </div>
             </div>
-            <div id="conversation-list" class="scrollbar-thin mt-2 flex-1 space-y-1.5 overflow-y-auto pr-0.5 pb-4"></div>
+            <div id="conversation-list" class="scrollbar-thin mt-3 flex-1 space-y-1 overflow-y-auto pr-0.5 pb-4"></div>
         </aside>
 
-        <div id="sidebar-backdrop" onclick="toggleSidebar()" class="fixed inset-0 z-20 hidden bg-black/30 lg:hidden"></div>
+        <div id="sidebar-backdrop" onclick="toggleSidebar()" class="fixed inset-0 z-20 hidden bg-black/60 lg:hidden"></div>
 
-        <!-- Main -->
-        <main class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 lg:gap-4">
-            <header class="relative rounded-2xl px-4 py-3 shadow-md backdrop-blur-xl border z-[100]" style="background: #D9EAFD; border-color: #c0d4f0;">
-                <!-- Background decoration -->
-                <div class="absolute inset-0 bg-gradient-to-r from-blue-50/50 via-transparent to-blue-50/50 rounded-2xl"></div>
-                <div class="absolute right-0 top-0 h-full w-32 bg-gradient-to-l from-blue-50/30 to-transparent rounded-2xl"></div>
+        <!-- MAIN -->
+        <main class="flex min-h-0 min-w-0 flex-1 flex-col gap-2 lg:gap-3">
+            <header class="glass relative rounded-2xl px-4 py-3 z-[100]">
+                <div class="scan-overlay"></div>
                 <div class="relative z-10 flex items-center justify-between gap-3">
                     <div class="flex items-center gap-3">
-                        <button onclick="toggleSidebar()" class="rounded-lg bg-gray-100 backdrop-blur p-2 text-gray-500 lg:hidden hover:bg-gray-200 transition-colors">
+                        <button onclick="toggleSidebar()" class="sidebar-btn rounded-lg p-2 lg:hidden">
                             <i class="fas fa-bars text-sm"></i>
                         </button>
-                        <div class="flex items-center gap-2">
-                            <div class="relative">
-                                <div class="absolute inset-0 rounded-xl bg-gradient-to-br from-blue-400 to-blue-600 blur-md opacity-30"></div>
-                                <div class="relative flex h-9 w-9 items-center justify-center rounded-xl">
-                                    <img src="/static/chat.png" alt="Chat" class="w-5 h-5 object-contain">
-                                </div>
+                        <div class="flex items-center gap-2.5">
+                            <div class="relative flex h-9 w-9 items-center justify-center rounded-xl" style="background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.18);">
+                                <img src="/static/chat.png" alt="Chat" class="w-5 h-5 object-contain" style="opacity:0.8; filter: brightness(10) saturate(0.3);">
                             </div>
                             <div>
-                                <p class="text-[10px] font-bold uppercase tracking-widest text-blue-500">Topic</p>
-                                <h2 id="active-conversation-title" class="text-base font-bold text-gray-800 leading-tight">กำลังโหลด...</h2>
+                                <p class="tech-label">ACTIVE THREAD</p>
+                                <h2 id="active-conversation-title" class="text-sm font-bold leading-tight" style="color: #e2e8f0;">กำลังโหลด...</h2>
                             </div>
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
+                        <div class="hidden md:flex items-center gap-1.5 rounded-lg px-2.5 py-1.5" style="background: rgba(0,212,255,0.05); border: 1px solid rgba(0,212,255,0.1);">
+                            <div class="status-online"></div>
+                            <span class="tech-label">ONLINE</span>
+                        </div>
                         <div class="relative z-[99999]">
-                            <button id="user-menu-trigger" onclick="toggleUserMenu()" class="flex items-center gap-2 rounded-xl border border-gray-300 bg-gray-50 backdrop-blur px-3 py-2 transition-all hover:bg-gray-100 hover:border-gray-400">
-                                <div id="user-avatar" class="flex h-7 w-7 items-center justify-center rounded-full overflow-hidden shadow-sm">
+                            <button id="user-menu-trigger" onclick="toggleUserMenu()" class="flex items-center gap-2 rounded-xl px-3 py-2 transition-all" style="background: rgba(0,212,255,0.05); border: 1px solid rgba(0,212,255,0.12); color: #e2e8f0;" onmouseover="this.style.borderColor='rgba(0,212,255,0.3)'" onmouseout="this.style.borderColor='rgba(0,212,255,0.12)'">
+                                <div id="user-avatar" class="flex h-7 w-7 items-center justify-center rounded-full overflow-hidden" style="border: 1.5px solid rgba(0,212,255,0.3);">
                                     <img src="/static/user.png" alt="User" class="w-full h-full object-cover">
                                 </div>
                                 <div class="hidden text-left md:block">
-                                    <p id="user-name" class="text-sm font-semibold text-gray-800 leading-tight">...</p>
-                                    <p class="text-[10px] text-gray-500">จัดการบัญชี <i class="fas fa-chevron-down text-[8px]"></i></p>
+                                    <p id="user-name" class="text-sm font-semibold leading-tight" style="color: #e2e8f0;">...</p>
+                                    <p class="tech-label">ACCOUNT <i class="fas fa-chevron-down text-[7px]"></i></p>
                                 </div>
                             </button>
-                            <div id="user-menu" style="display: none;" class="absolute right-0 top-full mt-2 w-64 rounded-xl bg-white shadow-xl ring-1 ring-gray-200 overflow-hidden z-[999999]">
+                            <div id="user-menu" style="display: none;" class="dropdown-dark absolute right-0 top-full mt-2 w-60 rounded-xl overflow-hidden z-[999999]">
                                 <div class="p-2">
-                                    <button onclick="openChangePasswordModal(); toggleUserMenu();" class="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-gray-700 rounded-lg transition hover:bg-gray-100">
-                                        <i class="fas fa-key w-4 text-blue-500"></i>
-                                        <span>เปลี่ยนรหัสผ่าน</span>
+                                    <button onclick="openChangePasswordModal(); toggleUserMenu();" class="dropdown-item flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm">
+                                        <i class="fas fa-key w-4" style="color: rgba(0,212,255,0.6);"></i><span>เปลี่ยนรหัสผ่าน</span>
                                     </button>
-                                    <button id="admin-menu-btn" onclick="openAdminUsersModal(); toggleUserMenu();" class="hidden w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-rose-600 rounded-lg transition hover:bg-rose-50">
-                                        <i class="fas fa-users w-4 text-rose-500"></i>
-                                        <span>จัดการผู้ใช้</span>
+                                    <button id="admin-menu-btn" onclick="openAdminUsersModal(); toggleUserMenu();" class="hidden dropdown-item w-full items-center gap-3 px-4 py-2.5 text-left text-sm" style="color:#f87171;">
+                                        <i class="fas fa-users w-4" style="color:#f87171;"></i><span>จัดการผู้ใช้</span>
                                     </button>
-                                    <a id="admin-panel-btn" href="http://docker-webchat/admin" target="_blank" rel="noopener noreferrer" class="hidden w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-amber-700 rounded-lg transition hover:bg-amber-50">
-                                        <i class="fas fa-shield-halved w-4 text-amber-500"></i>
-                                        <span>Admin Panel</span>
+                                    <a id="admin-panel-btn" href="http://docker-webchat/admin" target="_blank" rel="noopener noreferrer" class="hidden dropdown-item w-full items-center gap-3 px-4 py-2.5 text-left text-sm" style="color:#fbbf24;">
+                                        <i class="fas fa-shield-halved w-4" style="color:#fbbf24;"></i><span>Admin Panel</span>
                                     </a>
                                 </div>
                             </div>
                         </div>
-                        <a href="{{ url_for('logout') }}" class="rounded-xl bg-gradient-to-r from-red-500 to-rose-600 px-3 py-2 text-sm font-semibold text-white shadow-lg transition-all hover:shadow-xl hover:-translate-y-0.5">ออกจากระบบ</a>
+                        <a href="{{ url_for('logout') }}" class="rounded-xl px-3 py-2 text-sm font-semibold text-white transition-all hover:-translate-y-0.5" style="background: linear-gradient(135deg,#b91c1c,#ef4444); box-shadow: 0 2px 14px rgba(239,68,68,0.3);" onmouseover="this.style.boxShadow='0 4px 22px rgba(239,68,68,0.5)'" onmouseout="this.style.boxShadow='0 2px 14px rgba(239,68,68,0.3)'">ออกจากระบบ</a>
                     </div>
                 </div>
             </header>
 
-            <section class="glass flex min-h-0 flex-1 flex-col rounded-2xl shadow-lg overflow-hidden relative z-0">
+            <section class="glass flex min-h-0 flex-1 flex-col rounded-2xl overflow-hidden relative z-0">
                 <div id="chat-messages" class="scrollbar-thin flex-1 space-y-3 overflow-y-auto px-4 py-5 lg:px-6"></div>
-                <div class="border-t border-gray-200 px-4 py-3 lg:px-5">
+                <div class="px-4 py-3 lg:px-5" style="border-top: 1px solid rgba(0,212,255,0.08);">
                     <div class="mb-2.5 grid grid-cols-2 gap-2">
-                        <button onclick="sendQuickMessage('ข้อมูลเครื่องจักร')" class="group relative overflow-hidden rounded-2xl p-3.5 shadow-md transition-all duration-300 hover:shadow-lg hover:-translate-y-1" style="background: #EDF4FE;">
-                            <div class="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100"></div>
-                            <div class="relative flex items-center gap-3">
-                                <div class="relative">
-                                    <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-white/40 overflow-hidden">
-                                        <img src="/static/knitting-machine.png" alt="Machine" class="w-8 h-8 object-contain">
-                                    </div>
+                        <button onclick="sendQuickMessage('ข้อมูลเครื่องจักร')" class="quick-btn group rounded-2xl p-3">
+                            <div class="flex items-center gap-2.5">
+                                <div class="flex h-9 w-9 items-center justify-center rounded-xl overflow-hidden flex-shrink-0" style="background: rgba(0,212,255,0.07); border: 1px solid rgba(0,212,255,0.13);">
+                                    <img src="/static/knitting-machine.png" alt="Machine" class="w-7 h-7 object-contain" style="opacity:0.75;">
                                 </div>
                                 <div class="flex-1 text-left">
-                                    <div class="text-sm font-bold text-gray-800 leading-tight">Machine Capacity</div>
-                                    <div class="text-xs text-blue-800 font-medium">ข้อมูลเครื่องจักร</div>
+                                    <div class="text-xs font-bold" style="color:#e2e8f0;">Machine</div>
+                                    <div class="text-[10px]" style="color:rgba(0,212,255,0.65);">Capacity</div>
                                 </div>
                             </div>
                         </button>
-                        <button onclick="sendQuickMessage('ข้อมูล Item')" class="group relative overflow-hidden rounded-2xl p-3.5 shadow-md transition-all duration-300 hover:shadow-lg hover:-translate-y-1" style="background: #EDF4FE;">
-                            <div class="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100"></div>
-                            <div class="relative flex items-center gap-3">
-                                <div class="relative">
-                                    <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-white/40 overflow-hidden">
-                                        <img src="/static/checklist.png" alt="Item" class="w-8 h-8 object-contain">
-                                    </div>
+                        <button onclick="sendQuickMessage('ข้อมูล Item')" class="quick-btn group rounded-2xl p-3">
+                            <div class="flex items-center gap-2.5">
+                                <div class="flex h-9 w-9 items-center justify-center rounded-xl overflow-hidden flex-shrink-0" style="background: rgba(0,212,255,0.07); border: 1px solid rgba(0,212,255,0.13);">
+                                    <img src="/static/checklist.png" alt="Item" class="w-7 h-7 object-contain" style="opacity:0.75;">
                                 </div>
                                 <div class="flex-1 text-left">
-                                    <div class="text-sm font-bold text-gray-800 leading-tight">ITEM</div>
-                                    <div class="text-xs text-blue-800 font-medium">ข้อมูล Item</div>
+                                    <div class="text-xs font-bold" style="color:#e2e8f0;">ITEM</div>
+                                    <div class="text-[10px]" style="color:rgba(0,212,255,0.65);">ข้อมูล Item</div>
                                 </div>
                             </div>
                         </button>
-                        <button onclick="sendQuickMessage('ข้อมูล Capacity')" class="group relative overflow-hidden rounded-2xl p-3.5 shadow-md transition-all duration-300 hover:shadow-lg hover:-translate-y-1" style="background: #EDF4FE;">
-                            <div class="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100"></div>
-                            <div class="relative flex items-center gap-3">
-                                <div class="relative">
-                                    <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-white/40 overflow-hidden">
-                                        <img src="/static/production.png" alt="Capacity" class="w-8 h-8 object-contain">
-                                    </div>
+                        <button onclick="sendQuickMessage('ข้อมูล Capacity')" class="quick-btn group rounded-2xl p-3">
+                            <div class="flex items-center gap-2.5">
+                                <div class="flex h-9 w-9 items-center justify-center rounded-xl overflow-hidden flex-shrink-0" style="background: rgba(0,212,255,0.07); border: 1px solid rgba(0,212,255,0.13);">
+                                    <img src="/static/production.png" alt="Capacity" class="w-7 h-7 object-contain" style="opacity:0.75;">
                                 </div>
                                 <div class="flex-1 text-left">
-                                    <div class="text-sm font-bold text-gray-800 leading-tight">Available Capacity</div>
-                                    <div class="text-xs text-blue-800 font-medium">ข้อมูล Capacity</div>
+                                    <div class="text-xs font-bold" style="color:#e2e8f0;">Available</div>
+                                    <div class="text-[10px]" style="color:rgba(0,212,255,0.65);">Capacity</div>
                                 </div>
                             </div>
                         </button>
-                        <button onclick="sendQuickMessage('ข้อมูลแผนทอ')" class="group relative overflow-hidden rounded-2xl p-3.5 shadow-md transition-all duration-300 hover:shadow-lg hover:-translate-y-1" style="background: #EDF4FE;">
-                            <div class="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100"></div>
-                            <div class="relative flex items-center gap-3">
-                                <div class="relative">
-                                    <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-white/40 overflow-hidden">
-                                        <img src="/static/work-plan.png" alt="Plan" class="w-8 h-8 object-contain">
-                                    </div>
+                        <button onclick="sendQuickMessage('ข้อมูลแผนทอ')" class="quick-btn group rounded-2xl p-3">
+                            <div class="flex items-center gap-2.5">
+                                <div class="flex h-9 w-9 items-center justify-center rounded-xl overflow-hidden flex-shrink-0" style="background: rgba(0,212,255,0.07); border: 1px solid rgba(0,212,255,0.13);">
+                                    <img src="/static/work-plan.png" alt="Plan" class="w-7 h-7 object-contain" style="opacity:0.75;">
                                 </div>
                                 <div class="flex-1 text-left">
-                                    <div class="text-sm font-bold text-gray-800 leading-tight">Knitting Plan</div>
-                                    <div class="text-xs text-blue-800 font-medium">ข้อมูลแผนทอ</div>
+                                    <div class="text-xs font-bold" style="color:#e2e8f0;">Knitting</div>
+                                    <div class="text-[10px]" style="color:rgba(0,212,255,0.65);">Plan</div>
                                 </div>
                             </div>
                         </button>
                     </div>
-                    <div id="quote-banner" class="hidden mb-2 flex items-start gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2">
-                        <i class="fas fa-quote-left text-blue-400 text-xs mt-0.5 flex-shrink-0"></i>
-                        <p id="quote-banner-text" class="text-xs text-blue-700 leading-relaxed flex-1 line-clamp-2 break-words"></p>
-                        <button onclick="clearQuote()" class="flex-shrink-0 text-blue-300 hover:text-blue-500 transition-colors ml-1">
+                    <div id="quote-banner" class="hidden mb-2 flex items-start gap-2 rounded-xl px-3 py-2" style="background: rgba(0,212,255,0.06); border: 1px solid rgba(0,212,255,0.18);">
+                        <i class="fas fa-quote-left text-xs mt-0.5 flex-shrink-0" style="color:rgba(0,212,255,0.55);"></i>
+                        <p id="quote-banner-text" class="text-xs leading-relaxed flex-1 line-clamp-2 break-words" style="color:#94a3b8;"></p>
+                        <button onclick="clearQuote()" class="flex-shrink-0 ml-1 transition-colors" style="color:rgba(0,212,255,0.35);" onmouseover="this.style.color='rgba(0,212,255,0.8)'" onmouseout="this.style.color='rgba(0,212,255,0.35)'">
                             <i class="fas fa-xmark text-xs"></i>
                         </button>
                     </div>
                     <div class="flex items-end gap-2">
                         <textarea id="message-input" rows="1" oninput="autoResize(this)" onkeypress="handleKeyPress(event)"
                             placeholder="พิมพ์ข้อความ..."
-                            class="min-h-[46px] flex-1 resize-none rounded-xl border-2 bg-gray-50 px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-blue-500 placeholder-gray-400 break-words overflow-hidden" style="border-color:#AAC4F5;"></textarea>
-                        <button id="send-btn" onclick="sendMessage()" class="btn-purple flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl text-white shadow-md disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none">
+                            class="input-tech min-h-[46px] flex-1 resize-none rounded-xl px-4 py-3 text-sm break-words overflow-hidden"></textarea>
+                        <button id="send-btn" onclick="sendMessage()" class="btn-primary flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl text-white shadow disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none">
                             <i class="fas fa-paper-plane text-sm"></i>
                         </button>
                     </div>
@@ -220,104 +301,98 @@
     <div id="toast" class="fixed top-10 left-1/2 transform -translate-x-1/2 z-[999999999] hidden rounded-xl px-4 py-3 text-sm font-medium text-white shadow-2xl"></div>
 
     <!-- Rename Modal -->
-    <div id="rename-modal" style="display: none;" class="fixed inset-0 z-[9999999] flex items-center justify-center bg-black/40 p-4">
-        <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl" style="border: 1px solid #e2e8f0;">
-            <h3 class="text-lg font-bold text-gray-800">เปลี่ยนชื่อหัวข้อ</h3>
-            <p class="mt-1 text-sm text-gray-500">ชื่อหัวข้อนี้จะถูกเก็บไว้กับบัญชีของคุณ</p>
-            <input id="conversation-title" type="text" class="mt-4 w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-blue-400 placeholder-gray-400" placeholder="เช่น วางแผนโปรเจกต์เดือนมีนาคม">
+    <div id="rename-modal" style="display: none;" class="fixed inset-0 z-[9999999] flex items-center justify-center bg-black/60 p-4">
+        <div class="modal-card w-full max-w-md rounded-2xl p-6">
+            <h3 class="text-base font-bold modal-title">เปลี่ยนชื่อหัวข้อ</h3>
+            <p class="mt-1 text-sm modal-sub">ชื่อหัวข้อนี้จะถูกเก็บไว้กับบัญชีของคุณ</p>
+            <input id="conversation-title" type="text" class="modal-input mt-4" placeholder="เช่น วางแผนโปรเจกต์เดือนมีนาคม">
             <div class="mt-5 flex justify-end gap-2">
-                <button onclick="closeRenameModal()" class="rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-100">ยกเลิก</button>
-                <button onclick="confirmRenameConversation()" class="btn-purple rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow">บันทึก</button>
+                <button onclick="closeRenameModal()" class="modal-cancel">ยกเลิก</button>
+                <button onclick="confirmRenameConversation()" class="btn-primary rounded-xl px-4 py-2.5 text-sm font-semibold text-white">บันทึก</button>
             </div>
         </div>
     </div>
 
     <!-- Change Password Modal -->
-    <div id="change-password-modal" style="display: none;" class="fixed inset-0 z-[9999999] flex items-center justify-center bg-black/40 p-4">
-        <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl" style="border: 1px solid #e2e8f0;">
-            <h3 class="text-lg font-bold text-gray-800">เปลี่ยนรหัสผ่าน</h3>
-            <p class="mt-1 text-sm text-gray-500">กรอกรหัสผ่านเดิมและตั้งรหัสผ่านใหม่</p>
-            <input id="old-password" type="password" autocomplete="current-password" class="mt-4 w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-blue-400 placeholder-gray-400" placeholder="รหัสผ่านเดิม">
-            <input id="new-password" type="password" autocomplete="new-password" class="mt-3 w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-blue-400 placeholder-gray-400" placeholder="รหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร)">
-            <input id="confirm-new-password" type="password" autocomplete="new-password" class="mt-3 w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-blue-400 placeholder-gray-400" placeholder="ยืนยันรหัสผ่านใหม่">
+    <div id="change-password-modal" style="display: none;" class="fixed inset-0 z-[9999999] flex items-center justify-center bg-black/60 p-4">
+        <div class="modal-card w-full max-w-md rounded-2xl p-6">
+            <h3 class="text-base font-bold modal-title">เปลี่ยนรหัสผ่าน</h3>
+            <p class="mt-1 text-sm modal-sub">กรอกรหัสผ่านเดิมและตั้งรหัสผ่านใหม่</p>
+            <input id="old-password" type="password" autocomplete="current-password" class="modal-input mt-4" placeholder="รหัสผ่านเดิม">
+            <input id="new-password" type="password" autocomplete="new-password" class="modal-input mt-3" placeholder="รหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร)">
+            <input id="confirm-new-password" type="password" autocomplete="new-password" class="modal-input mt-3" placeholder="ยืนยันรหัสผ่านใหม่">
             <div class="mt-5 flex justify-end gap-2">
-                <button onclick="closeChangePasswordModal()" class="rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-100">ยกเลิก</button>
-                <button onclick="confirmChangePassword()" class="btn-purple rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow">บันทึก</button>
+                <button onclick="closeChangePasswordModal()" class="modal-cancel">ยกเลิก</button>
+                <button onclick="confirmChangePassword()" class="btn-primary rounded-xl px-4 py-2.5 text-sm font-semibold text-white">บันทึก</button>
             </div>
         </div>
     </div>
 
     <!-- Admin Users Modal -->
-    <div id="admin-users-modal" class="fixed inset-0 z-[9999999] hidden items-center justify-center bg-black/40 p-4">
-        <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+    <div id="admin-users-modal" class="fixed inset-0 z-[9999999] hidden items-center justify-center bg-black/60 p-4">
+        <div class="modal-card w-full max-w-lg rounded-2xl p-6">
             <div class="flex items-center justify-between">
                 <div>
-                    <h3 class="text-lg font-bold text-gray-900">จัดการผู้ใช้</h3>
-                    <p class="mt-1 text-sm text-gray-500">รีเซ็ตรหัสผ่านให้ผู้ใช้ที่ต้องการ</p>
+                    <h3 class="text-base font-bold modal-title">จัดการผู้ใช้</h3>
+                    <p class="mt-1 text-sm modal-sub">รีเซ็ตรหัสผ่านให้ผู้ใช้ที่ต้องการ</p>
                 </div>
-                <button onclick="closeAdminUsersModal()" class="rounded-full p-2 text-gray-400 transition hover:bg-gray-100"><i class="fas fa-xmark"></i></button>
+                <button onclick="closeAdminUsersModal()" class="rounded-full p-2 transition" style="color:#4b5563;" onmouseover="this.style.color='#e2e8f0';this.style.background='rgba(0,212,255,0.06)'" onmouseout="this.style.color='#4b5563';this.style.background='transparent'"><i class="fas fa-xmark"></i></button>
             </div>
-            <div id="admin-users-list" class="mt-4 max-h-80 space-y-2 overflow-y-auto"></div>
+            <div id="admin-users-list" class="scrollbar-thin mt-4 max-h-80 space-y-2 overflow-y-auto"></div>
         </div>
     </div>
 
     <!-- Admin Reset Password Modal -->
-    <div id="admin-reset-password-modal" style="display: none;" class="fixed inset-0 z-[9999999] hidden items-center justify-center bg-black/40 p-4">
-        <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-            <h3 class="text-lg font-bold text-gray-900">รีเซ็ตรหัสผ่าน</h3>
-            <p id="admin-reset-target-name" class="mt-1 text-sm font-medium text-gray-600"></p>
-            <input id="admin-new-password" type="password" autocomplete="new-password" class="mt-4 w-full rounded-xl border border-purple-200 px-4 py-3 text-sm outline-none transition focus:border-purple-400" placeholder="รหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร)">
+    <div id="admin-reset-password-modal" style="display: none;" class="fixed inset-0 z-[9999999] hidden items-center justify-center bg-black/60 p-4">
+        <div class="modal-card w-full max-w-md rounded-2xl p-6">
+            <h3 class="text-base font-bold modal-title">รีเซ็ตรหัสผ่าน</h3>
+            <p id="admin-reset-target-name" class="mt-1 text-sm font-medium" style="color:#94a3b8;"></p>
+            <input id="admin-new-password" type="password" autocomplete="new-password" class="modal-input mt-4" placeholder="รหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร)">
             <div class="mt-5 flex justify-end gap-2">
-                <button onclick="closeAdminResetModal()" class="rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-100">ยกเลิก</button>
-                <button onclick="confirmAdminReset()" class="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white shadow transition hover:bg-rose-700">รีเซ็ตรหัสผ่าน</button>
+                <button onclick="closeAdminResetModal()" class="modal-cancel">ยกเลิก</button>
+                <button onclick="confirmAdminReset()" class="rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90" style="background: linear-gradient(135deg,#b91c1c,#ef4444);">รีเซ็ตรหัสผ่าน</button>
             </div>
         </div>
     </div>
 
     <!-- Support Modal -->
-    <div id="support-modal" style="display:none;" class="fixed inset-0 z-[9999999] flex items-center justify-center bg-black/40 p-4">
-        <div class="flex w-full max-w-lg flex-col rounded-2xl bg-white shadow-2xl" style="max-height:85vh; border:1px solid #e2e8f0;">
-            <!-- Header -->
-            <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+    <div id="support-modal" style="display:none;" class="fixed inset-0 z-[9999999] flex items-center justify-center bg-black/60 p-4">
+        <div class="modal-card flex w-full max-w-lg flex-col rounded-2xl" style="max-height:85vh;">
+            <div class="flex items-center justify-between px-5 py-4" style="border-bottom: 1px solid rgba(0,212,255,0.1);">
                 <div class="flex items-center gap-2">
-                    <div class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100">
-                        <i class="fas fa-headset text-blue-600 text-sm"></i>
+                    <div class="flex h-8 w-8 items-center justify-center rounded-full" style="background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.2);">
+                        <i class="fas fa-headset text-sm" style="color:#00d4ff;"></i>
                     </div>
                     <div>
-                        <h3 class="text-base font-bold text-gray-800">ติดต่อ Admin</h3>
-                        <p class="text-xs text-gray-400">ส่งข้อความหรือรายงานปัญหา</p>
+                        <h3 class="text-sm font-bold modal-title">ติดต่อ Admin</h3>
+                        <p class="text-xs modal-sub">ส่งข้อความหรือรายงานปัญหา</p>
                     </div>
                 </div>
-                <button onclick="closeSupportModal()" class="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 transition"><i class="fas fa-xmark"></i></button>
+                <button onclick="closeSupportModal()" class="rounded-full p-1.5 transition" style="color:#4b5563;" onmouseover="this.style.color='#e2e8f0';this.style.background='rgba(0,212,255,0.06)'" onmouseout="this.style.color='#4b5563';this.style.background='transparent'"><i class="fas fa-xmark"></i></button>
             </div>
-            <!-- Tabs -->
-            <div class="flex border-b border-gray-100">
-                <button id="tab-new" onclick="switchSupportTab('new')" class="flex-1 py-2.5 text-sm font-semibold text-blue-600 border-b-2 border-blue-500 transition">✉️ ข้อความใหม่</button>
-                <button id="tab-history" onclick="switchSupportTab('history')" class="flex-1 py-2.5 text-sm font-semibold text-gray-400 border-b-2 border-transparent transition hover:text-gray-600">📋 ประวัติ</button>
+            <div class="flex" style="border-bottom: 1px solid rgba(0,212,255,0.08);">
+                <button id="tab-new" onclick="switchSupportTab('new')" class="flex-1 py-2.5 text-sm font-semibold transition border-b-2 tab-active">✉️ ข้อความใหม่</button>
+                <button id="tab-history" onclick="switchSupportTab('history')" class="flex-1 py-2.5 text-sm font-semibold transition border-b-2 tab-inactive">📋 ประวัติ</button>
             </div>
-            <!-- New Message Panel -->
             <div id="support-panel-new" class="flex flex-col gap-3 p-5">
                 <textarea id="support-message-input" rows="4" placeholder="อธิบายปัญหาหรือข้อความที่ต้องการส่ง Admin..."
-                    class="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800 outline-none focus:border-blue-400 transition placeholder-gray-400"></textarea>
-                <button onclick="submitSupportTicket()" class="btn-purple w-full rounded-xl py-2.5 text-sm font-semibold text-white shadow">
+                    class="input-tech w-full resize-none rounded-xl px-4 py-3 text-sm outline-none" style="min-height:100px;"></textarea>
+                <button onclick="submitSupportTicket()" class="btn-primary w-full rounded-xl py-2.5 text-sm font-semibold text-white">
                     <i class="fas fa-paper-plane mr-2"></i>ส่งข้อความ
                 </button>
             </div>
-            <!-- History Panel -->
             <div id="support-panel-history" class="hidden flex min-h-0 flex-1 flex-col overflow-hidden">
-                <!-- Ticket list -->
-                <div id="support-ticket-list" class="flex flex-col gap-1 overflow-y-auto p-3" style="max-height:220px;"></div>
-                <!-- Thread view -->
-                <div id="support-thread" class="hidden flex-1 flex-col border-t border-gray-100">
-                    <div class="flex items-center gap-2 px-4 py-2 bg-gray-50 border-b border-gray-100">
-                        <button onclick="backToTicketList()" class="text-gray-400 hover:text-blue-500 text-xs transition"><i class="fas fa-arrow-left mr-1"></i>กลับ</button>
+                <div id="support-ticket-list" class="scrollbar-thin flex flex-col gap-1 overflow-y-auto p-3" style="max-height:220px;"></div>
+                <div id="support-thread" class="hidden flex-1 flex-col" style="border-top: 1px solid rgba(0,212,255,0.08);">
+                    <div class="flex items-center gap-2 px-4 py-2" style="background: rgba(0,212,255,0.03); border-bottom: 1px solid rgba(0,212,255,0.08);">
+                        <button onclick="backToTicketList()" class="text-xs transition" style="color:#4b5563;" onmouseover="this.style.color='#00d4ff'" onmouseout="this.style.color='#4b5563'"><i class="fas fa-arrow-left mr-1"></i>กลับ</button>
                         <span id="thread-status" class="text-xs px-2 py-0.5 rounded-full font-semibold"></span>
                     </div>
-                    <div id="support-thread-messages" class="flex-1 space-y-2 overflow-y-auto p-4" style="max-height:220px;"></div>
-                    <div class="flex gap-2 border-t border-gray-100 p-3">
+                    <div id="support-thread-messages" class="scrollbar-thin flex-1 space-y-2 overflow-y-auto p-4" style="max-height:220px;"></div>
+                    <div class="flex gap-2 p-3" style="border-top: 1px solid rgba(0,212,255,0.08);">
                         <textarea id="support-reply-input" rows="2" placeholder="พิมพ์ข้อความเพิ่มเติม..."
-                            class="flex-1 resize-none rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 outline-none focus:border-blue-400 transition placeholder-gray-400"></textarea>
-                        <button onclick="submitUserReply()" class="btn-purple self-end flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl text-white shadow">
+                            class="input-tech flex-1 resize-none rounded-xl px-3 py-2 text-sm outline-none"></textarea>
+                        <button onclick="submitUserReply()" class="btn-primary self-end flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl text-white">
                             <i class="fas fa-paper-plane text-xs"></i>
                         </button>
                     </div>
@@ -326,26 +401,26 @@
         </div>
     </div>
 
-    <!-- Custom Confirm Modal -->
-    <div id="confirm-modal" style="display:none;" class="fixed inset-0 z-[99999999] flex items-center justify-center bg-black/40 p-4">
-        <div class="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl" style="border: 1px solid #e2e8f0;">
+    <!-- Confirm Modal -->
+    <div id="confirm-modal" style="display:none;" class="fixed inset-0 z-[99999999] flex items-center justify-center bg-black/60 p-4">
+        <div class="modal-card w-full max-w-sm rounded-2xl p-6">
             <div class="flex items-center gap-3 mb-3">
-                <div class="flex h-10 w-10 items-center justify-center rounded-full bg-rose-100 flex-shrink-0">
-                    <i class="fas fa-trash text-rose-500"></i>
+                <div class="flex h-10 w-10 items-center justify-center rounded-full flex-shrink-0" style="background: rgba(239,68,68,0.1);">
+                    <i class="fas fa-trash" style="color:#f87171;"></i>
                 </div>
-                <h3 id="confirm-modal-title" class="text-base font-bold text-gray-800">ยืนยันการลบ</h3>
+                <h3 id="confirm-modal-title" class="text-base font-bold modal-title">ยืนยันการลบ</h3>
             </div>
-            <p id="confirm-modal-body" class="text-sm text-gray-500 mb-5">ต้องการลบหัวข้อสนทนานี้หรือไม่</p>
+            <p id="confirm-modal-body" class="text-sm modal-sub mb-5">ต้องการลบหัวข้อสนทนานี้หรือไม่</p>
             <div class="flex justify-end gap-2">
-                <button onclick="closeConfirmModal()" class="rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-100">ยกเลิก</button>
-                <button id="confirm-modal-ok" class="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white shadow transition hover:bg-rose-700">ลบ</button>
+                <button onclick="closeConfirmModal()" class="modal-cancel">ยกเลิก</button>
+                <button id="confirm-modal-ok" class="rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90" style="background: linear-gradient(135deg,#b91c1c,#ef4444);">ลบ</button>
             </div>
         </div>
     </div>
 
     <script>
         let conversations = [], filteredConversations = [], currentConversationId = null;
-        let userInitial = 'A'; // Global variable to store user's initial
+        let userInitial = 'A';
         document.addEventListener("DOMContentLoaded", async () => {
             const si = document.getElementById("search-input");
             si.value = ""; setTimeout(() => { si.value = ""; }, 150);
@@ -355,7 +430,6 @@
             const menu = document.getElementById("user-menu"), trigger = document.getElementById("user-menu-trigger");
             if (menu && menu.style.display !== "none" && !menu.contains(e.target) && trigger && !trigger.contains(e.target)) menu.style.display = "none";
         });
-        // ---- Custom Confirm Modal ----
         let _confirmCallback = null;
         function showConfirmModal(title, body, okLabel, onConfirm) {
             document.getElementById('confirm-modal-title').textContent = title;
@@ -378,11 +452,12 @@
         function csrfToken() { return document.querySelector('meta[name="csrf-token"]').content; }
         function showToast(msg) {
             const t = document.getElementById("toast"); t.textContent = msg; t.classList.remove("hidden");
-            // Set red background for delete notifications
             if (msg.includes("ลบหัวข้อแล้ว") || msg.includes("ลบหัวข้อไม่สำเร็จ")) {
-                t.style.background = "linear-gradient(135deg, #dc2626 0%, #ef4444 100%)";
+                t.style.background = "linear-gradient(135deg, #b91c1c 0%, #ef4444 100%)";
+                t.style.boxShadow = "0 4px 20px rgba(239,68,68,0.4)";
             } else {
-                t.style.background = "linear-gradient(135deg, #0096ff 0%, #00bfff 100%)";
+                t.style.background = "linear-gradient(135deg, #0077aa 0%, #00d4ff 100%)";
+                t.style.boxShadow = "0 4px 20px rgba(0,212,255,0.35)";
             }
             clearTimeout(showToast._t); showToast._t = setTimeout(() => t.classList.add("hidden"), 2500);
         }
@@ -415,8 +490,11 @@
         }
         function updateConversationList() {
             const list = document.getElementById("conversation-list");
-            if (!filteredConversations.length) { list.innerHTML = '<div class="rounded-xl border border-dashed border-blue-200 px-4 py-4 text-sm text-gray-400 text-center">ไม่พบหัวข้อ</div>'; return; }
-            list.innerHTML = filteredConversations.map(c => `<button class="conversation-item w-full px-3 py-2.5 text-left ${c.id === currentConversationId ? "active" : ""}" onclick="selectConversation(${c.id})"><div class="truncate text-sm font-semibold text-gray-800">${escapeHtml(c.title)}</div><div class="mt-0.5 text-xs text-gray-500">${formatDate(c.updated_at)}</div></button>`).join("");
+            if (!filteredConversations.length) {
+                list.innerHTML = '<div class="rounded-xl px-4 py-4 text-sm text-center" style="border: 1px dashed rgba(0,212,255,0.12); color: #374151;">ไม่พบหัวข้อ</div>';
+                return;
+            }
+            list.innerHTML = filteredConversations.map(c => `<button class="conversation-item w-full px-3 py-2.5 text-left ${c.id === currentConversationId ? "active" : ""}" onclick="selectConversation(${c.id})"><div class="truncate text-sm font-semibold" style="color:#e2e8f0;">${escapeHtml(c.title)}</div><div class="mt-0.5 text-xs" style="color:#374151;">${formatDate(c.updated_at)}</div></button>`).join("");
         }
         function searchConversations() {
             const t = document.getElementById("search-input").value.trim().toLowerCase();
@@ -443,7 +521,6 @@
             const payload = quote ? `[อ้างอิงข้อความ]: "${quote}"\n\n${message}` : message;
             removeWelcomeState(); addMessageToChat(message, "user"); input.value = ""; input.style.height = "auto";
             clearQuote(); showTypingIndicator();
-            // Disable send button while waiting
             sendBtn.disabled = true;
             sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin text-sm"></i>';
             try {
@@ -467,7 +544,7 @@
         }
         function sendQuickMessage(msg) {
             const btn = document.getElementById("send-btn");
-            if (btn && btn.disabled) return; // Don't send while AI is responding
+            if (btn && btn.disabled) return;
             document.getElementById("message-input").value = msg;
             sendMessage();
         }
@@ -477,12 +554,10 @@
             messages.forEach(m => addMessageToChat(m.message, m.sender, null, m.sender === 'assistant' ? m.id : null, m.feedback_type, m.created_at));
         }
         function renderWelcomeState() {
-            document.getElementById("chat-messages").innerHTML = `<div id="welcome-state" class="mx-auto max-w-md rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 to-sky-50 p-6 text-center shadow-sm"><div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full btn-purple shadow-md"><i class="fas fa-comments text-white"></i></div><h3 class="text-lg font-bold text-gray-900">เริ่มบทสนทนาใหม่</h3><p class="mt-2 text-sm leading-6 text-gray-500">ระบบเก็บหัวข้อสนทนาแยกตามผู้ใช้ กลับมาเปิดอ่านได้ทุกเมื่อ หรือกด &ldquo;เริ่มแชทใหม่&rdquo; เพื่อเปลี่ยนเรื่องสนทนา</p></div>`;
+            document.getElementById("chat-messages").innerHTML = `<div id="welcome-state" class="mx-auto max-w-md rounded-2xl p-6 text-center" style="background: rgba(11,17,30,0.8); border: 1px solid rgba(0,212,255,0.14);"><div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full" style="background: linear-gradient(135deg,#0090bb,#00d4ff); box-shadow: 0 0 24px rgba(0,212,255,0.4);"><i class="fas fa-comments text-white"></i></div><h3 class="text-base font-bold" style="color:#e2e8f0;">เริ่มบทสนทนาใหม่</h3><p class="mt-2 text-sm leading-6" style="color:#4b5563;">ระบบเก็บหัวข้อสนทนาแยกตามผู้ใช้ กลับมาเปิดอ่านได้ทุกเมื่อ หรือกด &ldquo;เริ่มแชทใหม่&rdquo; เพื่อเปลี่ยนเรื่องสนทนา</p></div>`;
         }
         function removeWelcomeState() { document.getElementById("welcome-state")?.remove(); }
         function renderMarkdown(text) {
-            // Ensure bullet markers not preceded by newline get one (e.g. "...เครื่อง• RAP 22G:")
-            // Use (?<!\*)\*(?!\*) to exclude ** bold markers from matching as bullets
             text = text.replace(/([^\n])([ \t]*(?:[•\-]|(?<!\*)\*(?!\*))[ \t]+)/g, '$1\n$2');
             return text
                 .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
@@ -491,7 +566,7 @@
                 .replace(/^#{1}\s+(.+)$/gm, '<h2 style="font-weight:800;font-size:1.1em;margin:0.6em 0 0.2em">$1</h2>')
                 .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
                 .replace(/\*(.+?)\*/g, '<em>$1</em>')
-                .replace(/^---+$/gm, '<hr style="border:0;border-top:1px solid #e5e7eb;margin:0.5em 0">')
+                .replace(/^---+$/gm, '<hr style="border:0;border-top:1px solid rgba(0,212,255,0.12);margin:0.5em 0">')
                 .replace(/^[-*•]\s*(.+)$/gm, '<div style="padding-left:1em;margin:0.25em 0">• $1</div>')
                 .replace(/<\/div>\n/g, '</div>')
                 .replace(/\n<div/g, '<div')
@@ -505,27 +580,26 @@
                 ? new Date().toLocaleString('th-TH', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })
                 : tsDate.toLocaleString('th-TH', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' });
             if (sender === "user") {
-                w.innerHTML = `<div class="flex flex-col items-end gap-0.5"><div class="max-w-full rounded-2xl rounded-br-sm px-4 py-3 text-sm leading-7 text-gray-800 shadow-md break-words overflow-wrap-anywhere" style="background:#D9EAFD;" title="${nowStr}">${escapeHtml(message).replace(/\n/g, "<br>")}</div><span class="text-[10px] text-gray-400 pr-1">${nowStr}</span></div><div class="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-cyan-600 text-white font-bold text-sm flex items-center justify-center shadow-sm">${userInitial}</div>`;
+                w.innerHTML = `<div class="flex flex-col items-end gap-0.5"><div class="max-w-full rounded-2xl rounded-br-sm px-4 py-3 text-sm leading-7 shadow-md break-words overflow-wrap-anywhere msg-user" title="${nowStr}">${escapeHtml(message).replace(/\n/g, "<br>")}</div><span class="text-[10px] pr-1" style="color:#374151;">${nowStr}</span></div><div class="flex-shrink-0 w-8 h-8 rounded-full text-white font-bold text-sm flex items-center justify-center" style="background:linear-gradient(135deg,#0077aa,#00d4ff);box-shadow:0 0 10px rgba(0,212,255,0.3);">${userInitial}</div>`;
             } else {
                 const chipsHtml = (suggestions && suggestions.length)
-                    ? `<div class="mt-2 flex flex-wrap gap-2">${suggestions.map(s => `<button onclick="sendQuickMessage(${escapeHtml(JSON.stringify(s))})" class="text-xs px-3 py-1.5 rounded-full border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:border-blue-300 transition-colors duration-200 cursor-pointer">${escapeHtml(s)}</button>`).join('')}</div>`
+                    ? `<div class="mt-2 flex flex-wrap gap-2">${suggestions.map(s => `<button onclick="sendQuickMessage(${escapeHtml(JSON.stringify(s))})" class="text-xs px-3 py-1.5 rounded-full transition-colors duration-200 cursor-pointer" style="border:1px solid rgba(0,212,255,0.2);background:rgba(0,212,255,0.06);color:#67e8f9;" onmouseover="this.style.background='rgba(0,212,255,0.12)';this.style.borderColor='rgba(0,212,255,0.4)'" onmouseout="this.style.background='rgba(0,212,255,0.06)';this.style.borderColor='rgba(0,212,255,0.2)'">${escapeHtml(s)}</button>`).join('')}</div>`
                     : '';
                 const encodedMsg = encodeURIComponent(message);
                 const likeActive = feedbackType === 'like';
                 const dislikeActive = feedbackType === 'dislike';
                 const feedbackHtml = messageId ? `
-                    <span class="w-px h-3 bg-gray-200 mx-0.5 self-center"></span>
-                    <button id="like-${messageId}" title="ดีมาก" onclick="submitFeedback(${messageId},'like')" class="rounded-md p-1.5 ${likeActive ? 'text-green-500 bg-green-50' : 'text-gray-300 hover:text-green-500 hover:bg-green-50'} transition-colors"><i class="${likeActive ? 'fas' : 'far'} fa-thumbs-up text-xs"></i></button>
-                    <button id="dislike-${messageId}" title="ปรับปรุงได้" onclick="submitFeedback(${messageId},'dislike')" class="rounded-md p-1.5 ${dislikeActive ? 'text-rose-400 bg-rose-50' : 'text-gray-300 hover:text-rose-400 hover:bg-rose-50'} transition-colors"><i class="${dislikeActive ? 'fas' : 'far'} fa-thumbs-down text-xs"></i></button>` : '';
+                    <span class="w-px h-3 mx-0.5 self-center" style="background:rgba(0,212,255,0.12);"></span>
+                    <button id="like-${messageId}" title="ดีมาก" onclick="submitFeedback(${messageId},'like')" class="rounded-md p-1.5 ${likeActive ? 'text-cyan-400 bg-cyan-400/10' : 'text-slate-600 hover:text-cyan-400 hover:bg-cyan-400/10'} transition-colors"><i class="${likeActive ? 'fas' : 'far'} fa-thumbs-up text-xs"></i></button>
+                    <button id="dislike-${messageId}" title="ปรับปรุงได้" onclick="submitFeedback(${messageId},'dislike')" class="rounded-md p-1.5 ${dislikeActive ? 'text-rose-400 bg-rose-400/10' : 'text-slate-600 hover:text-rose-400 hover:bg-rose-400/10'} transition-colors"><i class="${dislikeActive ? 'fas' : 'far'} fa-thumbs-down text-xs"></i></button>` : '';
                 const actionsHtml = `<div class="flex items-center gap-0.5 px-1 mt-0.5">
-                    <button title="คัดลอก" data-encoded="${encodedMsg}" onclick="copyMessage(this)" class="rounded-md p-1.5 text-gray-300 hover:text-blue-400 hover:bg-blue-50 transition-colors"><i class="far fa-copy text-xs"></i></button>
+                    <button title="คัดลอก" data-encoded="${encodedMsg}" onclick="copyMessage(this)" class="rounded-md p-1.5 text-slate-600 hover:text-cyan-400 hover:bg-cyan-400/10 transition-colors"><i class="far fa-copy text-xs"></i></button>
                     ${feedbackHtml}
                 </div>`;
-                w.innerHTML = `<div class="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden shadow-sm bg-white"><img src="/static/chat-bot.png" alt="AI" class="w-full h-full object-cover"></div><div class="max-w-[75%] flex flex-col gap-1"><div class="rounded-2xl rounded-bl-sm border border-blue-100 bg-white px-4 py-3 text-sm leading-7 text-gray-700 shadow-sm break-words overflow-wrap-anywhere" title="${nowStr}">${renderMarkdown(message)}</div>${actionsHtml}<span class="text-[10px] text-gray-400 pl-1">${nowStr}</span>${chipsHtml}</div>`;
+                w.innerHTML = `<div class="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden" style="border:1.5px solid rgba(0,212,255,0.2);"><img src="/static/chat-bot.png" alt="AI" class="w-full h-full object-cover"></div><div class="max-w-[75%] flex flex-col gap-1"><div class="msg-ai rounded-2xl rounded-bl-sm px-4 py-3 text-sm leading-7 break-words overflow-wrap-anywhere" title="${nowStr}">${renderMarkdown(message)}</div>${actionsHtml}<span class="text-[10px] pl-1" style="color:#374151;">${nowStr}</span>${chipsHtml}</div>`;
             }
             c.appendChild(w); c.scrollTop = c.scrollHeight;
         }
-        // ---- Text Quote Selection ----
         let selectedQuoteText = null;
 
         document.addEventListener('mouseup', (e) => {
@@ -550,7 +624,7 @@
                 popup = document.createElement('div');
                 popup.id = 'selection-popup';
                 popup.style.cssText = 'position:fixed;z-index:99999;display:none;cursor:pointer;user-select:none;';
-                popup.innerHTML = `<div style="background:linear-gradient(135deg,#0096ff,#00bfff);color:white;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;box-shadow:0 4px 14px rgba(0,150,255,0.45);display:flex;align-items:center;gap:6px;white-space:nowrap;"><i class="fas fa-quote-right" style="font-size:10px"></i>ถาม AI เกี่ยวกับข้อความนี้</div>`;
+                popup.innerHTML = `<div style="background:linear-gradient(135deg,#0077aa,#00d4ff);color:white;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;box-shadow:0 4px 18px rgba(0,212,255,0.5),0 0 0 1px rgba(0,212,255,0.2);display:flex;align-items:center;gap:6px;white-space:nowrap;"><i class="fas fa-quote-right" style="font-size:10px"></i>ถาม AI เกี่ยวกับข้อความนี้</div>`;
                 popup.addEventListener('mousedown', (ev) => ev.stopPropagation());
                 popup.onclick = () => { quoteText(text); hideSelectionPopup(); window.getSelection()?.removeAllRanges(); };
                 document.body.appendChild(popup);
@@ -595,8 +669,8 @@
             const icon = btn.querySelector('i');
             const markSuccess = () => {
                 icon.className = 'fas fa-check text-xs';
-                btn.classList.add('text-green-500');
-                setTimeout(() => { icon.className = 'far fa-copy text-xs'; btn.classList.remove('text-green-500'); }, 1500);
+                btn.classList.add('text-cyan-400');
+                setTimeout(() => { icon.className = 'far fa-copy text-xs'; btn.classList.remove('text-cyan-400'); }, 1500);
             };
             if (navigator.clipboard && window.isSecureContext) {
                 try { await navigator.clipboard.writeText(text); markSuccess(); return; } catch (_) {}
@@ -624,15 +698,15 @@
                 const dislikeBtn = document.getElementById('dislike-' + messageId);
                 if (likeBtn && dislikeBtn) {
                     likeBtn.querySelector('i').className = 'far fa-thumbs-up text-xs';
-                    likeBtn.className = 'rounded-md p-1.5 text-gray-300 hover:text-green-500 hover:bg-green-50 transition-colors';
+                    likeBtn.className = 'rounded-md p-1.5 text-slate-600 hover:text-cyan-400 hover:bg-cyan-400/10 transition-colors';
                     dislikeBtn.querySelector('i').className = 'far fa-thumbs-down text-xs';
-                    dislikeBtn.className = 'rounded-md p-1.5 text-gray-300 hover:text-rose-400 hover:bg-rose-50 transition-colors';
+                    dislikeBtn.className = 'rounded-md p-1.5 text-slate-600 hover:text-rose-400 hover:bg-rose-400/10 transition-colors';
                     if (type === 'like') {
                         likeBtn.querySelector('i').className = 'fas fa-thumbs-up text-xs';
-                        likeBtn.className = 'rounded-md p-1.5 text-green-500 bg-green-50 transition-colors';
+                        likeBtn.className = 'rounded-md p-1.5 text-cyan-400 bg-cyan-400/10 transition-colors';
                     } else {
                         dislikeBtn.querySelector('i').className = 'fas fa-thumbs-down text-xs';
-                        dislikeBtn.className = 'rounded-md p-1.5 text-rose-400 bg-rose-50 transition-colors';
+                        dislikeBtn.className = 'rounded-md p-1.5 text-rose-400 bg-rose-400/10 transition-colors';
                     }
                 }
                 showToast(type === 'like' ? 'ขอบคุณสำหรับ Feedback ค่ะ' : 'รับทราบ จะนำไปปรับปรุงค่ะ');
@@ -641,7 +715,7 @@
         function showTypingIndicator() {
             const c = document.getElementById("chat-messages"), w = document.createElement("div");
             w.id = "typing-indicator"; w.className = "flex justify-start";
-            w.innerHTML = '<div class="flex items-center gap-1.5 rounded-2xl rounded-bl-sm border border-purple-100 bg-white px-4 py-3 shadow-sm"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div>';
+            w.innerHTML = '<div class="flex items-center gap-1.5 rounded-2xl rounded-bl-sm px-4 py-3" style="background:rgba(17,24,39,0.95);border:1px solid rgba(0,212,255,0.12);"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div>';
             c.appendChild(w); c.scrollTop = c.scrollHeight;
         }
         function hideTypingIndicator() { document.getElementById("typing-indicator")?.remove(); }
@@ -691,13 +765,9 @@
         function setActiveConversationTitle(t) { document.getElementById("active-conversation-title").textContent = t || "แชทใหม่"; }
         function formatDate(v) { const d = new Date(v); return isNaN(d.getTime()) ? v : d.toLocaleString("th-TH"); }
         function escapeHtml(v) { return String(v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;"); }
-        function toggleUserMenu() { 
+        function toggleUserMenu() {
             const menu = document.getElementById("user-menu");
-            if (menu.style.display === "none") {
-                menu.style.display = "block";
-            } else {
-                menu.style.display = "none";
-            }
+            if (menu.style.display === "none") { menu.style.display = "block"; } else { menu.style.display = "none"; }
         }
         function openChangePasswordModal() {
             document.getElementById("user-menu").style.display = "none";
@@ -718,36 +788,31 @@
         async function openAdminUsersModal() {
             document.getElementById("user-menu").style.display = "none";
             const modal = document.getElementById("admin-users-modal");
-            modal.classList.remove("hidden");
-            modal.classList.add("flex");
+            modal.classList.remove("hidden"); modal.classList.add("flex");
             await loadAdminUsers();
         }
         function closeAdminUsersModal() {
             const modal = document.getElementById("admin-users-modal");
-            modal.classList.add("hidden");
-            modal.classList.remove("flex");
+            modal.classList.add("hidden"); modal.classList.remove("flex");
         }
         async function loadAdminUsers() {
             const r = await fetch("/admin/users"), d = await r.json();
             if (!d.success) { showToast("โหลดรายชื่อผู้ใช้ไม่สำเร็จ"); return; }
-            document.getElementById("admin-users-list").innerHTML = d.users.map(u => `<div class="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-4 py-3"><div><p class="text-sm font-semibold text-gray-900">${escapeHtml(u.username)}<span class="ml-1 rounded-full ${u.role==="admin"?"bg-purple-100 text-purple-700":"bg-gray-200 text-gray-600"} px-2 py-0.5 text-xs">${escapeHtml(u.role)}</span></p><p class="text-xs text-gray-500">${escapeHtml(u.email)}</p></div><button onclick="openAdminResetModal(${u.id},${JSON.stringify(u.username)})" class="rounded-lg bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100"><i class="fas fa-key mr-1"></i>รีเซ็ต</button></div>`).join("");
+            document.getElementById("admin-users-list").innerHTML = d.users.map(u => `<div class="flex items-center justify-between rounded-xl px-4 py-3" style="background:rgba(11,17,30,0.8);border:1px solid rgba(0,212,255,0.1);"><div><p class="text-sm font-semibold" style="color:#e2e8f0;">${escapeHtml(u.username)}<span class="ml-1 rounded-full px-2 py-0.5 text-xs" style="${u.role==="admin"?"background:rgba(139,92,246,0.15);color:#a78bfa;":"background:rgba(71,85,105,0.3);color:#64748b;"}">${escapeHtml(u.role)}</span></p><p class="text-xs" style="color:#374151;">${escapeHtml(u.email)}</p></div><button onclick="openAdminResetModal(${u.id},${JSON.stringify(u.username)})" class="rounded-lg px-3 py-1.5 text-xs font-semibold transition" style="background:rgba(239,68,68,0.1);color:#f87171;border:1px solid rgba(239,68,68,0.2);" onmouseover="this.style.background='rgba(239,68,68,0.18)'" onmouseout="this.style.background='rgba(239,68,68,0.1)'"><i class="fas fa-key mr-1"></i>รีเซ็ต</button></div>`).join("");
         }
         let adminResetTargetId = null;
         function openAdminResetModal(userId, username) {
-            console.log('Opening reset modal for user:', username, 'ID:', userId);
             adminResetTargetId = userId;
             document.getElementById("admin-reset-target-name").textContent = "ผู้ใช้: " + username;
             document.getElementById("admin-new-password").value = "";
             const modal = document.getElementById("admin-reset-password-modal");
-            modal.classList.remove("hidden");
-            modal.style.display = "flex";
+            modal.classList.remove("hidden"); modal.style.display = "flex";
             document.getElementById("admin-new-password").focus();
         }
-        function closeAdminResetModal() { 
+        function closeAdminResetModal() {
             const modal = document.getElementById("admin-reset-password-modal");
-            modal.classList.add("hidden");
-            modal.style.display = "none";
-            adminResetTargetId = null; 
+            modal.classList.add("hidden"); modal.style.display = "none";
+            adminResetTargetId = null;
         }
         async function confirmAdminReset() {
             if (!adminResetTargetId) return;
@@ -758,7 +823,6 @@
             closeAdminResetModal(); showToast("รีเซ็ตรหัสผ่านสำเร็จ");
         }
 
-        // ---- Support Ticket ----
         let currentTicketId = null;
 
         async function loadUnreadCount() {
@@ -767,12 +831,9 @@
                 const d = await r.json();
                 const badge = document.getElementById('support-badge');
                 if (d.count > 0) {
-                    badge.textContent = d.count;
-                    badge.classList.remove('hidden');
-                    badge.classList.add('flex');
+                    badge.textContent = d.count; badge.classList.remove('hidden'); badge.classList.add('flex');
                 } else {
-                    badge.classList.add('hidden');
-                    badge.classList.remove('flex');
+                    badge.classList.add('hidden'); badge.classList.remove('flex');
                 }
             } catch (_) {}
         }
@@ -792,8 +853,8 @@
             const isNew = tab === 'new';
             document.getElementById('support-panel-new').classList.toggle('hidden', !isNew);
             document.getElementById('support-panel-history').classList.toggle('hidden', isNew);
-            document.getElementById('tab-new').className = `flex-1 py-2.5 text-sm font-semibold transition border-b-2 ${isNew ? 'text-blue-600 border-blue-500' : 'text-gray-400 border-transparent hover:text-gray-600'}`;
-            document.getElementById('tab-history').className = `flex-1 py-2.5 text-sm font-semibold transition border-b-2 ${!isNew ? 'text-blue-600 border-blue-500' : 'text-gray-400 border-transparent hover:text-gray-600'}`;
+            document.getElementById('tab-new').className = `flex-1 py-2.5 text-sm font-semibold transition border-b-2 ${isNew ? 'tab-active' : 'tab-inactive'}`;
+            document.getElementById('tab-history').className = `flex-1 py-2.5 text-sm font-semibold transition border-b-2 ${!isNew ? 'tab-active' : 'tab-inactive'}`;
             if (!isNew) loadTicketHistory();
         }
 
@@ -811,26 +872,32 @@
         async function loadTicketHistory() {
             backToTicketList();
             const list = document.getElementById('support-ticket-list');
-            list.innerHTML = '<p class="text-center text-xs text-gray-400 py-4">กำลังโหลด...</p>';
+            list.innerHTML = '<p class="text-center text-xs py-4" style="color:#374151;">กำลังโหลด...</p>';
             const r = await fetch('/support/tickets');
             const d = await r.json();
             if (!d.tickets || !d.tickets.length) {
-                list.innerHTML = '<p class="text-center text-xs text-gray-400 py-4">ยังไม่มีข้อความ</p>';
+                list.innerHTML = '<p class="text-center text-xs py-4" style="color:#374151;">ยังไม่มีข้อความ</p>';
                 return;
             }
-            const statusLabel = { pending: ['bg-yellow-100 text-yellow-700', 'รอตอบ'], answered: ['bg-green-100 text-green-700', 'ตอบแล้ว'], closed: ['bg-gray-100 text-gray-500', 'ปิดแล้ว'] };
+            const statusStyle = {
+                pending: ['rgba(234,179,8,0.15)', '#fbbf24', 'รอตอบ'],
+                answered: ['rgba(34,197,94,0.1)', '#4ade80', 'ตอบแล้ว'],
+                closed: ['rgba(100,116,139,0.15)', '#64748b', 'ปิดแล้ว']
+            };
             list.innerHTML = d.tickets.map(t => {
-                const [cls, label] = statusLabel[t.status] || statusLabel.pending;
+                const [sbg, sc, label] = statusStyle[t.status] || statusStyle.pending;
                 const hasUnread = t.unread_count > 0;
-                return `<button onclick="openThread(${t.id})" class="w-full text-left rounded-xl border ${hasUnread ? 'border-blue-300 bg-blue-50' : 'border-gray-100 bg-gray-50'} px-3 py-2.5 transition hover:bg-blue-50">
+                const btnBg = hasUnread ? 'rgba(0,212,255,0.06)' : 'rgba(11,17,30,0.6)';
+                const btnBorder = hasUnread ? 'rgba(0,212,255,0.2)' : 'rgba(0,212,255,0.08)';
+                return `<button onclick="openThread(${t.id})" class="w-full text-left rounded-xl px-3 py-2.5 transition" style="background:${btnBg};border:1px solid ${btnBorder};" onmouseover="this.style.background='rgba(0,212,255,0.08)'" onmouseout="this.style.background='${btnBg}'">
                     <div class="flex items-center justify-between gap-2">
-                        <p class="text-sm font-medium text-gray-800 truncate flex-1">${escapeHtml((t.first_message || '').substring(0, 60))}</p>
+                        <p class="text-sm font-medium truncate flex-1" style="color:#e2e8f0;">${escapeHtml((t.first_message || '').substring(0, 60))}</p>
                         <div class="flex items-center gap-1.5 flex-shrink-0">
                             ${hasUnread ? `<span class="flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">${t.unread_count}</span>` : ''}
-                            <span class="text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${cls}">${label}</span>
+                            <span class="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style="background:${sbg};color:${sc};">${label}</span>
                         </div>
                     </div>
-                    <p class="text-xs text-gray-400 mt-0.5">${formatDate(t.updated_at)}</p>
+                    <p class="text-xs mt-0.5" style="color:#374151;">${formatDate(t.updated_at)}</p>
                 </button>`;
             }).join('');
         }
@@ -847,8 +914,8 @@
             msgs.innerHTML = d.replies.map(rep => {
                 const isUser = rep.sender_role === 'user';
                 return `<div class="flex ${isUser ? 'justify-end' : 'justify-start'}">
-                    <div class="max-w-[80%] rounded-2xl ${isUser ? 'rounded-br-sm bg-blue-500 text-white' : 'rounded-bl-sm bg-gray-100 text-gray-800'} px-3 py-2 text-sm leading-relaxed">
-                        ${!isUser ? '<p class="text-[10px] font-bold text-blue-500 mb-0.5">Admin</p>' : ''}
+                    <div class="max-w-[80%] rounded-2xl ${isUser ? 'rounded-br-sm thread-user-msg' : 'rounded-bl-sm thread-admin-msg'} px-3 py-2 text-sm leading-relaxed">
+                        ${!isUser ? '<p class="text-[10px] font-bold mb-0.5" style="color:#00d4ff;">Admin</p>' : ''}
                         ${escapeHtml(rep.message).replace(/\n/g, '<br>')}
                     </div>
                 </div>`;
