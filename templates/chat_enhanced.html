@@ -9,127 +9,387 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
+        /* ═══════════════ DARK MODE (default) ═══════════════ */
+        :root {
+            --bg:          #070b14;
+            --grid:        rgba(0,212,255,0.025);
+            --glow1:       rgba(0,212,255,0.04);
+            --glow2:       rgba(99,102,241,0.05);
+            --glass-bg:    rgba(11,17,30,0.88);
+            --glass-bd:    rgba(0,212,255,0.14);
+            --acc-from:    #0090bb;
+            --acc-to:      #00d4ff;
+            --acc:         #00d4ff;
+            --acc-soft:    rgba(0,212,255,0.07);
+            --acc-mid:     rgba(0,212,255,0.18);
+            --acc-glow:    rgba(0,212,255,0.4);
+            --t1:          #e2e8f0;
+            --t2:          #94a3b8;
+            --t3:          #374151;
+            --sb-bg:       rgba(0,212,255,0.05);
+            --sb-bd:       rgba(0,212,255,0.12);
+            --sb-c:        #94a3b8;
+            --sb-hbg:      rgba(0,212,255,0.1);
+            --sb-hbd:      rgba(0,212,255,0.3);
+            --sb-hc:       #e2e8f0;
+            --db-bg:       rgba(239,68,68,0.1);
+            --db-bd:       rgba(239,68,68,0.45);
+            --db-c:        #ff7070;
+            --db-hbg:      rgba(239,68,68,0.18);
+            --db-hbd:      rgba(239,68,68,0.75);
+            --db-hc:       #ff9090;
+            --cb-bg:       rgba(0,212,255,0.05);
+            --cb-bd:       rgba(0,212,255,0.18);
+            --cb-c:        #67e8f9;
+            --cb-hbg:      rgba(0,212,255,0.12);
+            --cb-hbd:      rgba(0,212,255,0.35);
+            --in-bg:       rgba(7,11,20,0.9);
+            --in-bd:       rgba(0,212,255,0.16);
+            --in-c:        #e2e8f0;
+            --in-ph:       #374151;
+            --in-fo:       rgba(0,212,255,0.55);
+            --in-fosh:     rgba(0,212,255,0.08);
+            --cv-c:        #94a3b8;
+            --cv-hbg:      rgba(0,212,255,0.06);
+            --cv-hbd:      rgba(0,212,255,0.2);
+            --cv-abg:      rgba(0,212,255,0.1);
+            --cv-abd:      rgba(0,212,255,0.32);
+            --cv-hc:       #e2e8f0;
+            --qb-bg:       rgba(11,17,30,0.9);
+            --qb-bd:       rgba(0,212,255,0.13);
+            --qb-hbg:      rgba(0,212,255,0.07);
+            --qb-hbd:      rgba(0,212,255,0.4);
+            --mu-bg:       rgba(0,140,180,0.16);
+            --mu-bd:       rgba(0,212,255,0.24);
+            --mu-c:        #e2e8f0;
+            --ma-bg:       rgba(17,24,39,0.95);
+            --ma-bd:       rgba(0,212,255,0.1);
+            --ma-c:        #cbd5e1;
+            --on-c:        #22d3ee;
+            --on-sh:       rgba(34,211,238,0.9);
+            --on-sh2:      rgba(34,211,238,0.3);
+            --td-c:        #00d4ff;
+            --td-sh:       rgba(0,212,255,0.6);
+            --sc-th:       rgba(0,212,255,0.18);
+            --sc-thh:      rgba(0,212,255,0.38);
+            --scan-c:      rgba(0,212,255,0.05);
+            --nt-c:        #00d4ff;
+            --dr-bg:       #080e1a;
+            --dr-bd:       rgba(0,212,255,0.18);
+            --dr-c:        #94a3b8;
+            --mo-bg:       #080e1a;
+            --mo-bd:       rgba(0,212,255,0.18);
+            --mo-t1:       #e2e8f0;
+            --mo-t2:       #4b5563;
+            --mo-ibg:      rgba(7,11,20,0.85);
+            --mo-ibd:      rgba(0,212,255,0.15);
+            --mo-ic:       #e2e8f0;
+            --mo-iph:      #374151;
+            --mo-cn:       #4b5563;
+            --thu-bg:      rgba(0,140,180,0.2);
+            --thu-bd:      rgba(0,212,255,0.2);
+            --thu-c:       #e2e8f0;
+            --tha-bg:      rgba(17,24,39,0.9);
+            --tha-bd:      rgba(0,212,255,0.1);
+            --tha-c:       #cbd5e1;
+            --sect-b:      rgba(0,212,255,0.08);
+            --qb-qbg:      rgba(0,212,255,0.06);
+            --qb-qbd:      rgba(0,212,255,0.18);
+            --logo-glow:   rgba(0,212,255,0.4);
+            --badge-c:     rgba(0,212,255,0.06);
+            --badge-bd:    rgba(0,212,255,0.12);
+            --avatar-bd:   rgba(0,212,255,0.3);
+            --icon-filter: brightness(10) saturate(0.3);
+            --modal-close-hover-bg: rgba(0,212,255,0.06);
+            --modal-close-hover-c:  #e2e8f0;
+        }
+
+        /* ═══════════════ LIGHT MODE ═══════════════ */
+        .light-mode {
+            --bg:          #eef5ff;
+            --grid:        rgba(0,100,200,0.045);
+            --glow1:       rgba(0,120,255,0.05);
+            --glow2:       rgba(99,102,241,0.04);
+            --glass-bg:    rgba(255,255,255,0.9);
+            --glass-bd:    rgba(0,120,200,0.22);
+            --acc-from:    #0077bb;
+            --acc-to:      #0096ff;
+            --acc:         #0077bb;
+            --acc-soft:    rgba(0,100,200,0.07);
+            --acc-mid:     rgba(0,100,200,0.2);
+            --acc-glow:    rgba(0,120,200,0.35);
+            --t1:          #1e293b;
+            --t2:          #64748b;
+            --t3:          #94a3b8;
+            --sb-bg:       rgba(0,100,200,0.06);
+            --sb-bd:       rgba(0,100,200,0.22);
+            --sb-c:        #64748b;
+            --sb-hbg:      rgba(0,100,200,0.12);
+            --sb-hbd:      rgba(0,100,200,0.4);
+            --sb-hc:       #1e293b;
+            --db-bg:       rgba(239,68,68,0.07);
+            --db-bd:       rgba(239,68,68,0.32);
+            --db-c:        #dc2626;
+            --db-hbg:      rgba(239,68,68,0.12);
+            --db-hbd:      rgba(239,68,68,0.55);
+            --db-hc:       #b91c1c;
+            --cb-bg:       rgba(0,100,200,0.06);
+            --cb-bd:       rgba(0,100,200,0.25);
+            --cb-c:        #0077bb;
+            --cb-hbg:      rgba(0,100,200,0.12);
+            --cb-hbd:      rgba(0,100,200,0.45);
+            --in-bg:       #f4f9ff;
+            --in-bd:       rgba(0,100,200,0.22);
+            --in-c:        #1e293b;
+            --in-ph:       #94a3b8;
+            --in-fo:       rgba(0,100,200,0.5);
+            --in-fosh:     rgba(0,100,200,0.08);
+            --cv-c:        #64748b;
+            --cv-hbg:      rgba(0,100,200,0.08);
+            --cv-hbd:      rgba(0,100,200,0.25);
+            --cv-abg:      rgba(0,100,200,0.12);
+            --cv-abd:      rgba(0,100,200,0.4);
+            --cv-hc:       #1e293b;
+            --qb-bg:       rgba(255,255,255,0.92);
+            --qb-bd:       rgba(0,100,200,0.2);
+            --qb-hbg:      rgba(0,100,200,0.08);
+            --qb-hbd:      rgba(0,100,200,0.4);
+            --mu-bg:       rgba(0,120,210,0.1);
+            --mu-bd:       rgba(0,120,210,0.28);
+            --mu-c:        #1e293b;
+            --ma-bg:       rgba(255,255,255,0.97);
+            --ma-bd:       rgba(0,100,200,0.15);
+            --ma-c:        #334155;
+            --on-c:        #0096ff;
+            --on-sh:       rgba(0,150,255,0.8);
+            --on-sh2:      rgba(0,150,255,0.25);
+            --td-c:        #0090bb;
+            --td-sh:       rgba(0,144,187,0.5);
+            --sc-th:       rgba(0,100,200,0.2);
+            --sc-thh:      rgba(0,100,200,0.4);
+            --scan-c:      rgba(0,100,200,0.04);
+            --nt-c:        #0096ff;
+            --dr-bg:       #ffffff;
+            --dr-bd:       rgba(0,100,200,0.2);
+            --dr-c:        #64748b;
+            --mo-bg:       #ffffff;
+            --mo-bd:       rgba(0,100,200,0.2);
+            --mo-t1:       #1e293b;
+            --mo-t2:       #64748b;
+            --mo-ibg:      #f4f9ff;
+            --mo-ibd:      rgba(0,100,200,0.22);
+            --mo-ic:       #1e293b;
+            --mo-iph:      #94a3b8;
+            --mo-cn:       #64748b;
+            --thu-bg:      rgba(0,120,210,0.1);
+            --thu-bd:      rgba(0,120,210,0.22);
+            --thu-c:       #1e293b;
+            --tha-bg:      #f8fafc;
+            --tha-bd:      rgba(0,100,200,0.12);
+            --tha-c:       #334155;
+            --sect-b:      rgba(0,100,200,0.1);
+            --qb-qbg:      rgba(0,100,200,0.06);
+            --qb-qbd:      rgba(0,100,200,0.2);
+            --logo-glow:   rgba(0,120,200,0.35);
+            --badge-c:     rgba(0,100,200,0.06);
+            --badge-bd:    rgba(0,100,200,0.18);
+            --avatar-bd:   rgba(0,100,200,0.35);
+            --icon-filter: none;
+            --modal-close-hover-bg: rgba(0,100,200,0.06);
+            --modal-close-hover-c:  #1e293b;
+        }
+
+        /* ═══════════════ BASE ═══════════════ */
         html, body { height: 100%; overflow: hidden; overflow-x: hidden; max-width: 100vw; }
         body {
             font-family: "Noto Sans Thai", sans-serif;
-            background-color: #070b14;
+            background-color: var(--bg);
             background-image:
-                linear-gradient(rgba(0,212,255,0.025) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0,212,255,0.025) 1px, transparent 1px);
+                linear-gradient(var(--grid) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid) 1px, transparent 1px);
             background-size: 40px 40px;
+            transition: background-color 0.3s, color 0.3s;
         }
         body::before {
-            content: '';
-            position: fixed; top: -25%; left: -15%;
+            content: ''; position: fixed; top: -25%; left: -15%;
             width: 70%; height: 70%;
-            background: radial-gradient(ellipse, rgba(0,212,255,0.04) 0%, transparent 65%);
+            background: radial-gradient(ellipse, var(--glow1) 0%, transparent 65%);
             pointer-events: none; z-index: 0;
         }
         body::after {
-            content: '';
-            position: fixed; bottom: -25%; right: -15%;
+            content: ''; position: fixed; bottom: -25%; right: -15%;
             width: 60%; height: 60%;
-            background: radial-gradient(ellipse, rgba(99,102,241,0.05) 0%, transparent 65%);
+            background: radial-gradient(ellipse, var(--glow2) 0%, transparent 65%);
             pointer-events: none; z-index: 0;
         }
+
+        /* ═══════════════ GLASS ═══════════════ */
         .glass {
-            background: rgba(11,17,30,0.88);
+            background: var(--glass-bg);
             backdrop-filter: blur(16px);
-            border: 1px solid rgba(0,212,255,0.14);
+            border: 1px solid var(--glass-bd);
+            transition: background 0.3s, border-color 0.3s;
         }
+
+        /* ═══════════════ BUTTONS ═══════════════ */
         .btn-primary {
-            background: linear-gradient(135deg, #0090bb 0%, #00d4ff 100%);
+            background: linear-gradient(135deg, var(--acc-from) 0%, var(--acc-to) 100%);
             transition: all 0.25s ease;
         }
-        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 22px rgba(0,212,255,0.45); }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 22px var(--acc-glow); }
+
         .sidebar-btn {
-            background: rgba(0,212,255,0.05);
-            border: 1px solid rgba(0,212,255,0.12);
-            color: #94a3b8;
-            transition: all 0.2s;
+            background: var(--sb-bg); border: 1px solid var(--sb-bd); color: var(--sb-c); transition: all 0.2s;
         }
-        .sidebar-btn:hover { background: rgba(0,212,255,0.1); border-color: rgba(0,212,255,0.3); color: #e2e8f0; }
+        .sidebar-btn:hover { background: var(--sb-hbg); border-color: var(--sb-hbd); color: var(--sb-hc); }
+
         .sidebar-btn-danger {
-            background: rgba(239,68,68,0.05);
-            border: 1px solid rgba(239,68,68,0.15);
-            color: #f87171;
-            transition: all 0.2s;
+            background: var(--db-bg); border: 1.5px solid var(--db-bd); color: var(--db-c); transition: all 0.2s;
         }
-        .sidebar-btn-danger:hover { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3); }
+        .sidebar-btn-danger:hover { background: var(--db-hbg); border-color: var(--db-hbd); color: var(--db-hc); }
+
         .sidebar-btn-cyan {
-            background: rgba(0,212,255,0.05);
-            border: 1px solid rgba(0,212,255,0.18);
-            color: #67e8f9;
+            background: var(--cb-bg); border: 1px solid var(--cb-bd); color: var(--cb-c); transition: all 0.2s;
+        }
+        .sidebar-btn-cyan:hover { background: var(--cb-hbg); border-color: var(--cb-hbd); }
+
+        .theme-toggle-btn {
+            background: var(--sb-bg); border: 1px solid var(--sb-bd); color: var(--acc);
             transition: all 0.2s;
         }
-        .sidebar-btn-cyan:hover { background: rgba(0,212,255,0.12); border-color: rgba(0,212,255,0.35); }
+        .theme-toggle-btn:hover { background: var(--sb-hbg); border-color: var(--sb-hbd); }
+
+        /* ═══════════════ INPUT ═══════════════ */
         .input-tech {
-            background: rgba(7,11,20,0.9) !important;
-            border: 1.5px solid rgba(0,212,255,0.16) !important;
-            color: #e2e8f0 !important;
+            background: var(--in-bg) !important;
+            border: 1.5px solid var(--in-bd) !important;
+            color: var(--in-c) !important;
             transition: border-color 0.2s, box-shadow 0.2s;
         }
         .input-tech:focus {
-            border-color: rgba(0,212,255,0.55) !important;
-            box-shadow: 0 0 0 3px rgba(0,212,255,0.08), 0 0 18px rgba(0,212,255,0.08) !important;
+            border-color: var(--in-fo) !important;
+            box-shadow: 0 0 0 3px var(--in-fosh), 0 0 18px var(--in-fosh) !important;
             outline: none !important;
         }
-        .input-tech::placeholder { color: #374151; }
+        .input-tech::placeholder { color: var(--in-ph); }
+
+        /* ═══════════════ CONVERSATION LIST ═══════════════ */
         .conversation-item {
-            transition: all 0.2s ease;
-            border: 1px solid transparent;
-            border-radius: 10px;
-            background: transparent;
-            color: #94a3b8;
+            transition: all 0.2s ease; border: 1px solid transparent;
+            border-radius: 10px; background: transparent; color: var(--cv-c);
         }
-        .conversation-item:hover { background: rgba(0,212,255,0.06); border-color: rgba(0,212,255,0.2); transform: translateX(2px); color: #e2e8f0; }
-        .conversation-item.active { background: rgba(0,212,255,0.1); border-color: rgba(0,212,255,0.32); color: #e2e8f0; }
+        .conversation-item:hover { background: var(--cv-hbg); border-color: var(--cv-hbd); transform: translateX(2px); color: var(--cv-hc); }
+        .conversation-item.active { background: var(--cv-abg); border-color: var(--cv-abd); color: var(--cv-hc); }
+
+        /* ═══════════════ QUICK BUTTONS ═══════════════ */
         .quick-btn {
-            background: rgba(11,17,30,0.9);
-            border: 1px solid rgba(0,212,255,0.13);
-            transition: all 0.25s ease;
+            background: var(--qb-bg); border: 1px solid var(--qb-bd); transition: all 0.25s ease;
         }
-        .quick-btn:hover { border-color: rgba(0,212,255,0.4); background: rgba(0,212,255,0.07); box-shadow: 0 4px 20px rgba(0,212,255,0.1); transform: translateY(-2px); }
-        .msg-user { background: rgba(0,140,180,0.16); border: 1px solid rgba(0,212,255,0.24); color: #e2e8f0; }
-        .msg-ai { background: rgba(17,24,39,0.95); border: 1px solid rgba(0,212,255,0.1); color: #cbd5e1; }
+        .quick-btn:hover {
+            border-color: var(--qb-hbd); background: var(--qb-hbg);
+            box-shadow: 0 4px 20px var(--acc-soft); transform: translateY(-2px);
+        }
+
+        /* ═══════════════ MESSAGES ═══════════════ */
+        .msg-user { background: var(--mu-bg); border: 1px solid var(--mu-bd); color: var(--mu-c); }
+        .msg-ai   { background: var(--ma-bg); border: 1px solid var(--ma-bd); color: var(--ma-c); }
+
+        /* ═══════════════ ANIMATION ═══════════════ */
         .message-enter { animation: msgIn 0.25s ease-out; }
         @keyframes msgIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-        .typing-dot { width: 7px; height: 7px; border-radius: 50%; background: #00d4ff; box-shadow: 0 0 8px rgba(0,212,255,0.6); animation: blink 1.2s infinite ease-in-out; }
+
+        /* ═══════════════ TYPING DOTS ═══════════════ */
+        .typing-dot {
+            width: 7px; height: 7px; border-radius: 50%;
+            background: var(--td-c); box-shadow: 0 0 8px var(--td-sh);
+            animation: blink 1.2s infinite ease-in-out;
+        }
         .typing-dot:nth-child(2) { animation-delay: 0.15s; }
         .typing-dot:nth-child(3) { animation-delay: 0.3s; }
         @keyframes blink { 0%, 80%, 100% { transform: translateY(0); opacity: 0.3; } 40% { transform: translateY(-4px); opacity: 1; } }
+
+        /* ═══════════════ SCROLLBAR ═══════════════ */
         .scrollbar-thin::-webkit-scrollbar { width: 4px; }
         .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-        .scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.18); border-radius: 4px; }
-        .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: rgba(0,212,255,0.38); }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: var(--sc-th); border-radius: 4px; }
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: var(--sc-thh); }
+
+        /* ═══════════════ SCAN OVERLAY ═══════════════ */
         .scan-overlay { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; pointer-events: none; }
         .scan-overlay::after {
             content: ''; position: absolute; top: 0; bottom: 0; width: 30%;
-            background: linear-gradient(90deg, transparent, rgba(0,212,255,0.05), transparent);
+            background: linear-gradient(90deg, transparent, var(--scan-c), transparent);
             animation: scanline 5s ease-in-out infinite;
         }
         @keyframes scanline { 0% { transform: translateX(-200%); } 100% { transform: translateX(500%); } }
-        .status-online { width: 7px; height: 7px; border-radius: 50%; background: #22d3ee; box-shadow: 0 0 6px rgba(34,211,238,0.9); animation: pulse-dot 2.5s infinite; }
-        @keyframes pulse-dot { 0%, 100% { box-shadow: 0 0 5px rgba(34,211,238,0.7); } 50% { box-shadow: 0 0 12px rgba(34,211,238,1), 0 0 22px rgba(34,211,238,0.3); } }
-        .tech-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: #00d4ff; opacity: 0.75; }
+
+        /* ═══════════════ STATUS DOT ═══════════════ */
+        .status-online {
+            width: 7px; height: 7px; border-radius: 50%;
+            background: var(--on-c); box-shadow: 0 0 6px var(--on-sh);
+            animation: pulse-dot 2.5s infinite;
+        }
+        @keyframes pulse-dot {
+            0%, 100% { box-shadow: 0 0 5px var(--on-sh); }
+            50%       { box-shadow: 0 0 12px var(--on-sh), 0 0 22px var(--on-sh2); }
+        }
+
+        /* ═══════════════ TECH LABEL ═══════════════ */
+        .tech-label {
+            font-family: 'JetBrains Mono', monospace; font-size: 9px;
+            letter-spacing: 0.14em; text-transform: uppercase;
+            color: var(--acc); opacity: 0.8;
+        }
+
+        /* ═══════════════ NEON TOP ═══════════════ */
         .neon-top { position: relative; }
-        .neon-top::before { content: ''; position: absolute; top: 0; left: 20%; right: 20%; height: 1px; background: linear-gradient(90deg, transparent, #00d4ff, transparent); opacity: 0.5; }
-        .dropdown-dark { background: #080e1a; border: 1px solid rgba(0,212,255,0.18); box-shadow: 0 10px 40px rgba(0,0,0,0.7), 0 0 30px rgba(0,212,255,0.04); }
-        .dropdown-item { color: #94a3b8; transition: all 0.15s; border-radius: 0.5rem; }
-        .dropdown-item:hover { background: rgba(0,212,255,0.06); color: #e2e8f0; }
-        .modal-card { background: #080e1a; border: 1px solid rgba(0,212,255,0.18); box-shadow: 0 24px 64px rgba(0,0,0,0.8), 0 0 40px rgba(0,212,255,0.04); }
-        .modal-title { color: #e2e8f0; }
-        .modal-sub { color: #4b5563; }
-        .modal-input { background: rgba(7,11,20,0.85); border: 1.5px solid rgba(0,212,255,0.15); color: #e2e8f0; border-radius: 0.75rem; width: 100%; padding: 0.75rem 1rem; font-size: 0.875rem; transition: all 0.2s; outline: none; font-family: "Noto Sans Thai", sans-serif; }
-        .modal-input:focus { border-color: rgba(0,212,255,0.5); box-shadow: 0 0 0 3px rgba(0,212,255,0.08); }
-        .modal-input::placeholder { color: #374151; }
-        .modal-cancel { color: #4b5563; transition: color 0.15s, background 0.15s; border-radius: 0.75rem; padding: 0.625rem 1rem; font-size: 0.875rem; font-weight: 600; }
-        .modal-cancel:hover { background: rgba(255,255,255,0.04); color: #94a3b8; }
-        .thread-user-msg { background: rgba(0,140,180,0.2); border: 1px solid rgba(0,212,255,0.2); color: #e2e8f0; }
-        .thread-admin-msg { background: rgba(17,24,39,0.9); border: 1px solid rgba(0,212,255,0.1); color: #cbd5e1; }
-        .tab-active { color: #00d4ff !important; border-color: #00d4ff !important; }
-        .tab-inactive { color: #374151 !important; border-color: transparent !important; }
-        .tab-inactive:hover { color: #94a3b8 !important; }
+        .neon-top::before {
+            content: ''; position: absolute; top: 0; left: 20%; right: 20%;
+            height: 1px; background: linear-gradient(90deg, transparent, var(--nt-c), transparent); opacity: 0.5;
+        }
+
+        /* ═══════════════ DROPDOWN ═══════════════ */
+        .dropdown-dark {
+            background: var(--dr-bg); border: 1px solid var(--dr-bd);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        .dropdown-item { color: var(--dr-c); transition: all 0.15s; border-radius: 0.5rem; }
+        .dropdown-item:hover { background: var(--acc-soft); color: var(--t1); }
+
+        /* ═══════════════ MODAL ═══════════════ */
+        .modal-card {
+            background: var(--mo-bg); border: 1px solid var(--mo-bd);
+            box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+        }
+        .modal-title { color: var(--mo-t1); }
+        .modal-sub   { color: var(--mo-t2); }
+        .modal-input {
+            background: var(--mo-ibg); border: 1.5px solid var(--mo-ibd);
+            color: var(--mo-ic); border-radius: 0.75rem; width: 100%;
+            padding: 0.75rem 1rem; font-size: 0.875rem; transition: all 0.2s; outline: none;
+            font-family: "Noto Sans Thai", sans-serif;
+        }
+        .modal-input:focus { border-color: var(--in-fo); box-shadow: 0 0 0 3px var(--in-fosh); }
+        .modal-input::placeholder { color: var(--mo-iph); }
+        .modal-cancel {
+            color: var(--mo-cn); transition: color 0.15s, background 0.15s;
+            border-radius: 0.75rem; padding: 0.625rem 1rem; font-size: 0.875rem; font-weight: 600;
+        }
+        .modal-cancel:hover { background: var(--acc-soft); color: var(--t1); }
+
+        /* ═══════════════ THREAD MESSAGES ═══════════════ */
+        .thread-user-msg  { background: var(--thu-bg); border: 1px solid var(--thu-bd); color: var(--thu-c); }
+        .thread-admin-msg { background: var(--tha-bg); border: 1px solid var(--tha-bd); color: var(--tha-c); }
+
+        /* ═══════════════ TABS ═══════════════ */
+        .tab-active   { color: var(--acc) !important; border-color: var(--acc) !important; }
+        .tab-inactive { color: var(--t3) !important; border-color: transparent !important; }
+        .tab-inactive:hover { color: var(--t2) !important; }
+
+        /* ═══════════════ QUICK ICON ═══════════════ */
+        .quick-icon-bg {
+            background: var(--acc-soft); border: 1px solid var(--acc-mid);
+        }
     </style>
 </head>
 <body>
@@ -137,14 +397,14 @@
 
         <!-- SIDEBAR -->
         <aside id="sidebar" class="glass neon-top fixed inset-y-2 left-2 z-30 flex w-[84vw] max-w-[285px] flex-col rounded-2xl p-4 shadow-2xl transition-transform duration-300 lg:static lg:w-[270px] lg:translate-x-0 -translate-x-[120%]">
-            <div class="flex items-center justify-between pb-4" style="border-bottom: 1px solid rgba(0,212,255,0.1);">
+            <div class="flex items-center justify-between pb-4" style="border-bottom: 1px solid var(--sect-b);">
                 <div class="flex items-center gap-2.5">
-                    <div class="relative flex h-9 w-9 items-center justify-center rounded-xl overflow-hidden" style="background: linear-gradient(135deg,#0090bb,#00d4ff); box-shadow: 0 0 18px rgba(0,212,255,0.4);">
+                    <div class="flex h-9 w-9 items-center justify-center rounded-xl overflow-hidden" style="background: linear-gradient(135deg,var(--acc-from),var(--acc-to)); box-shadow: 0 0 18px var(--logo-glow);">
                         <img src="/static/logonew.png" alt="I-SAVE Logo" class="w-full h-full object-cover">
                     </div>
                     <div>
                         <p class="tech-label">I-SAVE SYSTEM</p>
-                        <h1 class="text-sm font-bold leading-tight" style="color: #e2e8f0;">หัวข้อสนทนา</h1>
+                        <h1 class="text-sm font-bold leading-tight" style="color:var(--t1);">หัวข้อสนทนา</h1>
                     </div>
                 </div>
                 <button onclick="toggleSidebar()" class="sidebar-btn rounded-lg p-2 lg:hidden">
@@ -168,7 +428,7 @@
                 <div class="relative">
                     <input id="search-input" type="search" name="chat-srch" placeholder="ค้นหาหัวข้อ..." autocomplete="off" spellcheck="false" oninput="searchConversations()"
                         class="input-tech w-full rounded-xl px-4 py-2.5 pl-10 text-sm">
-                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-sm" style="color: rgba(0,212,255,0.35);"></i>
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-sm" style="color:var(--acc-mid);"></i>
                 </div>
             </div>
             <div id="conversation-list" class="scrollbar-thin mt-3 flex-1 space-y-1 overflow-y-auto pr-0.5 pb-4"></div>
@@ -181,39 +441,47 @@
             <header class="glass relative rounded-2xl px-4 py-3 z-[100]">
                 <div class="scan-overlay"></div>
                 <div class="relative z-10 flex items-center justify-between gap-3">
+                    <!-- Left -->
                     <div class="flex items-center gap-3">
                         <button onclick="toggleSidebar()" class="sidebar-btn rounded-lg p-2 lg:hidden">
                             <i class="fas fa-bars text-sm"></i>
                         </button>
                         <div class="flex items-center gap-2.5">
-                            <div class="relative flex h-9 w-9 items-center justify-center rounded-xl" style="background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.18);">
-                                <img src="/static/chat.png" alt="Chat" class="w-5 h-5 object-contain" style="opacity:0.8; filter: brightness(10) saturate(0.3);">
+                            <div class="flex h-9 w-9 items-center justify-center rounded-xl quick-icon-bg">
+                                <img src="/static/chat.png" alt="Chat" class="w-5 h-5 object-contain" style="opacity:0.8; filter:var(--icon-filter);">
                             </div>
                             <div>
                                 <p class="tech-label">ACTIVE THREAD</p>
-                                <h2 id="active-conversation-title" class="text-sm font-bold leading-tight" style="color: #e2e8f0;">กำลังโหลด...</h2>
+                                <h2 id="active-conversation-title" class="text-sm font-bold leading-tight" style="color:var(--t1);">กำลังโหลด...</h2>
                             </div>
                         </div>
                     </div>
+                    <!-- Right -->
                     <div class="flex items-center gap-2">
-                        <div class="hidden md:flex items-center gap-1.5 rounded-lg px-2.5 py-1.5" style="background: rgba(0,212,255,0.05); border: 1px solid rgba(0,212,255,0.1);">
+                        <!-- Online status -->
+                        <div class="hidden md:flex items-center gap-1.5 rounded-lg px-2.5 py-1.5" style="background:var(--badge-c); border:1px solid var(--badge-bd);">
                             <div class="status-online"></div>
                             <span class="tech-label">ONLINE</span>
                         </div>
+                        <!-- Theme toggle -->
+                        <button id="theme-btn" onclick="toggleTheme()" class="theme-toggle-btn flex h-8 w-8 items-center justify-center rounded-lg" title="เปลี่ยนธีม">
+                            <i id="theme-icon" class="fas fa-moon text-xs"></i>
+                        </button>
+                        <!-- User menu -->
                         <div class="relative z-[99999]">
-                            <button id="user-menu-trigger" onclick="toggleUserMenu()" class="flex items-center gap-2 rounded-xl px-3 py-2 transition-all" style="background: rgba(0,212,255,0.05); border: 1px solid rgba(0,212,255,0.12); color: #e2e8f0;" onmouseover="this.style.borderColor='rgba(0,212,255,0.3)'" onmouseout="this.style.borderColor='rgba(0,212,255,0.12)'">
-                                <div id="user-avatar" class="flex h-7 w-7 items-center justify-center rounded-full overflow-hidden" style="border: 1.5px solid rgba(0,212,255,0.3);">
+                            <button id="user-menu-trigger" onclick="toggleUserMenu()" class="flex items-center gap-2 rounded-xl px-3 py-2 transition-all sidebar-btn">
+                                <div id="user-avatar" class="flex h-7 w-7 items-center justify-center rounded-full overflow-hidden" style="border:1.5px solid var(--avatar-bd);">
                                     <img src="/static/user.png" alt="User" class="w-full h-full object-cover">
                                 </div>
                                 <div class="hidden text-left md:block">
-                                    <p id="user-name" class="text-sm font-semibold leading-tight" style="color: #e2e8f0;">...</p>
+                                    <p id="user-name" class="text-sm font-semibold leading-tight" style="color:var(--t1);">...</p>
                                     <p class="tech-label">ACCOUNT <i class="fas fa-chevron-down text-[7px]"></i></p>
                                 </div>
                             </button>
-                            <div id="user-menu" style="display: none;" class="dropdown-dark absolute right-0 top-full mt-2 w-60 rounded-xl overflow-hidden z-[999999]">
+                            <div id="user-menu" style="display:none;" class="dropdown-dark absolute right-0 top-full mt-2 w-60 rounded-xl overflow-hidden z-[999999]">
                                 <div class="p-2">
                                     <button onclick="openChangePasswordModal(); toggleUserMenu();" class="dropdown-item flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm">
-                                        <i class="fas fa-key w-4" style="color: rgba(0,212,255,0.6);"></i><span>เปลี่ยนรหัสผ่าน</span>
+                                        <i class="fas fa-key w-4" style="color:var(--acc);opacity:0.7;"></i><span>เปลี่ยนรหัสผ่าน</span>
                                     </button>
                                     <button id="admin-menu-btn" onclick="openAdminUsersModal(); toggleUserMenu();" class="hidden dropdown-item w-full items-center gap-3 px-4 py-2.5 text-left text-sm" style="color:#f87171;">
                                         <i class="fas fa-users w-4" style="color:#f87171;"></i><span>จัดการผู้ใช้</span>
@@ -224,64 +492,64 @@
                                 </div>
                             </div>
                         </div>
-                        <a href="{{ url_for('logout') }}" class="rounded-xl px-3 py-2 text-sm font-semibold text-white transition-all hover:-translate-y-0.5" style="background: linear-gradient(135deg,#b91c1c,#ef4444); box-shadow: 0 2px 14px rgba(239,68,68,0.3);" onmouseover="this.style.boxShadow='0 4px 22px rgba(239,68,68,0.5)'" onmouseout="this.style.boxShadow='0 2px 14px rgba(239,68,68,0.3)'">ออกจากระบบ</a>
+                        <a href="{{ url_for('logout') }}" class="rounded-xl px-3 py-2 text-sm font-semibold text-white transition-all hover:-translate-y-0.5" style="background:linear-gradient(135deg,#b91c1c,#ef4444); box-shadow:0 2px 14px rgba(239,68,68,0.3);" onmouseover="this.style.boxShadow='0 4px 22px rgba(239,68,68,0.5)'" onmouseout="this.style.boxShadow='0 2px 14px rgba(239,68,68,0.3)'">ออกจากระบบ</a>
                     </div>
                 </div>
             </header>
 
             <section class="glass flex min-h-0 flex-1 flex-col rounded-2xl overflow-hidden relative z-0">
                 <div id="chat-messages" class="scrollbar-thin flex-1 space-y-3 overflow-y-auto px-4 py-5 lg:px-6"></div>
-                <div class="px-4 py-3 lg:px-5" style="border-top: 1px solid rgba(0,212,255,0.08);">
+                <div class="px-4 py-3 lg:px-5" style="border-top:1px solid var(--sect-b);">
                     <div class="mb-2.5 grid grid-cols-2 gap-2">
                         <button onclick="sendQuickMessage('ข้อมูลเครื่องจักร')" class="quick-btn group rounded-2xl p-3">
                             <div class="flex items-center gap-2.5">
-                                <div class="flex h-9 w-9 items-center justify-center rounded-xl overflow-hidden flex-shrink-0" style="background: rgba(0,212,255,0.07); border: 1px solid rgba(0,212,255,0.13);">
-                                    <img src="/static/knitting-machine.png" alt="Machine" class="w-7 h-7 object-contain" style="opacity:0.75;">
+                                <div class="flex h-9 w-9 items-center justify-center rounded-xl overflow-hidden flex-shrink-0 quick-icon-bg">
+                                    <img src="/static/knitting-machine.png" alt="Machine" class="w-7 h-7 object-contain" style="opacity:0.8;">
                                 </div>
                                 <div class="flex-1 text-left">
-                                    <div class="text-xs font-bold" style="color:#e2e8f0;">Machine</div>
-                                    <div class="text-[10px]" style="color:rgba(0,212,255,0.65);">Capacity</div>
+                                    <div class="text-xs font-bold" style="color:var(--t1);">Machine</div>
+                                    <div class="text-[10px]" style="color:var(--acc);opacity:0.75;">Capacity</div>
                                 </div>
                             </div>
                         </button>
                         <button onclick="sendQuickMessage('ข้อมูล Item')" class="quick-btn group rounded-2xl p-3">
                             <div class="flex items-center gap-2.5">
-                                <div class="flex h-9 w-9 items-center justify-center rounded-xl overflow-hidden flex-shrink-0" style="background: rgba(0,212,255,0.07); border: 1px solid rgba(0,212,255,0.13);">
-                                    <img src="/static/checklist.png" alt="Item" class="w-7 h-7 object-contain" style="opacity:0.75;">
+                                <div class="flex h-9 w-9 items-center justify-center rounded-xl overflow-hidden flex-shrink-0 quick-icon-bg">
+                                    <img src="/static/checklist.png" alt="Item" class="w-7 h-7 object-contain" style="opacity:0.8;">
                                 </div>
                                 <div class="flex-1 text-left">
-                                    <div class="text-xs font-bold" style="color:#e2e8f0;">ITEM</div>
-                                    <div class="text-[10px]" style="color:rgba(0,212,255,0.65);">ข้อมูล Item</div>
+                                    <div class="text-xs font-bold" style="color:var(--t1);">ITEM</div>
+                                    <div class="text-[10px]" style="color:var(--acc);opacity:0.75;">ข้อมูล Item</div>
                                 </div>
                             </div>
                         </button>
                         <button onclick="sendQuickMessage('ข้อมูล Capacity')" class="quick-btn group rounded-2xl p-3">
                             <div class="flex items-center gap-2.5">
-                                <div class="flex h-9 w-9 items-center justify-center rounded-xl overflow-hidden flex-shrink-0" style="background: rgba(0,212,255,0.07); border: 1px solid rgba(0,212,255,0.13);">
-                                    <img src="/static/production.png" alt="Capacity" class="w-7 h-7 object-contain" style="opacity:0.75;">
+                                <div class="flex h-9 w-9 items-center justify-center rounded-xl overflow-hidden flex-shrink-0 quick-icon-bg">
+                                    <img src="/static/production.png" alt="Capacity" class="w-7 h-7 object-contain" style="opacity:0.8;">
                                 </div>
                                 <div class="flex-1 text-left">
-                                    <div class="text-xs font-bold" style="color:#e2e8f0;">Available</div>
-                                    <div class="text-[10px]" style="color:rgba(0,212,255,0.65);">Capacity</div>
+                                    <div class="text-xs font-bold" style="color:var(--t1);">Available</div>
+                                    <div class="text-[10px]" style="color:var(--acc);opacity:0.75;">Capacity</div>
                                 </div>
                             </div>
                         </button>
                         <button onclick="sendQuickMessage('ข้อมูลแผนทอ')" class="quick-btn group rounded-2xl p-3">
                             <div class="flex items-center gap-2.5">
-                                <div class="flex h-9 w-9 items-center justify-center rounded-xl overflow-hidden flex-shrink-0" style="background: rgba(0,212,255,0.07); border: 1px solid rgba(0,212,255,0.13);">
-                                    <img src="/static/work-plan.png" alt="Plan" class="w-7 h-7 object-contain" style="opacity:0.75;">
+                                <div class="flex h-9 w-9 items-center justify-center rounded-xl overflow-hidden flex-shrink-0 quick-icon-bg">
+                                    <img src="/static/work-plan.png" alt="Plan" class="w-7 h-7 object-contain" style="opacity:0.8;">
                                 </div>
                                 <div class="flex-1 text-left">
-                                    <div class="text-xs font-bold" style="color:#e2e8f0;">Knitting</div>
-                                    <div class="text-[10px]" style="color:rgba(0,212,255,0.65);">Plan</div>
+                                    <div class="text-xs font-bold" style="color:var(--t1);">Knitting</div>
+                                    <div class="text-[10px]" style="color:var(--acc);opacity:0.75;">Plan</div>
                                 </div>
                             </div>
                         </button>
                     </div>
-                    <div id="quote-banner" class="hidden mb-2 flex items-start gap-2 rounded-xl px-3 py-2" style="background: rgba(0,212,255,0.06); border: 1px solid rgba(0,212,255,0.18);">
-                        <i class="fas fa-quote-left text-xs mt-0.5 flex-shrink-0" style="color:rgba(0,212,255,0.55);"></i>
-                        <p id="quote-banner-text" class="text-xs leading-relaxed flex-1 line-clamp-2 break-words" style="color:#94a3b8;"></p>
-                        <button onclick="clearQuote()" class="flex-shrink-0 ml-1 transition-colors" style="color:rgba(0,212,255,0.35);" onmouseover="this.style.color='rgba(0,212,255,0.8)'" onmouseout="this.style.color='rgba(0,212,255,0.35)'">
+                    <div id="quote-banner" class="hidden mb-2 flex items-start gap-2 rounded-xl px-3 py-2" style="background:var(--qb-qbg); border:1px solid var(--qb-qbd);">
+                        <i class="fas fa-quote-left text-xs mt-0.5 flex-shrink-0" style="color:var(--acc);opacity:0.6;"></i>
+                        <p id="quote-banner-text" class="text-xs leading-relaxed flex-1 line-clamp-2 break-words" style="color:var(--t2);"></p>
+                        <button onclick="clearQuote()" class="flex-shrink-0 ml-1 transition-colors" style="color:var(--t3);" onmouseover="this.style.color='var(--acc)'" onmouseout="this.style.color='var(--t3)'">
                             <i class="fas fa-xmark text-xs"></i>
                         </button>
                     </div>
@@ -301,7 +569,7 @@
     <div id="toast" class="fixed top-10 left-1/2 transform -translate-x-1/2 z-[999999999] hidden rounded-xl px-4 py-3 text-sm font-medium text-white shadow-2xl"></div>
 
     <!-- Rename Modal -->
-    <div id="rename-modal" style="display: none;" class="fixed inset-0 z-[9999999] flex items-center justify-center bg-black/60 p-4">
+    <div id="rename-modal" style="display:none;" class="fixed inset-0 z-[9999999] flex items-center justify-center bg-black/60 p-4">
         <div class="modal-card w-full max-w-md rounded-2xl p-6">
             <h3 class="text-base font-bold modal-title">เปลี่ยนชื่อหัวข้อ</h3>
             <p class="mt-1 text-sm modal-sub">ชื่อหัวข้อนี้จะถูกเก็บไว้กับบัญชีของคุณ</p>
@@ -314,7 +582,7 @@
     </div>
 
     <!-- Change Password Modal -->
-    <div id="change-password-modal" style="display: none;" class="fixed inset-0 z-[9999999] flex items-center justify-center bg-black/60 p-4">
+    <div id="change-password-modal" style="display:none;" class="fixed inset-0 z-[9999999] flex items-center justify-center bg-black/60 p-4">
         <div class="modal-card w-full max-w-md rounded-2xl p-6">
             <h3 class="text-base font-bold modal-title">เปลี่ยนรหัสผ่าน</h3>
             <p class="mt-1 text-sm modal-sub">กรอกรหัสผ่านเดิมและตั้งรหัสผ่านใหม่</p>
@@ -336,21 +604,21 @@
                     <h3 class="text-base font-bold modal-title">จัดการผู้ใช้</h3>
                     <p class="mt-1 text-sm modal-sub">รีเซ็ตรหัสผ่านให้ผู้ใช้ที่ต้องการ</p>
                 </div>
-                <button onclick="closeAdminUsersModal()" class="rounded-full p-2 transition" style="color:#4b5563;" onmouseover="this.style.color='#e2e8f0';this.style.background='rgba(0,212,255,0.06)'" onmouseout="this.style.color='#4b5563';this.style.background='transparent'"><i class="fas fa-xmark"></i></button>
+                <button onclick="closeAdminUsersModal()" class="rounded-full p-2 transition modal-cancel"><i class="fas fa-xmark"></i></button>
             </div>
             <div id="admin-users-list" class="scrollbar-thin mt-4 max-h-80 space-y-2 overflow-y-auto"></div>
         </div>
     </div>
 
     <!-- Admin Reset Password Modal -->
-    <div id="admin-reset-password-modal" style="display: none;" class="fixed inset-0 z-[9999999] hidden items-center justify-center bg-black/60 p-4">
+    <div id="admin-reset-password-modal" style="display:none;" class="fixed inset-0 z-[9999999] hidden items-center justify-center bg-black/60 p-4">
         <div class="modal-card w-full max-w-md rounded-2xl p-6">
             <h3 class="text-base font-bold modal-title">รีเซ็ตรหัสผ่าน</h3>
-            <p id="admin-reset-target-name" class="mt-1 text-sm font-medium" style="color:#94a3b8;"></p>
+            <p id="admin-reset-target-name" class="mt-1 text-sm font-medium modal-sub"></p>
             <input id="admin-new-password" type="password" autocomplete="new-password" class="modal-input mt-4" placeholder="รหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร)">
             <div class="mt-5 flex justify-end gap-2">
                 <button onclick="closeAdminResetModal()" class="modal-cancel">ยกเลิก</button>
-                <button onclick="confirmAdminReset()" class="rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90" style="background: linear-gradient(135deg,#b91c1c,#ef4444);">รีเซ็ตรหัสผ่าน</button>
+                <button onclick="confirmAdminReset()" class="rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90" style="background:linear-gradient(135deg,#b91c1c,#ef4444);">รีเซ็ตรหัสผ่าน</button>
             </div>
         </div>
     </div>
@@ -358,19 +626,19 @@
     <!-- Support Modal -->
     <div id="support-modal" style="display:none;" class="fixed inset-0 z-[9999999] flex items-center justify-center bg-black/60 p-4">
         <div class="modal-card flex w-full max-w-lg flex-col rounded-2xl" style="max-height:85vh;">
-            <div class="flex items-center justify-between px-5 py-4" style="border-bottom: 1px solid rgba(0,212,255,0.1);">
+            <div class="flex items-center justify-between px-5 py-4" style="border-bottom:1px solid var(--sect-b);">
                 <div class="flex items-center gap-2">
-                    <div class="flex h-8 w-8 items-center justify-center rounded-full" style="background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.2);">
-                        <i class="fas fa-headset text-sm" style="color:#00d4ff;"></i>
+                    <div class="flex h-8 w-8 items-center justify-center rounded-full quick-icon-bg">
+                        <i class="fas fa-headset text-sm" style="color:var(--acc);"></i>
                     </div>
                     <div>
                         <h3 class="text-sm font-bold modal-title">ติดต่อ Admin</h3>
                         <p class="text-xs modal-sub">ส่งข้อความหรือรายงานปัญหา</p>
                     </div>
                 </div>
-                <button onclick="closeSupportModal()" class="rounded-full p-1.5 transition" style="color:#4b5563;" onmouseover="this.style.color='#e2e8f0';this.style.background='rgba(0,212,255,0.06)'" onmouseout="this.style.color='#4b5563';this.style.background='transparent'"><i class="fas fa-xmark"></i></button>
+                <button onclick="closeSupportModal()" class="rounded-full p-1.5 transition modal-cancel"><i class="fas fa-xmark"></i></button>
             </div>
-            <div class="flex" style="border-bottom: 1px solid rgba(0,212,255,0.08);">
+            <div class="flex" style="border-bottom:1px solid var(--sect-b);">
                 <button id="tab-new" onclick="switchSupportTab('new')" class="flex-1 py-2.5 text-sm font-semibold transition border-b-2 tab-active">✉️ ข้อความใหม่</button>
                 <button id="tab-history" onclick="switchSupportTab('history')" class="flex-1 py-2.5 text-sm font-semibold transition border-b-2 tab-inactive">📋 ประวัติ</button>
             </div>
@@ -383,13 +651,13 @@
             </div>
             <div id="support-panel-history" class="hidden flex min-h-0 flex-1 flex-col overflow-hidden">
                 <div id="support-ticket-list" class="scrollbar-thin flex flex-col gap-1 overflow-y-auto p-3" style="max-height:220px;"></div>
-                <div id="support-thread" class="hidden flex-1 flex-col" style="border-top: 1px solid rgba(0,212,255,0.08);">
-                    <div class="flex items-center gap-2 px-4 py-2" style="background: rgba(0,212,255,0.03); border-bottom: 1px solid rgba(0,212,255,0.08);">
-                        <button onclick="backToTicketList()" class="text-xs transition" style="color:#4b5563;" onmouseover="this.style.color='#00d4ff'" onmouseout="this.style.color='#4b5563'"><i class="fas fa-arrow-left mr-1"></i>กลับ</button>
+                <div id="support-thread" class="hidden flex-1 flex-col" style="border-top:1px solid var(--sect-b);">
+                    <div class="flex items-center gap-2 px-4 py-2" style="background:var(--acc-soft); border-bottom:1px solid var(--sect-b);">
+                        <button onclick="backToTicketList()" class="text-xs transition modal-sub" onmouseover="this.style.color='var(--acc)'" onmouseout="this.style.color='var(--mo-t2)'"><i class="fas fa-arrow-left mr-1"></i>กลับ</button>
                         <span id="thread-status" class="text-xs px-2 py-0.5 rounded-full font-semibold"></span>
                     </div>
                     <div id="support-thread-messages" class="scrollbar-thin flex-1 space-y-2 overflow-y-auto p-4" style="max-height:220px;"></div>
-                    <div class="flex gap-2 p-3" style="border-top: 1px solid rgba(0,212,255,0.08);">
+                    <div class="flex gap-2 p-3" style="border-top:1px solid var(--sect-b);">
                         <textarea id="support-reply-input" rows="2" placeholder="พิมพ์ข้อความเพิ่มเติม..."
                             class="input-tech flex-1 resize-none rounded-xl px-3 py-2 text-sm outline-none"></textarea>
                         <button onclick="submitUserReply()" class="btn-primary self-end flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl text-white">
@@ -405,7 +673,7 @@
     <div id="confirm-modal" style="display:none;" class="fixed inset-0 z-[99999999] flex items-center justify-center bg-black/60 p-4">
         <div class="modal-card w-full max-w-sm rounded-2xl p-6">
             <div class="flex items-center gap-3 mb-3">
-                <div class="flex h-10 w-10 items-center justify-center rounded-full flex-shrink-0" style="background: rgba(239,68,68,0.1);">
+                <div class="flex h-10 w-10 items-center justify-center rounded-full flex-shrink-0" style="background:rgba(239,68,68,0.12);">
                     <i class="fas fa-trash" style="color:#f87171;"></i>
                 </div>
                 <h3 id="confirm-modal-title" class="text-base font-bold modal-title">ยืนยันการลบ</h3>
@@ -413,7 +681,7 @@
             <p id="confirm-modal-body" class="text-sm modal-sub mb-5">ต้องการลบหัวข้อสนทนานี้หรือไม่</p>
             <div class="flex justify-end gap-2">
                 <button onclick="closeConfirmModal()" class="modal-cancel">ยกเลิก</button>
-                <button id="confirm-modal-ok" class="rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90" style="background: linear-gradient(135deg,#b91c1c,#ef4444);">ลบ</button>
+                <button id="confirm-modal-ok" class="rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90" style="background:linear-gradient(135deg,#b91c1c,#ef4444);">ลบ</button>
             </div>
         </div>
     </div>
@@ -421,7 +689,23 @@
     <script>
         let conversations = [], filteredConversations = [], currentConversationId = null;
         let userInitial = 'A';
+
+        /* ── Theme ── */
+        function toggleTheme() {
+            const isLight = document.documentElement.classList.toggle('light-mode');
+            document.getElementById('theme-icon').className = isLight ? 'fas fa-sun text-xs' : 'fas fa-moon text-xs';
+            localStorage.setItem('i_save_theme', isLight ? 'light' : 'dark');
+        }
+        (function applyTheme() {
+            const saved = localStorage.getItem('i_save_theme');
+            if (saved === 'light') {
+                document.documentElement.classList.add('light-mode');
+            }
+        })();
+
         document.addEventListener("DOMContentLoaded", async () => {
+            const saved = localStorage.getItem('i_save_theme');
+            document.getElementById('theme-icon').className = (saved === 'light') ? 'fas fa-sun text-xs' : 'fas fa-moon text-xs';
             const si = document.getElementById("search-input");
             si.value = ""; setTimeout(() => { si.value = ""; }, 150);
             await loadUserInfo(); await loadConversations();
@@ -430,6 +714,8 @@
             const menu = document.getElementById("user-menu"), trigger = document.getElementById("user-menu-trigger");
             if (menu && menu.style.display !== "none" && !menu.contains(e.target) && trigger && !trigger.contains(e.target)) menu.style.display = "none";
         });
+
+        /* ── Confirm Modal ── */
         let _confirmCallback = null;
         function showConfirmModal(title, body, okLabel, onConfirm) {
             document.getElementById('confirm-modal-title').textContent = title;
@@ -449,15 +735,16 @@
             });
         });
 
+        /* ── Helpers ── */
         function csrfToken() { return document.querySelector('meta[name="csrf-token"]').content; }
         function showToast(msg) {
             const t = document.getElementById("toast"); t.textContent = msg; t.classList.remove("hidden");
             if (msg.includes("ลบหัวข้อแล้ว") || msg.includes("ลบหัวข้อไม่สำเร็จ")) {
-                t.style.background = "linear-gradient(135deg, #b91c1c 0%, #ef4444 100%)";
+                t.style.background = "linear-gradient(135deg,#b91c1c,#ef4444)";
                 t.style.boxShadow = "0 4px 20px rgba(239,68,68,0.4)";
             } else {
-                t.style.background = "linear-gradient(135deg, #0077aa 0%, #00d4ff 100%)";
-                t.style.boxShadow = "0 4px 20px rgba(0,212,255,0.35)";
+                t.style.background = "linear-gradient(135deg,var(--acc-from),var(--acc-to))";
+                t.style.boxShadow = "0 4px 20px var(--acc-glow)";
             }
             clearTimeout(showToast._t); showToast._t = setTimeout(() => t.classList.add("hidden"), 2500);
         }
@@ -466,6 +753,8 @@
             const open = s.classList.contains("translate-x-0");
             s.classList.toggle("-translate-x-[120%]", open); s.classList.toggle("translate-x-0", !open); b.classList.toggle("hidden", open);
         }
+
+        /* ── User Info ── */
         async function loadUserInfo() {
             const r = await fetch("/user-info"), d = await r.json();
             if (d.success) {
@@ -477,6 +766,8 @@
                 }
             }
         }
+
+        /* ── Conversations ── */
         async function loadConversations(preferredId = null, skipRerender = false) {
             const r = await fetch("/conversations"), d = await r.json();
             if (!d.success) { showToast("โหลดหัวข้อสนทนาไม่สำเร็จ"); return; }
@@ -491,10 +782,14 @@
         function updateConversationList() {
             const list = document.getElementById("conversation-list");
             if (!filteredConversations.length) {
-                list.innerHTML = '<div class="rounded-xl px-4 py-4 text-sm text-center" style="border: 1px dashed rgba(0,212,255,0.12); color: #374151;">ไม่พบหัวข้อ</div>';
+                list.innerHTML = '<div class="rounded-xl px-4 py-4 text-sm text-center" style="border:1px dashed var(--cv-hbd);color:var(--t3);">ไม่พบหัวข้อ</div>';
                 return;
             }
-            list.innerHTML = filteredConversations.map(c => `<button class="conversation-item w-full px-3 py-2.5 text-left ${c.id === currentConversationId ? "active" : ""}" onclick="selectConversation(${c.id})"><div class="truncate text-sm font-semibold" style="color:#e2e8f0;">${escapeHtml(c.title)}</div><div class="mt-0.5 text-xs" style="color:#374151;">${formatDate(c.updated_at)}</div></button>`).join("");
+            list.innerHTML = filteredConversations.map(c =>
+                `<button class="conversation-item w-full px-3 py-2.5 text-left ${c.id === currentConversationId ? "active" : ""}" onclick="selectConversation(${c.id})">
+                    <div class="truncate text-sm font-semibold" style="color:var(--t1);">${escapeHtml(c.title)}</div>
+                    <div class="mt-0.5 text-xs" style="color:var(--t3);">${formatDate(c.updated_at)}</div>
+                </button>`).join("");
         }
         function searchConversations() {
             const t = document.getElementById("search-input").value.trim().toLowerCase();
@@ -513,6 +808,8 @@
             setActiveConversationTitle(d.conversation.title); displayMessages(d.messages);
             if (closeMobile && window.innerWidth < 1024) toggleSidebar();
         }
+
+        /* ── Send Message ── */
         async function sendMessage() {
             const input = document.getElementById("message-input"), message = input.value.trim();
             if (!message || !currentConversationId) return;
@@ -521,8 +818,7 @@
             const payload = quote ? `[อ้างอิงข้อความ]: "${quote}"\n\n${message}` : message;
             removeWelcomeState(); addMessageToChat(message, "user"); input.value = ""; input.style.height = "auto";
             clearQuote(); showTypingIndicator();
-            sendBtn.disabled = true;
-            sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin text-sm"></i>';
+            sendBtn.disabled = true; sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin text-sm"></i>';
             try {
                 const r = await fetch("/conversations/" + currentConversationId + "/messages", { method: "POST", headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken() }, body: JSON.stringify({ message: payload }) }), d = await r.json();
                 hideTypingIndicator();
@@ -537,16 +833,13 @@
                 else if (err && err.name === 'AbortError') msg = "การเชื่อมต่อหมดเวลา กรุณาลองใหม่";
                 showToast(msg);
             } finally {
-                sendBtn.disabled = false;
-                sendBtn.innerHTML = '<i class="fas fa-paper-plane text-sm"></i>';
-                input.focus();
+                sendBtn.disabled = false; sendBtn.innerHTML = '<i class="fas fa-paper-plane text-sm"></i>'; input.focus();
             }
         }
         function sendQuickMessage(msg) {
             const btn = document.getElementById("send-btn");
             if (btn && btn.disabled) return;
-            document.getElementById("message-input").value = msg;
-            sendMessage();
+            document.getElementById("message-input").value = msg; sendMessage();
         }
         function displayMessages(messages) {
             const c = document.getElementById("chat-messages"); c.innerHTML = "";
@@ -554,153 +847,131 @@
             messages.forEach(m => addMessageToChat(m.message, m.sender, null, m.sender === 'assistant' ? m.id : null, m.feedback_type, m.created_at));
         }
         function renderWelcomeState() {
-            document.getElementById("chat-messages").innerHTML = `<div id="welcome-state" class="mx-auto max-w-md rounded-2xl p-6 text-center" style="background: rgba(11,17,30,0.8); border: 1px solid rgba(0,212,255,0.14);"><div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full" style="background: linear-gradient(135deg,#0090bb,#00d4ff); box-shadow: 0 0 24px rgba(0,212,255,0.4);"><i class="fas fa-comments text-white"></i></div><h3 class="text-base font-bold" style="color:#e2e8f0;">เริ่มบทสนทนาใหม่</h3><p class="mt-2 text-sm leading-6" style="color:#4b5563;">ระบบเก็บหัวข้อสนทนาแยกตามผู้ใช้ กลับมาเปิดอ่านได้ทุกเมื่อ หรือกด &ldquo;เริ่มแชทใหม่&rdquo; เพื่อเปลี่ยนเรื่องสนทนา</p></div>`;
+            document.getElementById("chat-messages").innerHTML =
+                `<div id="welcome-state" class="mx-auto max-w-md rounded-2xl p-6 text-center" style="background:var(--glass-bg);border:1px solid var(--glass-bd);">
+                    <div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full" style="background:linear-gradient(135deg,var(--acc-from),var(--acc-to));box-shadow:0 0 24px var(--acc-glow);">
+                        <i class="fas fa-comments text-white"></i>
+                    </div>
+                    <h3 class="text-base font-bold" style="color:var(--t1);">เริ่มบทสนทนาใหม่</h3>
+                    <p class="mt-2 text-sm leading-6" style="color:var(--t3);">ระบบเก็บหัวข้อสนทนาแยกตามผู้ใช้ กลับมาเปิดอ่านได้ทุกเมื่อ หรือกด &ldquo;เริ่มแชทใหม่&rdquo; เพื่อเปลี่ยนเรื่องสนทนา</p>
+                </div>`;
         }
         function removeWelcomeState() { document.getElementById("welcome-state")?.remove(); }
         function renderMarkdown(text) {
             text = text.replace(/([^\n])([ \t]*(?:[•\-]|(?<!\*)\*(?!\*))[ \t]+)/g, '$1\n$2');
             return text
-                .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-                .replace(/^#{3}\s+(.+)$/gm, '<h3 style="font-weight:700;font-size:0.95em;margin:0.6em 0 0.2em">$1</h3>')
-                .replace(/^#{2}\s+(.+)$/gm, '<h2 style="font-weight:700;font-size:1.05em;margin:0.6em 0 0.2em">$1</h2>')
-                .replace(/^#{1}\s+(.+)$/gm, '<h2 style="font-weight:800;font-size:1.1em;margin:0.6em 0 0.2em">$1</h2>')
-                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-                .replace(/\*(.+?)\*/g, '<em>$1</em>')
-                .replace(/^---+$/gm, '<hr style="border:0;border-top:1px solid rgba(0,212,255,0.12);margin:0.5em 0">')
-                .replace(/^[-*•]\s*(.+)$/gm, '<div style="padding-left:1em;margin:0.25em 0">• $1</div>')
-                .replace(/<\/div>\n/g, '</div>')
-                .replace(/\n<div/g, '<div')
-                .replace(/\n/g, '<br>');
+                .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+                .replace(/^#{3}\s+(.+)$/gm,'<h3 style="font-weight:700;font-size:0.95em;margin:0.6em 0 0.2em">$1</h3>')
+                .replace(/^#{2}\s+(.+)$/gm,'<h2 style="font-weight:700;font-size:1.05em;margin:0.6em 0 0.2em">$1</h2>')
+                .replace(/^#{1}\s+(.+)$/gm,'<h2 style="font-weight:800;font-size:1.1em;margin:0.6em 0 0.2em">$1</h2>')
+                .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+                .replace(/\*(.+?)\*/g,'<em>$1</em>')
+                .replace(/^---+$/gm,'<hr style="border:0;border-top:1px solid var(--sect-b);margin:0.5em 0">')
+                .replace(/^[-*•]\s*(.+)$/gm,'<div style="padding-left:1em;margin:0.25em 0">• $1</div>')
+                .replace(/<\/div>\n/g,'</div>').replace(/\n<div/g,'<div').replace(/\n/g,'<br>');
         }
         function addMessageToChat(message, sender, suggestions, messageId, feedbackType, rawTimestamp) {
             const c = document.getElementById("chat-messages"), w = document.createElement("div");
             w.className = "message-enter flex items-start gap-2 " + (sender === "user" ? "justify-end" : "justify-start");
             const tsDate = rawTimestamp ? new Date(rawTimestamp) : new Date();
             const nowStr = isNaN(tsDate.getTime())
-                ? new Date().toLocaleString('th-TH', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })
-                : tsDate.toLocaleString('th-TH', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' });
+                ? new Date().toLocaleString('th-TH',{hour:'2-digit',minute:'2-digit',day:'numeric',month:'short'})
+                : tsDate.toLocaleString('th-TH',{hour:'2-digit',minute:'2-digit',day:'numeric',month:'short'});
             if (sender === "user") {
-                w.innerHTML = `<div class="flex flex-col items-end gap-0.5"><div class="max-w-full rounded-2xl rounded-br-sm px-4 py-3 text-sm leading-7 shadow-md break-words overflow-wrap-anywhere msg-user" title="${nowStr}">${escapeHtml(message).replace(/\n/g, "<br>")}</div><span class="text-[10px] pr-1" style="color:#374151;">${nowStr}</span></div><div class="flex-shrink-0 w-8 h-8 rounded-full text-white font-bold text-sm flex items-center justify-center" style="background:linear-gradient(135deg,#0077aa,#00d4ff);box-shadow:0 0 10px rgba(0,212,255,0.3);">${userInitial}</div>`;
+                w.innerHTML = `<div class="flex flex-col items-end gap-0.5"><div class="max-w-full rounded-2xl rounded-br-sm px-4 py-3 text-sm leading-7 break-words overflow-wrap-anywhere msg-user" title="${nowStr}">${escapeHtml(message).replace(/\n/g,"<br>")}</div><span class="text-[10px] pr-1" style="color:var(--t3);">${nowStr}</span></div><div class="flex-shrink-0 w-8 h-8 rounded-full text-white font-bold text-sm flex items-center justify-center" style="background:linear-gradient(135deg,var(--acc-from),var(--acc-to));box-shadow:0 0 10px var(--acc-glow);">${userInitial}</div>`;
             } else {
                 const chipsHtml = (suggestions && suggestions.length)
-                    ? `<div class="mt-2 flex flex-wrap gap-2">${suggestions.map(s => `<button onclick="sendQuickMessage(${escapeHtml(JSON.stringify(s))})" class="text-xs px-3 py-1.5 rounded-full transition-colors duration-200 cursor-pointer" style="border:1px solid rgba(0,212,255,0.2);background:rgba(0,212,255,0.06);color:#67e8f9;" onmouseover="this.style.background='rgba(0,212,255,0.12)';this.style.borderColor='rgba(0,212,255,0.4)'" onmouseout="this.style.background='rgba(0,212,255,0.06)';this.style.borderColor='rgba(0,212,255,0.2)'">${escapeHtml(s)}</button>`).join('')}</div>`
+                    ? `<div class="mt-2 flex flex-wrap gap-2">${suggestions.map(s => `<button onclick="sendQuickMessage(${escapeHtml(JSON.stringify(s))})" class="text-xs px-3 py-1.5 rounded-full transition-colors duration-200 cursor-pointer" style="border:1px solid var(--cv-hbd);background:var(--acc-soft);color:var(--acc);" onmouseover="this.style.background='var(--cv-hbg)'" onmouseout="this.style.background='var(--acc-soft)'">${escapeHtml(s)}</button>`).join('')}</div>`
                     : '';
                 const encodedMsg = encodeURIComponent(message);
-                const likeActive = feedbackType === 'like';
-                const dislikeActive = feedbackType === 'dislike';
+                const likeActive = feedbackType === 'like', dislikeActive = feedbackType === 'dislike';
                 const feedbackHtml = messageId ? `
-                    <span class="w-px h-3 mx-0.5 self-center" style="background:rgba(0,212,255,0.12);"></span>
-                    <button id="like-${messageId}" title="ดีมาก" onclick="submitFeedback(${messageId},'like')" class="rounded-md p-1.5 ${likeActive ? 'text-cyan-400 bg-cyan-400/10' : 'text-slate-600 hover:text-cyan-400 hover:bg-cyan-400/10'} transition-colors"><i class="${likeActive ? 'fas' : 'far'} fa-thumbs-up text-xs"></i></button>
-                    <button id="dislike-${messageId}" title="ปรับปรุงได้" onclick="submitFeedback(${messageId},'dislike')" class="rounded-md p-1.5 ${dislikeActive ? 'text-rose-400 bg-rose-400/10' : 'text-slate-600 hover:text-rose-400 hover:bg-rose-400/10'} transition-colors"><i class="${dislikeActive ? 'fas' : 'far'} fa-thumbs-down text-xs"></i></button>` : '';
+                    <span class="w-px h-3 mx-0.5 self-center" style="background:var(--cv-hbd);"></span>
+                    <button id="like-${messageId}" title="ดีมาก" onclick="submitFeedback(${messageId},'like')" class="rounded-md p-1.5 ${likeActive ? 'text-cyan-400 bg-cyan-400/10' : 'text-slate-500 hover:text-cyan-400 hover:bg-cyan-400/10'} transition-colors"><i class="${likeActive ? 'fas' : 'far'} fa-thumbs-up text-xs"></i></button>
+                    <button id="dislike-${messageId}" title="ปรับปรุงได้" onclick="submitFeedback(${messageId},'dislike')" class="rounded-md p-1.5 ${dislikeActive ? 'text-rose-400 bg-rose-400/10' : 'text-slate-500 hover:text-rose-400 hover:bg-rose-400/10'} transition-colors"><i class="${dislikeActive ? 'fas' : 'far'} fa-thumbs-down text-xs"></i></button>` : '';
                 const actionsHtml = `<div class="flex items-center gap-0.5 px-1 mt-0.5">
-                    <button title="คัดลอก" data-encoded="${encodedMsg}" onclick="copyMessage(this)" class="rounded-md p-1.5 text-slate-600 hover:text-cyan-400 hover:bg-cyan-400/10 transition-colors"><i class="far fa-copy text-xs"></i></button>
-                    ${feedbackHtml}
-                </div>`;
-                w.innerHTML = `<div class="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden" style="border:1.5px solid rgba(0,212,255,0.2);"><img src="/static/chat-bot.png" alt="AI" class="w-full h-full object-cover"></div><div class="max-w-[75%] flex flex-col gap-1"><div class="msg-ai rounded-2xl rounded-bl-sm px-4 py-3 text-sm leading-7 break-words overflow-wrap-anywhere" title="${nowStr}">${renderMarkdown(message)}</div>${actionsHtml}<span class="text-[10px] pl-1" style="color:#374151;">${nowStr}</span>${chipsHtml}</div>`;
+                    <button title="คัดลอก" data-encoded="${encodedMsg}" onclick="copyMessage(this)" class="rounded-md p-1.5 text-slate-500 hover:text-cyan-400 hover:bg-cyan-400/10 transition-colors"><i class="far fa-copy text-xs"></i></button>
+                    ${feedbackHtml}</div>`;
+                w.innerHTML = `<div class="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden" style="border:1.5px solid var(--cv-hbd);"><img src="/static/chat-bot.png" alt="AI" class="w-full h-full object-cover"></div><div class="max-w-[75%] flex flex-col gap-1"><div class="msg-ai rounded-2xl rounded-bl-sm px-4 py-3 text-sm leading-7 break-words overflow-wrap-anywhere" title="${nowStr}">${renderMarkdown(message)}</div>${actionsHtml}<span class="text-[10px] pl-1" style="color:var(--t3);">${nowStr}</span>${chipsHtml}</div>`;
             }
             c.appendChild(w); c.scrollTop = c.scrollHeight;
         }
-        let selectedQuoteText = null;
 
+        /* ── Quote Selection ── */
+        let selectedQuoteText = null;
         document.addEventListener('mouseup', (e) => {
             if (e.target.closest('#selection-popup')) return;
             const chatEl = document.getElementById('chat-messages');
-            const sel = window.getSelection();
-            const text = sel ? sel.toString().trim() : '';
-            if (text.length > 3 && chatEl.contains(sel.anchorNode)) {
-                showSelectionPopup(text, sel);
-            } else if (!e.target.closest('#selection-popup')) {
-                hideSelectionPopup();
-            }
+            const sel = window.getSelection(), text = sel ? sel.toString().trim() : '';
+            if (text.length > 3 && chatEl.contains(sel.anchorNode)) showSelectionPopup(text, sel);
+            else if (!e.target.closest('#selection-popup')) hideSelectionPopup();
         });
-
-        document.addEventListener('mousedown', (e) => {
-            if (!e.target.closest('#selection-popup')) hideSelectionPopup();
-        });
-
+        document.addEventListener('mousedown', (e) => { if (!e.target.closest('#selection-popup')) hideSelectionPopup(); });
         function showSelectionPopup(text, sel) {
             let popup = document.getElementById('selection-popup');
             if (!popup) {
                 popup = document.createElement('div');
                 popup.id = 'selection-popup';
                 popup.style.cssText = 'position:fixed;z-index:99999;display:none;cursor:pointer;user-select:none;';
-                popup.innerHTML = `<div style="background:linear-gradient(135deg,#0077aa,#00d4ff);color:white;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;box-shadow:0 4px 18px rgba(0,212,255,0.5),0 0 0 1px rgba(0,212,255,0.2);display:flex;align-items:center;gap:6px;white-space:nowrap;"><i class="fas fa-quote-right" style="font-size:10px"></i>ถาม AI เกี่ยวกับข้อความนี้</div>`;
+                popup.innerHTML = `<div style="background:linear-gradient(135deg,var(--acc-from),var(--acc-to));color:white;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;box-shadow:0 4px 18px var(--acc-glow);display:flex;align-items:center;gap:6px;white-space:nowrap;"><i class="fas fa-quote-right" style="font-size:10px"></i>ถาม AI เกี่ยวกับข้อความนี้</div>`;
                 popup.addEventListener('mousedown', (ev) => ev.stopPropagation());
                 popup.onclick = () => { quoteText(text); hideSelectionPopup(); window.getSelection()?.removeAllRanges(); };
                 document.body.appendChild(popup);
             }
             popup.style.display = 'block';
             requestAnimationFrame(() => {
-                const range = sel.getRangeAt(0);
-                const rect = range.getBoundingClientRect();
-                const pw = popup.offsetWidth || 220;
-                const ph = popup.offsetHeight || 34;
-                let left = rect.left + rect.width / 2 - pw / 2;
-                let top  = rect.top - ph - 10;
+                const range = sel.getRangeAt(0), rect = range.getBoundingClientRect();
+                const pw = popup.offsetWidth || 220, ph = popup.offsetHeight || 34;
+                let left = rect.left + rect.width / 2 - pw / 2, top = rect.top - ph - 10;
                 if (left < 8) left = 8;
                 if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
                 if (top < 8) top = rect.bottom + 8;
-                popup.style.left = left + 'px';
-                popup.style.top  = top  + 'px';
+                popup.style.left = left + 'px'; popup.style.top = top + 'px';
             });
         }
-
-        function hideSelectionPopup() {
-            const popup = document.getElementById('selection-popup');
-            if (popup) popup.style.display = 'none';
-        }
-
+        function hideSelectionPopup() { const p = document.getElementById('selection-popup'); if (p) p.style.display = 'none'; }
         function quoteText(text) {
             selectedQuoteText = text;
             const maxLen = 120;
-            document.getElementById('quote-banner-text').textContent =
-                text.length > maxLen ? text.substring(0, maxLen) + '…' : text;
+            document.getElementById('quote-banner-text').textContent = text.length > maxLen ? text.substring(0, maxLen) + '…' : text;
             document.getElementById('quote-banner').classList.remove('hidden');
             document.getElementById('message-input').focus();
         }
+        function clearQuote() { selectedQuoteText = null; document.getElementById('quote-banner').classList.add('hidden'); }
 
-        function clearQuote() {
-            selectedQuoteText = null;
-            document.getElementById('quote-banner').classList.add('hidden');
-        }
-
+        /* ── Copy ── */
         async function copyMessage(btn) {
             const text = decodeURIComponent(btn.getAttribute('data-encoded'));
             const icon = btn.querySelector('i');
             const markSuccess = () => {
-                icon.className = 'fas fa-check text-xs';
-                btn.classList.add('text-cyan-400');
+                icon.className = 'fas fa-check text-xs'; btn.classList.add('text-cyan-400');
                 setTimeout(() => { icon.className = 'far fa-copy text-xs'; btn.classList.remove('text-cyan-400'); }, 1500);
             };
             if (navigator.clipboard && window.isSecureContext) {
                 try { await navigator.clipboard.writeText(text); markSuccess(); return; } catch (_) {}
             }
             try {
-                const ta = document.createElement('textarea');
-                ta.value = text;
+                const ta = document.createElement('textarea'); ta.value = text;
                 ta.style.cssText = 'position:fixed;top:-999px;left:-999px;opacity:0;pointer-events:none';
-                document.body.appendChild(ta);
-                ta.focus(); ta.select();
-                const ok = document.execCommand('copy');
-                document.body.removeChild(ta);
+                document.body.appendChild(ta); ta.focus(); ta.select();
+                const ok = document.execCommand('copy'); document.body.removeChild(ta);
                 if (ok) { markSuccess(); } else { showToast('ไม่สามารถคัดลอกได้'); }
             } catch (_) { showToast('ไม่สามารถคัดลอกได้'); }
         }
+
+        /* ── Feedback ── */
         async function submitFeedback(messageId, type) {
             try {
-                const r = await fetch('/messages/' + messageId + '/feedback', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
-                    body: JSON.stringify({ feedback_type: type })
-                });
+                const r = await fetch('/messages/' + messageId + '/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() }, body: JSON.stringify({ feedback_type: type }) });
                 const d = await r.json();
                 if (!d.success) { showToast('บันทึก feedback ไม่สำเร็จ'); return; }
                 const likeBtn = document.getElementById('like-' + messageId);
                 const dislikeBtn = document.getElementById('dislike-' + messageId);
                 if (likeBtn && dislikeBtn) {
                     likeBtn.querySelector('i').className = 'far fa-thumbs-up text-xs';
-                    likeBtn.className = 'rounded-md p-1.5 text-slate-600 hover:text-cyan-400 hover:bg-cyan-400/10 transition-colors';
+                    likeBtn.className = 'rounded-md p-1.5 text-slate-500 hover:text-cyan-400 hover:bg-cyan-400/10 transition-colors';
                     dislikeBtn.querySelector('i').className = 'far fa-thumbs-down text-xs';
-                    dislikeBtn.className = 'rounded-md p-1.5 text-slate-600 hover:text-rose-400 hover:bg-rose-400/10 transition-colors';
+                    dislikeBtn.className = 'rounded-md p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-400/10 transition-colors';
                     if (type === 'like') {
                         likeBtn.querySelector('i').className = 'fas fa-thumbs-up text-xs';
                         likeBtn.className = 'rounded-md p-1.5 text-cyan-400 bg-cyan-400/10 transition-colors';
@@ -712,15 +983,19 @@
                 showToast(type === 'like' ? 'ขอบคุณสำหรับ Feedback ค่ะ' : 'รับทราบ จะนำไปปรับปรุงค่ะ');
             } catch (_) { showToast('เกิดข้อผิดพลาด'); }
         }
+
+        /* ── Typing Indicator ── */
         function showTypingIndicator() {
             const c = document.getElementById("chat-messages"), w = document.createElement("div");
             w.id = "typing-indicator"; w.className = "flex justify-start";
-            w.innerHTML = '<div class="flex items-center gap-1.5 rounded-2xl rounded-bl-sm px-4 py-3" style="background:rgba(17,24,39,0.95);border:1px solid rgba(0,212,255,0.12);"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div>';
+            w.innerHTML = '<div class="flex items-center gap-1.5 rounded-2xl rounded-bl-sm px-4 py-3 msg-ai"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div>';
             c.appendChild(w); c.scrollTop = c.scrollHeight;
         }
         function hideTypingIndicator() { document.getElementById("typing-indicator")?.remove(); }
         function autoResize(el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }
         function handleKeyPress(e) { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+
+        /* ── Rename ── */
         function openRenameModal() {
             if (!currentConversationId) return;
             const cur = conversations.find(c => c.id === currentConversationId);
@@ -736,39 +1011,37 @@
             if (!d.success) { showToast(d.message || "เปลี่ยนชื่อไม่สำเร็จ"); return; }
             setActiveConversationTitle(title); closeRenameModal(); await loadConversations(currentConversationId); showToast("เปลี่ยนชื่อหัวข้อแล้ว");
         }
+
+        /* ── Delete ── */
         async function deleteCurrentConversation() { if (currentConversationId) await deleteConversation(currentConversationId); }
         async function deleteConversation(id) {
-            showConfirmModal(
-                'ลบหัวข้อสนทนา',
-                'ต้องการลบหัวข้อสนทนานี้หรือไม่? การดำเนินการนี้ไม่สามารถย้อนกลับได้',
-                'ลบ',
+            showConfirmModal('ลบหัวข้อสนทนา','ต้องการลบหัวข้อสนทนานี้หรือไม่? การดำเนินการนี้ไม่สามารถย้อนกลับได้','ลบ',
                 async () => {
                     const r = await fetch("/conversations/" + id, { method: "DELETE", headers: { "X-CSRFToken": csrfToken() } }), d = await r.json();
                     if (!d.success) { showToast(d.message || "ลบหัวข้อไม่สำเร็จ"); return; }
                     if (currentConversationId === id) currentConversationId = null;
                     await loadConversations(); showToast("ลบหัวข้อแล้ว");
-                }
-            );
+                });
         }
         async function clearAllConversations() {
             if (!conversations.length) return;
-            showConfirmModal(
-                'ลบหัวข้อทั้งหมด',
-                `ต้องการลบหัวข้อสนทนาทั้งหมด ${conversations.length} หัวข้อหรือไม่? การดำเนินการนี้ไม่สามารถย้อนกลับได้`,
-                'ลบทั้งหมด',
+            showConfirmModal('ลบหัวข้อทั้งหมด',`ต้องการลบหัวข้อสนทนาทั้งหมด ${conversations.length} หัวข้อหรือไม่?`,'ลบทั้งหมด',
                 async () => {
                     for (const c of conversations) await fetch("/conversations/" + c.id, { method: "DELETE", headers: { "X-CSRFToken": csrfToken() } });
                     currentConversationId = null; await loadConversations(); showToast("ลบหัวข้อทั้งหมดแล้ว");
-                }
-            );
+                });
         }
         function setActiveConversationTitle(t) { document.getElementById("active-conversation-title").textContent = t || "แชทใหม่"; }
         function formatDate(v) { const d = new Date(v); return isNaN(d.getTime()) ? v : d.toLocaleString("th-TH"); }
         function escapeHtml(v) { return String(v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;"); }
+
+        /* ── User Menu ── */
         function toggleUserMenu() {
             const menu = document.getElementById("user-menu");
-            if (menu.style.display === "none") { menu.style.display = "block"; } else { menu.style.display = "none"; }
+            menu.style.display = menu.style.display === "none" ? "block" : "none";
         }
+
+        /* ── Change Password ── */
         function openChangePasswordModal() {
             document.getElementById("user-menu").style.display = "none";
             ["old-password","new-password","confirm-new-password"].forEach(id => document.getElementById(id).value = "");
@@ -785,6 +1058,8 @@
             if (!d.success) { showToast(d.message || "เปลี่ยนรหัสผ่านไม่สำเร็จ"); return; }
             closeChangePasswordModal(); showToast("เปลี่ยนรหัสผ่านสำเร็จ");
         }
+
+        /* ── Admin Users ── */
         async function openAdminUsersModal() {
             document.getElementById("user-menu").style.display = "none";
             const modal = document.getElementById("admin-users-modal");
@@ -798,7 +1073,16 @@
         async function loadAdminUsers() {
             const r = await fetch("/admin/users"), d = await r.json();
             if (!d.success) { showToast("โหลดรายชื่อผู้ใช้ไม่สำเร็จ"); return; }
-            document.getElementById("admin-users-list").innerHTML = d.users.map(u => `<div class="flex items-center justify-between rounded-xl px-4 py-3" style="background:rgba(11,17,30,0.8);border:1px solid rgba(0,212,255,0.1);"><div><p class="text-sm font-semibold" style="color:#e2e8f0;">${escapeHtml(u.username)}<span class="ml-1 rounded-full px-2 py-0.5 text-xs" style="${u.role==="admin"?"background:rgba(139,92,246,0.15);color:#a78bfa;":"background:rgba(71,85,105,0.3);color:#64748b;"}">${escapeHtml(u.role)}</span></p><p class="text-xs" style="color:#374151;">${escapeHtml(u.email)}</p></div><button onclick="openAdminResetModal(${u.id},${JSON.stringify(u.username)})" class="rounded-lg px-3 py-1.5 text-xs font-semibold transition" style="background:rgba(239,68,68,0.1);color:#f87171;border:1px solid rgba(239,68,68,0.2);" onmouseover="this.style.background='rgba(239,68,68,0.18)'" onmouseout="this.style.background='rgba(239,68,68,0.1)'"><i class="fas fa-key mr-1"></i>รีเซ็ต</button></div>`).join("");
+            document.getElementById("admin-users-list").innerHTML = d.users.map(u =>
+                `<div class="flex items-center justify-between rounded-xl px-4 py-3" style="background:var(--glass-bg);border:1px solid var(--glass-bd);">
+                    <div>
+                        <p class="text-sm font-semibold" style="color:var(--t1);">${escapeHtml(u.username)}
+                            <span class="ml-1 rounded-full px-2 py-0.5 text-xs" style="${u.role==="admin" ? "background:rgba(139,92,246,0.15);color:#a78bfa;" : "background:var(--acc-soft);color:var(--t2);"}">${escapeHtml(u.role)}</span>
+                        </p>
+                        <p class="text-xs" style="color:var(--t3);">${escapeHtml(u.email)}</p>
+                    </div>
+                    <button onclick="openAdminResetModal(${u.id},${JSON.stringify(u.username)})" class="sidebar-btn-danger rounded-lg px-3 py-1.5 text-xs font-semibold"><i class="fas fa-key mr-1"></i>รีเซ็ต</button>
+                </div>`).join("");
         }
         let adminResetTargetId = null;
         function openAdminResetModal(userId, username) {
@@ -811,8 +1095,7 @@
         }
         function closeAdminResetModal() {
             const modal = document.getElementById("admin-reset-password-modal");
-            modal.classList.add("hidden"); modal.style.display = "none";
-            adminResetTargetId = null;
+            modal.classList.add("hidden"); modal.style.display = "none"; adminResetTargetId = null;
         }
         async function confirmAdminReset() {
             if (!adminResetTargetId) return;
@@ -823,32 +1106,21 @@
             closeAdminResetModal(); showToast("รีเซ็ตรหัสผ่านสำเร็จ");
         }
 
+        /* ── Support ── */
         let currentTicketId = null;
-
         async function loadUnreadCount() {
             try {
-                const r = await fetch('/support/unread-count');
-                const d = await r.json();
+                const r = await fetch('/support/unread-count'), d = await r.json();
                 const badge = document.getElementById('support-badge');
-                if (d.count > 0) {
-                    badge.textContent = d.count; badge.classList.remove('hidden'); badge.classList.add('flex');
-                } else {
-                    badge.classList.add('hidden'); badge.classList.remove('flex');
-                }
+                if (d.count > 0) { badge.textContent = d.count; badge.classList.remove('hidden'); badge.classList.add('flex'); }
+                else { badge.classList.add('hidden'); badge.classList.remove('flex'); }
             } catch (_) {}
         }
-
         async function openSupportModal() {
             document.getElementById('support-modal').style.display = 'flex';
-            switchSupportTab('new');
-            await loadUnreadCount();
+            switchSupportTab('new'); await loadUnreadCount();
         }
-
-        function closeSupportModal() {
-            document.getElementById('support-modal').style.display = 'none';
-            loadUnreadCount();
-        }
-
+        function closeSupportModal() { document.getElementById('support-modal').style.display = 'none'; loadUnreadCount(); }
         function switchSupportTab(tab) {
             const isNew = tab === 'new';
             document.getElementById('support-panel-new').classList.toggle('hidden', !isNew);
@@ -857,7 +1129,6 @@
             document.getElementById('tab-history').className = `flex-1 py-2.5 text-sm font-semibold transition border-b-2 ${!isNew ? 'tab-active' : 'tab-inactive'}`;
             if (!isNew) loadTicketHistory();
         }
-
         async function submitSupportTicket() {
             const msg = document.getElementById('support-message-input').value.trim();
             if (!msg) { showToast('กรุณาระบุข้อความ'); return; }
@@ -865,72 +1136,63 @@
             const d = await r.json();
             if (!d.success) { showToast(d.message || 'เกิดข้อผิดพลาด'); return; }
             document.getElementById('support-message-input').value = '';
-            showToast('ส่งข้อความถึง Admin แล้ว');
-            switchSupportTab('history');
+            showToast('ส่งข้อความถึง Admin แล้ว'); switchSupportTab('history');
         }
-
         async function loadTicketHistory() {
             backToTicketList();
             const list = document.getElementById('support-ticket-list');
-            list.innerHTML = '<p class="text-center text-xs py-4" style="color:#374151;">กำลังโหลด...</p>';
-            const r = await fetch('/support/tickets');
-            const d = await r.json();
+            list.innerHTML = `<p class="text-center text-xs py-4" style="color:var(--t3);">กำลังโหลด...</p>`;
+            const r = await fetch('/support/tickets'), d = await r.json();
             if (!d.tickets || !d.tickets.length) {
-                list.innerHTML = '<p class="text-center text-xs py-4" style="color:#374151;">ยังไม่มีข้อความ</p>';
-                return;
+                list.innerHTML = `<p class="text-center text-xs py-4" style="color:var(--t3);">ยังไม่มีข้อความ</p>`; return;
             }
             const statusStyle = {
-                pending: ['rgba(234,179,8,0.15)', '#fbbf24', 'รอตอบ'],
-                answered: ['rgba(34,197,94,0.1)', '#4ade80', 'ตอบแล้ว'],
-                closed: ['rgba(100,116,139,0.15)', '#64748b', 'ปิดแล้ว']
+                pending:  ['rgba(234,179,8,0.15)','#fbbf24','รอตอบ'],
+                answered: ['rgba(34,197,94,0.1)','#4ade80','ตอบแล้ว'],
+                closed:   ['rgba(100,116,139,0.15)','#64748b','ปิดแล้ว']
             };
             list.innerHTML = d.tickets.map(t => {
-                const [sbg, sc, label] = statusStyle[t.status] || statusStyle.pending;
+                const [sbg,sc,label] = statusStyle[t.status] || statusStyle.pending;
                 const hasUnread = t.unread_count > 0;
-                const btnBg = hasUnread ? 'rgba(0,212,255,0.06)' : 'rgba(11,17,30,0.6)';
-                const btnBorder = hasUnread ? 'rgba(0,212,255,0.2)' : 'rgba(0,212,255,0.08)';
-                return `<button onclick="openThread(${t.id})" class="w-full text-left rounded-xl px-3 py-2.5 transition" style="background:${btnBg};border:1px solid ${btnBorder};" onmouseover="this.style.background='rgba(0,212,255,0.08)'" onmouseout="this.style.background='${btnBg}'">
+                const btnBg = hasUnread ? 'var(--acc-soft)' : 'var(--glass-bg)';
+                const btnBd = hasUnread ? 'var(--cv-hbd)' : 'var(--glass-bd)';
+                return `<button onclick="openThread(${t.id})" class="w-full text-left rounded-xl px-3 py-2.5 transition" style="background:${btnBg};border:1px solid ${btnBd};" onmouseover="this.style.background='var(--cv-hbg)'" onmouseout="this.style.background='${btnBg}'">
                     <div class="flex items-center justify-between gap-2">
-                        <p class="text-sm font-medium truncate flex-1" style="color:#e2e8f0;">${escapeHtml((t.first_message || '').substring(0, 60))}</p>
+                        <p class="text-sm font-medium truncate flex-1" style="color:var(--t1);">${escapeHtml((t.first_message||'').substring(0,60))}</p>
                         <div class="flex items-center gap-1.5 flex-shrink-0">
                             ${hasUnread ? `<span class="flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">${t.unread_count}</span>` : ''}
                             <span class="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style="background:${sbg};color:${sc};">${label}</span>
                         </div>
                     </div>
-                    <p class="text-xs mt-0.5" style="color:#374151;">${formatDate(t.updated_at)}</p>
+                    <p class="text-xs mt-0.5" style="color:var(--t3);">${formatDate(t.updated_at)}</p>
                 </button>`;
             }).join('');
         }
-
         async function openThread(ticketId) {
             currentTicketId = ticketId;
             document.getElementById('support-ticket-list').classList.add('hidden');
             document.getElementById('support-thread').classList.remove('hidden');
             document.getElementById('support-thread').classList.add('flex');
-            const r = await fetch(`/support/tickets/${ticketId}/replies`);
-            const d = await r.json();
+            const r = await fetch(`/support/tickets/${ticketId}/replies`), d = await r.json();
             if (!d.success) return;
             const msgs = document.getElementById('support-thread-messages');
             msgs.innerHTML = d.replies.map(rep => {
                 const isUser = rep.sender_role === 'user';
                 return `<div class="flex ${isUser ? 'justify-end' : 'justify-start'}">
                     <div class="max-w-[80%] rounded-2xl ${isUser ? 'rounded-br-sm thread-user-msg' : 'rounded-bl-sm thread-admin-msg'} px-3 py-2 text-sm leading-relaxed">
-                        ${!isUser ? '<p class="text-[10px] font-bold mb-0.5" style="color:#00d4ff;">Admin</p>' : ''}
-                        ${escapeHtml(rep.message).replace(/\n/g, '<br>')}
+                        ${!isUser ? `<p class="text-[10px] font-bold mb-0.5" style="color:var(--acc);">Admin</p>` : ''}
+                        ${escapeHtml(rep.message).replace(/\n/g,'<br>')}
                     </div>
                 </div>`;
             }).join('');
-            msgs.scrollTop = msgs.scrollHeight;
-            await loadUnreadCount();
+            msgs.scrollTop = msgs.scrollHeight; await loadUnreadCount();
         }
-
         function backToTicketList() {
             currentTicketId = null;
             document.getElementById('support-ticket-list').classList.remove('hidden');
             document.getElementById('support-thread').classList.add('hidden');
             document.getElementById('support-thread').classList.remove('flex');
         }
-
         async function submitUserReply() {
             if (!currentTicketId) return;
             const msg = document.getElementById('support-reply-input').value.trim();
@@ -941,7 +1203,6 @@
             document.getElementById('support-reply-input').value = '';
             await openThread(currentTicketId);
         }
-
         loadUnreadCount();
     </script>
 </body>
