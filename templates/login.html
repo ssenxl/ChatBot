@@ -10,68 +10,54 @@
     <style>
         body {
             font-family: "Noto Sans Thai", sans-serif;
-            background-color: #070b14;
-            background-image:
-                linear-gradient(rgba(0,212,255,0.025) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0,212,255,0.025) 1px, transparent 1px);
-            background-size: 40px 40px;
+            background: url('/static/bg_light2.jpg') center center / cover no-repeat fixed;
             min-height: 100vh;
         }
-        body::before {
-            content: '';
-            position: fixed; top: -20%; left: -10%;
-            width: 70%; height: 70%;
-            background: radial-gradient(ellipse, rgba(0,212,255,0.05) 0%, transparent 65%);
-            pointer-events: none;
-        }
-        body::after {
-            content: '';
-            position: fixed; bottom: -20%; right: -10%;
-            width: 60%; height: 60%;
-            background: radial-gradient(ellipse, rgba(99,102,241,0.06) 0%, transparent 65%);
-            pointer-events: none;
-        }
+        body::before { content: none; }
+        body::after  { content: none; }
         .tech-label {
             font-family: 'JetBrains Mono', monospace;
             font-size: 9px;
             letter-spacing: 0.16em;
             text-transform: uppercase;
-            color: #00d4ff;
-            opacity: 0.8;
+            color: #0D6EFD;
+            opacity: 0.85;
         }
         .glass-card {
-            background: rgba(11,17,30,0.9);
+            background: rgba(255,255,255,0.82);
             backdrop-filter: blur(20px);
-            border: 1px solid rgba(0,212,255,0.18);
-            box-shadow: 0 24px 64px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,212,255,0.05);
+            border: 1.5px solid #B8D8FF;
+            box-shadow: 0 16px 48px rgba(13,110,253,0.12), 0 0 0 1px rgba(255,255,255,0.6);
         }
         .input-tech {
-            background: rgba(7,11,20,0.85);
-            border: 1.5px solid rgba(0,212,255,0.15);
-            color: #e2e8f0;
+            background: rgba(255,255,255,0.8);
+            border: 1.5px solid #6DB7FF;
+            color: #123A6F;
             transition: all 0.2s;
             font-family: "Noto Sans Thai", sans-serif;
+            box-shadow: inset 0 2px 6px rgba(13,110,253,0.05);
         }
         .input-tech:focus {
-            border-color: rgba(0,212,255,0.55);
-            box-shadow: 0 0 0 3px rgba(0,212,255,0.08), 0 0 20px rgba(0,212,255,0.08);
+            border-color: #00C8FF;
+            box-shadow: 0 0 0 4px rgba(0,200,255,0.16), inset 0 2px 6px rgba(13,110,253,0.05);
             outline: none;
         }
-        .input-tech::placeholder { color: #374151; }
+        .input-tech::placeholder { color: #A7B8CC; }
         .btn-primary {
-            background: linear-gradient(135deg, #0090bb 0%, #00d4ff 100%);
+            background: linear-gradient(135deg, #0D6EFD 0%, #00C8FF 100%);
             transition: all 0.25s ease;
             font-family: "Noto Sans Thai", sans-serif;
+            box-shadow: 0 8px 24px rgba(13,110,253,0.28);
         }
-        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,212,255,0.45); }
+        .btn-primary:hover { transform: translateY(-2px); background: linear-gradient(135deg,#0057D9,#1E8CFF); box-shadow: 0 12px 28px rgba(13,110,253,0.4); }
         .btn-primary:active { transform: translateY(0); }
         .logo-ring {
             width: 96px; height: 96px;
             border-radius: 50%;
-            border: 2px solid rgba(0,212,255,0.35);
-            box-shadow: 0 0 0 6px rgba(0,212,255,0.06), 0 0 30px rgba(0,212,255,0.2);
+            border: 2px solid #9CCBFF;
+            box-shadow: 0 0 0 6px rgba(13,110,253,0.07), 0 8px 24px rgba(13,110,253,0.15);
             overflow: hidden;
-            background: rgba(11,17,30,0.9);
+            background: #FFFFFF;
         }
         .corner-dot {
             position: absolute;
@@ -86,8 +72,8 @@
         .corner-dot { animation: corner-pulse 2s ease-in-out infinite; }
         .corner-line-h { position: absolute; height: 1px; width: 20px; background: rgba(0,212,255,0.5); }
         .corner-line-v { position: absolute; width: 1px; height: 20px; background: rgba(0,212,255,0.5); }
-        .input-icon { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: rgba(0,212,255,0.45); pointer-events: none; }
-        .neon-divider { height: 1px; background: linear-gradient(90deg, transparent, rgba(0,212,255,0.2), transparent); margin: 1.5rem 0; }
+        .input-icon { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: #6DB7FF; pointer-events: none; }
+        .neon-divider { height: 1px; background: linear-gradient(90deg, transparent, #9CCBFF, transparent); margin: 1.5rem 0; }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
@@ -122,7 +108,7 @@
                 <img src="/static/logonew.png" alt="I-SAVE Logo" class="w-full h-full object-cover">
             </div>
             <p class="tech-label mb-1">INTELLIGENT SYSTEM</p>
-            <h1 class="text-2xl font-bold" style="color:#e2e8f0; letter-spacing:-0.01em;">I-SAVE</h1>
+            <h1 class="text-2xl font-bold" style="color:#123A6F; letter-spacing:-0.01em;">I-SAVE</h1>
         </div>
 
         <!-- Card -->
@@ -189,7 +175,7 @@
 
             <div class="neon-divider"></div>
 
-            <p class="text-center text-sm" style="color:#4b5563;">
+            <p class="text-center text-sm" style="color:#2F4A66;">
                 ยังไม่มีบัญชี?
                 <a href="{{ url_for('register') }}" class="font-semibold transition-colors" style="color:#00d4ff;" onmouseover="this.style.opacity='0.75'" onmouseout="this.style.opacity='1'">สมัครสมาชิก</a>
             </p>

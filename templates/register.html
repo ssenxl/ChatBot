@@ -8,81 +8,22 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: "Noto Sans Thai", sans-serif;
-            background-color: #070b14;
-            background-image:
-                linear-gradient(rgba(0,212,255,0.025) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0,212,255,0.025) 1px, transparent 1px);
-            background-size: 40px 40px;
-            min-height: 100vh;
-        }
-        body::before {
-            content: '';
-            position: fixed; top: -20%; left: -10%;
-            width: 70%; height: 70%;
-            background: radial-gradient(ellipse, rgba(0,212,255,0.05) 0%, transparent 65%);
-            pointer-events: none;
-        }
-        body::after {
-            content: '';
-            position: fixed; bottom: -20%; right: -10%;
-            width: 60%; height: 60%;
-            background: radial-gradient(ellipse, rgba(99,102,241,0.06) 0%, transparent 65%);
-            pointer-events: none;
-        }
-        .tech-label {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 9px;
-            letter-spacing: 0.16em;
-            text-transform: uppercase;
-            color: #00d4ff;
-            opacity: 0.8;
-        }
-        .glass-card {
-            background: rgba(11,17,30,0.9);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(0,212,255,0.18);
-            box-shadow: 0 24px 64px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,212,255,0.05);
-        }
-        .input-tech {
-            background: rgba(7,11,20,0.85);
-            border: 1.5px solid rgba(0,212,255,0.15);
-            color: #e2e8f0;
-            transition: all 0.2s;
-            font-family: "Noto Sans Thai", sans-serif;
-        }
-        .input-tech:focus {
-            border-color: rgba(0,212,255,0.55);
-            box-shadow: 0 0 0 3px rgba(0,212,255,0.08), 0 0 20px rgba(0,212,255,0.08);
-            outline: none;
-        }
-        .input-tech::placeholder { color: #374151; }
-        .btn-primary {
-            background: linear-gradient(135deg, #0090bb 0%, #00d4ff 100%);
-            transition: all 0.25s ease;
-            font-family: "Noto Sans Thai", sans-serif;
-        }
-        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,212,255,0.45); }
-        .input-icon { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: rgba(0,212,255,0.45); pointer-events: none; }
-        .neon-divider { height: 1px; background: linear-gradient(90deg, transparent, rgba(0,212,255,0.2), transparent); margin: 1.25rem 0; }
-        .strength-bar { height: 3px; border-radius: 2px; transition: all 0.3s ease; background: rgba(0,212,255,0.1); }
-        .strength-weak { background: #ef4444 !important; width: 33%; }
-        .strength-medium { background: #f59e0b !important; width: 66%; }
-        .strength-strong { background: #4ade80 !important; width: 100%; }
-        .logo-ring {
-            width: 72px; height: 72px;
-            border-radius: 50%;
-            border: 2px solid rgba(0,212,255,0.35);
-            box-shadow: 0 0 0 6px rgba(0,212,255,0.06), 0 0 30px rgba(0,212,255,0.2);
-            overflow: hidden;
-            background: rgba(11,17,30,0.9);
-        }
-        .modal-dark {
-            background: #080e1a;
-            border: 1px solid rgba(0,212,255,0.18);
-            box-shadow: 0 24px 64px rgba(0,0,0,0.8);
-        }
+        body { font-family: "Noto Sans Thai", sans-serif; background: url('/static/bg_light2.jpg') center center / cover no-repeat fixed; min-height: 100vh; }
+        .tech-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: #0D6EFD; opacity: 0.85; }
+        .glass-card { background: rgba(255,255,255,0.82); backdrop-filter: blur(20px); border: 1.5px solid #B8D8FF; box-shadow: 0 16px 48px rgba(13,110,253,0.12), 0 0 0 1px rgba(255,255,255,0.6); }
+        .input-tech { background: rgba(255,255,255,0.8); border: 1.5px solid #6DB7FF; color: #123A6F; transition: all 0.2s; font-family: "Noto Sans Thai", sans-serif; box-shadow: inset 0 2px 6px rgba(13,110,253,0.05); }
+        .input-tech:focus { border-color: #00C8FF; box-shadow: 0 0 0 4px rgba(0,200,255,0.16), inset 0 2px 6px rgba(13,110,253,0.05); outline: none; }
+        .input-tech::placeholder { color: #A7B8CC; }
+        .btn-primary { background: linear-gradient(135deg, #0D6EFD 0%, #00C8FF 100%); transition: all 0.25s ease; font-family: "Noto Sans Thai", sans-serif; box-shadow: 0 8px 24px rgba(13,110,253,0.28); }
+        .btn-primary:hover { transform: translateY(-2px); background: linear-gradient(135deg,#0057D9,#1E8CFF); box-shadow: 0 12px 28px rgba(13,110,253,0.4); }
+        .input-icon { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: #6DB7FF; pointer-events: none; }
+        .neon-divider { height: 1px; background: linear-gradient(90deg, transparent, #9CCBFF, transparent); margin: 1.25rem 0; }
+        .strength-bar { height: 3px; border-radius: 2px; transition: all 0.3s ease; background: rgba(0,100,200,0.1); }
+        .strength-weak  { background: #ef4444 !important; width: 33%; }
+        .strength-medium{ background: #f59e0b !important; width: 66%; }
+        .strength-strong{ background: #4ade80 !important; width: 100%; }
+        .logo-ring { width: 72px; height: 72px; border-radius: 50%; border: 2px solid #9CCBFF; box-shadow: 0 0 0 6px rgba(13,110,253,0.07), 0 8px 24px rgba(13,110,253,0.15); overflow: hidden; background: #FFFFFF; }
+        .modal-dark { background: rgba(255,255,255,0.9); border: 1.5px solid #B8D8FF; box-shadow: 0 16px 48px rgba(13,110,253,0.15); }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4 py-8">
@@ -94,7 +35,7 @@
                 <img src="/static/logonew.png" alt="I-SAVE Logo" class="w-full h-full object-cover">
             </div>
             <p class="tech-label mb-1">I-SAVE SYSTEM</p>
-            <h1 class="text-xl font-bold" style="color:#e2e8f0;">สร้างบัญชีใหม่</h1>
+            <h1 class="text-xl font-bold" style="color:#123A6F;">สร้างบัญชีใหม่</h1>
         </div>
 
         <!-- Card -->
@@ -117,7 +58,7 @@
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                 <div>
-                    <label class="block text-xs font-semibold mb-2" style="color:#94a3b8;">ชื่อผู้ใช้</label>
+                    <label class="block text-xs font-semibold mb-2" style="color:#2F4A66;">ชื่อผู้ใช้</label>
                     <div class="relative">
                         <span class="input-icon"><i class="fas fa-user text-sm"></i></span>
                         <input type="text" name="username" required autocomplete="username"
@@ -127,7 +68,7 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold mb-2" style="color:#94a3b8;">อีเมล</label>
+                    <label class="block text-xs font-semibold mb-2" style="color:#2F4A66;">อีเมล</label>
                     <div class="relative">
                         <span class="input-icon"><i class="fas fa-envelope text-sm"></i></span>
                         <input type="email" name="email" required autocomplete="email"
@@ -137,7 +78,7 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold mb-2" style="color:#94a3b8;">รหัสผ่าน</label>
+                    <label class="block text-xs font-semibold mb-2" style="color:#2F4A66;">รหัสผ่าน</label>
                     <div class="relative">
                         <span class="input-icon"><i class="fas fa-lock text-sm"></i></span>
                         <input type="password" name="password" id="password" required autocomplete="new-password"
@@ -151,7 +92,7 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold mb-2" style="color:#94a3b8;">ยืนยันรหัสผ่าน</label>
+                    <label class="block text-xs font-semibold mb-2" style="color:#2F4A66;">ยืนยันรหัสผ่าน</label>
                     <div class="relative">
                         <span class="input-icon"><i class="fas fa-lock text-sm"></i></span>
                         <input type="password" name="confirm_password" id="confirmPassword" required autocomplete="new-password"
@@ -194,19 +135,19 @@
     <div id="tos-modal" style="display:none;" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
         <div class="modal-dark w-full max-w-md rounded-2xl flex flex-col" style="max-height:80vh;">
             <div class="flex items-center justify-between px-5 py-4" style="border-bottom: 1px solid rgba(0,212,255,0.1);">
-                <h3 class="text-sm font-bold" style="color:#e2e8f0;">เงื่อนไขการใช้งาน & นโยบายความเป็นส่วนตัว</h3>
+                <h3 class="text-sm font-bold" style="color:#123A6F;">เงื่อนไขการใช้งาน & นโยบายความเป็นส่วนตัว</h3>
                 <button onclick="document.getElementById('tos-modal').style.display='none'" class="rounded-full p-1.5 transition" style="color:#4b5563;" onmouseover="this.style.color='#e2e8f0'" onmouseout="this.style.color='#4b5563'">
                     <i class="fas fa-xmark"></i>
                 </button>
             </div>
-            <div class="flex-1 overflow-y-auto px-5 py-4 text-sm space-y-3 leading-relaxed" style="color:#94a3b8;">
-                <p class="font-semibold" style="color:#e2e8f0;">1. การใช้งานระบบ</p>
+            <div class="flex-1 overflow-y-auto px-5 py-4 text-sm space-y-3 leading-relaxed" style="color:#2F4A66;">
+                <p class="font-semibold" style="color:#123A6F;">1. การใช้งานระบบ</p>
                 <p>ระบบ I-SAVE จัดทำขึ้นเพื่อใช้งานภายในองค์กรเท่านั้น ผู้ใช้งานต้องใช้ข้อมูลเพื่อวัตถุประสงค์ที่ได้รับอนุญาตเท่านั้น</p>
-                <p class="font-semibold" style="color:#e2e8f0;">2. ข้อมูลส่วนตัว</p>
+                <p class="font-semibold" style="color:#123A6F;">2. ข้อมูลส่วนตัว</p>
                 <p>ระบบจัดเก็บชื่อผู้ใช้ อีเมล และประวัติการสนทนา เพื่อให้บริการเท่านั้น ไม่มีการเผยแพร่ข้อมูลแก่บุคคลภายนอก</p>
-                <p class="font-semibold" style="color:#e2e8f0;">3. ความปลอดภัย</p>
+                <p class="font-semibold" style="color:#123A6F;">3. ความปลอดภัย</p>
                 <p>ผู้ใช้งานต้องรักษาความลับของรหัสผ่านและไม่แชร์บัญชีกับผู้อื่น</p>
-                <p class="font-semibold" style="color:#e2e8f0;">4. การยกเลิกสิทธิ์</p>
+                <p class="font-semibold" style="color:#123A6F;">4. การยกเลิกสิทธิ์</p>
                 <p>ผู้ดูแลระบบสามารถระงับหรือยกเลิกบัญชีที่ละเมิดเงื่อนไขได้โดยไม่ต้องแจ้งล่วงหน้า</p>
             </div>
             <div class="px-5 py-3 flex justify-end" style="border-top: 1px solid rgba(0,212,255,0.1);">

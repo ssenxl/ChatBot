@@ -223,15 +223,18 @@
             pointer-events: none; z-index: 0;
         }
 
-        /* ── Light mode: background gradient + hex grid ── */
+        /* ── Light mode: background image ── */
         .light-mode body {
             background:
-                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cpath d='M28 66L0 50L0 16L28 0L56 16L56 50ZM28 100L0 84L0 50L28 34L56 50L56 84Z' fill='none' stroke='%230088DD' stroke-opacity='0.13' stroke-width='1'/%3E%3C/svg%3E") right top / 56px 100px repeat-y,
+                url('/static/bg_light.jpg') center bottom / cover no-repeat;
+        }
+        /* Fallback if image not found */
+        .light-mode body:not([data-bg-loaded]) {
+            background:
                 radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.98) 0%, transparent 55%),
                 radial-gradient(circle at 88% 12%, rgba(0,200,255,0.18), transparent 28%),
                 radial-gradient(circle at 12% 88%, rgba(13,110,253,0.14), transparent 28%),
                 linear-gradient(180deg, #FAFCFF 0%, #EBF4FF 45%, #CDE2FF 100%);
-            background-size: 56px 100px, auto, auto, auto, auto;
         }
         /* ── Light mode: sidebar ── */
         .light-mode #sidebar {
