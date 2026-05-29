@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Panel - I-SAVE</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -501,7 +502,7 @@
             try {
                 const res = await fetch(`/admin/users/${userId}/toggle-active`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
                     body: JSON.stringify({ is_active: newState })
                 });
                 // ถ้า server ตอบมาไม่ใช่ JSON (เช่น HTML 404/500) จะ throw ที่นี่
@@ -584,7 +585,7 @@
             btn.disabled = true;
             icon.className = 'fas fa-sync fa-spin';
 
-            const res = await fetch('/admin/cache/refresh', { method: 'POST' });
+            const res = await fetch('/admin/cache/refresh', { method: 'POST', headers: { 'X-CSRFToken': csrfToken() } });
             const data = await res.json();
 
             icon.className = 'fas fa-sync';
@@ -831,7 +832,7 @@
 
             const res = await fetch(`/admin/users/${targetUserId}/reset-password`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
                 body: JSON.stringify({ new_password: newPwd })
             });
             const data = await res.json();
@@ -847,6 +848,7 @@
 
         // ---- Helpers ----
 
+        function csrfToken() { return document.querySelector('meta[name="csrf-token"]').content; }
         function showToast(message, type = 'info') {
             const icons = {
                 success: '<i class="fas fa-check-circle text-green-500"></i>',
@@ -954,7 +956,7 @@
             const msg = document.getElementById('admin-reply-input').value.trim();
             if (!msg) return;
             const r = await fetch(`/admin/support/tickets/${activeAdminTicketId}/reply`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: msg })
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() }, body: JSON.stringify({ message: msg })
             });
             const d = await r.json();
             if (!d.success) { showToast('ส่งคำตอบไม่สำเร็จ', 'error'); return; }
@@ -966,7 +968,7 @@
 
         async function adminCloseTicket() {
             if (!activeAdminTicketId) return;
-            await fetch(`/admin/support/tickets/${activeAdminTicketId}/close`, { method: 'POST' });
+            await fetch(`/admin/support/tickets/${activeAdminTicketId}/close`, { method: 'POST', headers: { 'X-CSRFToken': csrfToken() } });
             await loadSupportTickets();
             await openAdminThread(activeAdminTicketId);
         }

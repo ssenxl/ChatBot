@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>I-SAVE Chat</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -374,6 +375,7 @@
             });
         });
 
+        function csrfToken() { return document.querySelector('meta[name="csrf-token"]').content; }
         function showToast(msg) {
             const t = document.getElementById("toast"); t.textContent = msg; t.classList.remove("hidden");
             // Set red background for delete notifications
@@ -422,7 +424,7 @@
             updateConversationList();
         }
         async function createNewConversation() {
-            const r = await fetch("/conversations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: "แชทใหม่" }) }), d = await r.json();
+            const r = await fetch("/conversations", { method: "POST", headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken() }, body: JSON.stringify({ title: "แชทใหม่" }) }), d = await r.json();
             if (!d.success) { showToast("สร้างแชทใหม่ไม่สำเร็จ"); return; }
             currentConversationId = d.conversation_id; await loadConversations(d.conversation_id); renderWelcomeState(); showToast("สร้างหัวข้อใหม่แล้ว");
         }
@@ -445,7 +447,7 @@
             sendBtn.disabled = true;
             sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin text-sm"></i>';
             try {
-                const r = await fetch("/conversations/" + currentConversationId + "/messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: payload }) }), d = await r.json();
+                const r = await fetch("/conversations/" + currentConversationId + "/messages", { method: "POST", headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken() }, body: JSON.stringify({ message: payload }) }), d = await r.json();
                 hideTypingIndicator();
                 if (!d.success) { showToast(d.message || "ส่งข้อความไม่สำเร็จ"); return; }
                 addMessageToChat(d.ai_response.message, "assistant", d.ai_response.suggestions, d.ai_response.message_id);
@@ -613,7 +615,7 @@
         async function submitFeedback(messageId, type) {
             try {
                 const r = await fetch('/messages/' + messageId + '/feedback', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
                     body: JSON.stringify({ feedback_type: type })
                 });
                 const d = await r.json();
@@ -656,7 +658,7 @@
         async function confirmRenameConversation() {
             const title = document.getElementById("conversation-title").value.trim();
             if (!title || !currentConversationId) { showToast("กรุณาระบุชื่อหัวข้อ"); return; }
-            const r = await fetch("/conversations/" + currentConversationId, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title }) }), d = await r.json();
+            const r = await fetch("/conversations/" + currentConversationId, { method: "PUT", headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken() }, body: JSON.stringify({ title }) }), d = await r.json();
             if (!d.success) { showToast(d.message || "เปลี่ยนชื่อไม่สำเร็จ"); return; }
             setActiveConversationTitle(title); closeRenameModal(); await loadConversations(currentConversationId); showToast("เปลี่ยนชื่อหัวข้อแล้ว");
         }
@@ -667,7 +669,7 @@
                 'ต้องการลบหัวข้อสนทนานี้หรือไม่? การดำเนินการนี้ไม่สามารถย้อนกลับได้',
                 'ลบ',
                 async () => {
-                    const r = await fetch("/conversations/" + id, { method: "DELETE" }), d = await r.json();
+                    const r = await fetch("/conversations/" + id, { method: "DELETE", headers: { "X-CSRFToken": csrfToken() } }), d = await r.json();
                     if (!d.success) { showToast(d.message || "ลบหัวข้อไม่สำเร็จ"); return; }
                     if (currentConversationId === id) currentConversationId = null;
                     await loadConversations(); showToast("ลบหัวข้อแล้ว");
@@ -681,7 +683,7 @@
                 `ต้องการลบหัวข้อสนทนาทั้งหมด ${conversations.length} หัวข้อหรือไม่? การดำเนินการนี้ไม่สามารถย้อนกลับได้`,
                 'ลบทั้งหมด',
                 async () => {
-                    for (const c of conversations) await fetch("/conversations/" + c.id, { method: "DELETE" });
+                    for (const c of conversations) await fetch("/conversations/" + c.id, { method: "DELETE", headers: { "X-CSRFToken": csrfToken() } });
                     currentConversationId = null; await loadConversations(); showToast("ลบหัวข้อทั้งหมดแล้ว");
                 }
             );
@@ -709,7 +711,7 @@
             if (!old || !nw || !cf) { showToast("กรุณากรอกข้อมูลให้ครบถ้วน"); return; }
             if (nw !== cf) { showToast("รหัสผ่านใหม่ไม่ตรงกัน"); return; }
             if (nw.length < 6) { showToast("รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร"); return; }
-            const r = await fetch("/change-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ old_password: old, new_password: nw }) }), d = await r.json();
+            const r = await fetch("/change-password", { method: "POST", headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken() }, body: JSON.stringify({ old_password: old, new_password: nw }) }), d = await r.json();
             if (!d.success) { showToast(d.message || "เปลี่ยนรหัสผ่านไม่สำเร็จ"); return; }
             closeChangePasswordModal(); showToast("เปลี่ยนรหัสผ่านสำเร็จ");
         }
@@ -751,7 +753,7 @@
             if (!adminResetTargetId) return;
             const pw = document.getElementById("admin-new-password").value;
             if (!pw || pw.length < 6) { showToast("รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร"); return; }
-            const r = await fetch("/admin/users/" + adminResetTargetId + "/reset-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ new_password: pw }) }), d = await r.json();
+            const r = await fetch("/admin/users/" + adminResetTargetId + "/reset-password", { method: "POST", headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken() }, body: JSON.stringify({ new_password: pw }) }), d = await r.json();
             if (!d.success) { showToast(d.message || "รีเซ็ตรหัสผ่านไม่สำเร็จ"); return; }
             closeAdminResetModal(); showToast("รีเซ็ตรหัสผ่านสำเร็จ");
         }
@@ -798,7 +800,7 @@
         async function submitSupportTicket() {
             const msg = document.getElementById('support-message-input').value.trim();
             if (!msg) { showToast('กรุณาระบุข้อความ'); return; }
-            const r = await fetch('/support/tickets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: msg }) });
+            const r = await fetch('/support/tickets', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() }, body: JSON.stringify({ message: msg }) });
             const d = await r.json();
             if (!d.success) { showToast(d.message || 'เกิดข้อผิดพลาด'); return; }
             document.getElementById('support-message-input').value = '';
@@ -866,7 +868,7 @@
             if (!currentTicketId) return;
             const msg = document.getElementById('support-reply-input').value.trim();
             if (!msg) return;
-            const r = await fetch(`/support/tickets/${currentTicketId}/replies`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: msg }) });
+            const r = await fetch(`/support/tickets/${currentTicketId}/replies`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() }, body: JSON.stringify({ message: msg }) });
             const d = await r.json();
             if (!d.success) { showToast('ส่งข้อความไม่สำเร็จ'); return; }
             document.getElementById('support-reply-input').value = '';

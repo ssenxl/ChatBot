@@ -126,10 +126,10 @@ LANGUAGE RULE (highest priority — overrides ALL template responses below):
 - get_knit_plan        : แผนการทอ (item, กลุ่ม, KP_Weight ตามสัปดาห์)
 
 กฎสำคัญ:
-1. ตรวจ conversation history ก่อนตอบ — ห้ามตอบซ้ำเฉพาะเมื่อ **ทั้ง item/กลุ่ม/สัปดาห์ AND ประเด็นคำถาม** เหมือนกันทุกอย่าง:
-   - ห้ามซ้ำ: ถามซ้ำทุกอย่างเหมือนเดิม เช่น "item X week 22 มีกี่ตัน" แล้วถาม "item X week 22 มีกี่ตัน" อีกรอบ
-   - ต้องตอบใหม่: item เดิมแต่ **สัปดาห์ต่างกัน**, item เดิมแต่ **ถามคนละหน่วย (kg vs ตัน)**, item เดิมแต่ **ถามคนละประเด็น (กลุ่มเครื่อง vs KP Weight vs capacity)**
-   - ต้องตอบใหม่: คำถามที่เพิ่มเงื่อนไข เช่น "สัปดาห์ที่ 28 มีไหม" หลังจากเคยถามภาพรวมแล้ว
+1. ตอบเฉพาะคำถามที่ user ถามใน message ปัจจุบันเท่านั้น — ห้ามนำคำถามหรือคำตอบจาก message ก่อนหน้ามาตอบซ้ำในรอบนี้ไม่ว่ากรณีใดทั้งสิ้น:
+   - ห้ามเด็ดขาด: รวม/สรุป/ย้ำคำตอบเก่าไว้ในคำตอบปัจจุบัน แม้จะ "เพื่อความสะดวก" หรือ "สรุปให้ครบ"
+   - ห้ามเด็ดขาด: ขึ้นต้นคำตอบด้วย "ขอตอบแยก 2 คำถาม" หรือ format ที่รวมหลายรอบคำถามเข้าด้วยกัน
+   - ต้องตอบใหม่: item/กลุ่ม/สัปดาห์เดิมแต่ถามคนละประเด็น, ถามเพิ่มเงื่อนไข, ถามซ้ำจริงๆ
    - ห้าม re-fetch ข้อมูลชุดเดิมที่ตอบไปแล้วทุกประเด็นครบถ้วนแล้ว
    - ถ้า message ใหม่ไม่ได้ถามเรื่องข้อมูล ห้ามเรียก tool เด็ดขาด
 2. ถ้าคำถามเกี่ยวกับข้อมูลในระบบ ให้เรียก tool ก่อนเสมอ อย่าตอบจากความรู้ตัวเอง
@@ -360,7 +360,7 @@ class ResponseProcessor:
                     except ValueError:
                         pass
             footer = f"[TOTAL_KP_WEIGHT={total_kg:.2f} kg = {total_kg/1000:.4f} ตัน — ใช้ค่านี้เท่านั้น ห้ามคำนวณเอง]\n"
-            return note + header + '\n' + '\n'.join(result) + '\n' + footer
+            return header + '\n' + '\n'.join(result) + '\n' + footer + note
         if item_code:
             return f"ไม่พบ item {item_code} ใน Item Plan"
         return "ไม่พบข้อมูลที่ตรงกับเงื่อนไข"
@@ -403,7 +403,7 @@ class ResponseProcessor:
         if result:
             min_yw = _min_plannable_yw()
             note = f"[หมายเหตุ: week เร็วที่สุดที่วางแผนได้ = YW {min_yw}]\n"
-            return note + header + '\n' + '\n'.join(result)
+            return header + '\n' + '\n'.join(result) + '\n' + note
         return f"ไม่พบข้อมูล Machine Capacity (group={group}, week={week}, gauge={gauge})"
 
     def _tool_get_booking(self, group: str = None, week: str = None) -> str:
