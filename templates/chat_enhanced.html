@@ -9,99 +9,100 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
-        /* ═══════════════ DARK MODE (default) ═══════════════ */
+        /* ═══════════════ DARK MODE — Dark Navy + Electric Blue ═══════════════ */
         :root {
-            --bg:          #070b14;
-            --grid:        rgba(0,212,255,0.025);
-            --glow1:       rgba(0,212,255,0.04);
-            --glow2:       rgba(99,102,241,0.05);
-            --glass-bg:    rgba(11,17,30,0.88);
-            --glass-bd:    rgba(0,212,255,0.55);
-            --acc-from:    #0090bb;
-            --acc-to:      #00d4ff;
-            --acc:         #00d4ff;
-            --acc-soft:    rgba(0,212,255,0.07);
-            --acc-mid:     rgba(0,212,255,0.18);
-            --acc-glow:    rgba(0,212,255,0.4);
-            --t1:          #e2e8f0;
-            --t2:          #94a3b8;
-            --t3:          #374151;
-            --sb-bg:       rgba(0,212,255,0.05);
-            --sb-bd:       rgba(0,212,255,0.3);
-            --sb-c:        #94a3b8;
-            --sb-hbg:      rgba(0,212,255,0.1);
-            --sb-hbd:      rgba(0,212,255,0.55);
-            --sb-hc:       #e2e8f0;
-            --db-bg:       rgba(239,68,68,0.1);
-            --db-bd:       rgba(239,68,68,0.55);
-            --db-c:        #ff7070;
-            --db-hbg:      rgba(239,68,68,0.18);
-            --db-hbd:      rgba(239,68,68,0.8);
-            --db-hc:       #ff9090;
-            --cb-bg:       rgba(0,212,255,0.05);
-            --cb-bd:       rgba(0,212,255,0.38);
-            --cb-c:        #67e8f9;
-            --cb-hbg:      rgba(0,212,255,0.12);
-            --cb-hbd:      rgba(0,212,255,0.6);
-            --in-bg:       rgba(7,11,20,0.9);
-            --in-bd:       rgba(0,212,255,0.32);
-            --in-c:        #e2e8f0;
-            --in-ph:       #374151;
-            --in-fo:       rgba(0,212,255,0.55);
-            --in-fosh:     rgba(0,212,255,0.08);
-            --cv-c:        #94a3b8;
-            --cv-hbg:      rgba(0,212,255,0.06);
-            --cv-hbd:      rgba(0,212,255,0.38);
-            --cv-abg:      rgba(0,212,255,0.1);
-            --cv-abd:      rgba(0,212,255,0.55);
-            --cv-hc:       #e2e8f0;
-            --qb-bg:       rgba(11,17,30,0.9);
-            --qb-bd:       rgba(0,212,255,0.28);
-            --qb-hbg:      rgba(0,212,255,0.07);
-            --qb-hbd:      rgba(0,212,255,0.4);
-            --mu-bg:       rgba(0,140,180,0.16);
-            --mu-bd:       rgba(0,212,255,0.24);
-            --mu-c:        #e2e8f0;
-            --ma-bg:       rgba(17,24,39,0.95);
-            --ma-bd:       rgba(0,212,255,0.1);
-            --ma-c:        #cbd5e1;
-            --on-c:        #22d3ee;
-            --on-sh:       rgba(34,211,238,0.9);
-            --on-sh2:      rgba(34,211,238,0.3);
-            --td-c:        #00d4ff;
+            --bg:          #061426;
+            --grid:        rgba(0,212,255,0.022);
+            --glow1:       rgba(0,212,255,0.18);
+            --glow2:       rgba(30,140,255,0.16);
+            --glass-bg:    rgba(15,39,68,0.92);
+            --glass-bd:    #1F4E7A;
+            --acc-from:    #0057D9;
+            --acc-to:      #00D4FF;
+            --acc:         #00D4FF;
+            --acc-soft:    rgba(0,212,255,0.1);
+            --acc-mid:     rgba(46,168,255,0.28);
+            --acc-glow:    rgba(0,212,255,0.35);
+            --t1:          #EAF6FF;
+            --t2:          #BFD7F2;
+            --t3:          #7FA4C8;
+            --sb-bg:       rgba(30,140,255,0.08);
+            --sb-bd:       #1F4E7A;
+            --sb-c:        #BFD7F2;
+            --sb-hbg:      rgba(30,140,255,0.15);
+            --sb-hbd:      #2EA8FF;
+            --sb-hc:       #EAF6FF;
+            --db-bg:       rgba(255,77,94,0.1);
+            --db-bd:       rgba(255,77,94,0.5);
+            --db-c:        #FF4D5E;
+            --db-hbg:      rgba(255,77,94,0.18);
+            --db-hbd:      rgba(255,77,94,0.8);
+            --db-hc:       #FF7A88;
+            --cb-bg:       rgba(0,212,255,0.08);
+            --cb-bd:       rgba(46,168,255,0.35);
+            --cb-c:        #9EDCFF;
+            --cb-hbg:      rgba(0,212,255,0.14);
+            --cb-hbd:      #00D4FF;
+            --in-bg:       rgba(8,26,48,0.88);
+            --in-bd:       rgba(46,168,255,0.45);
+            --in-c:        #EAF6FF;
+            --in-ph:       #5F7E9F;
+            --in-fo:       #00D4FF;
+            --in-fosh:     rgba(0,212,255,0.14);
+            --cv-c:        #7FA4C8;
+            --cv-hbg:      rgba(30,140,255,0.1);
+            --cv-hbd:      rgba(46,168,255,0.3);
+            --cv-abg:      rgba(30,140,255,0.18);
+            --cv-abd:      #2EA8FF;
+            --cv-hc:       #EAF6FF;
+            --qb-bg:       rgba(15,39,68,0.88);
+            --qb-bd:       rgba(46,168,255,0.28);
+            --qb-hbg:      rgba(20,52,86,0.95);
+            --qb-hbd:      #00D4FF;
+            --mu-bg:       rgba(30,140,255,0.15);
+            --mu-bd:       rgba(46,168,255,0.3);
+            --mu-c:        #EAF6FF;
+            --ma-bg:       rgba(15,39,68,0.95);
+            --ma-bd:       rgba(46,168,255,0.25);
+            --ma-c:        #BFD7F2;
+            --on-c:        #18C98B;
+            --on-sh:       rgba(24,201,139,0.8);
+            --on-sh2:      rgba(24,201,139,0.3);
+            --td-c:        #00D4FF;
             --td-sh:       rgba(0,212,255,0.6);
-            --sc-th:       rgba(0,212,255,0.18);
-            --sc-thh:      rgba(0,212,255,0.38);
-            --scan-c:      rgba(0,212,255,0.05);
-            --nt-c:        #00d4ff;
-            --dr-bg:       #080e1a;
-            --dr-bd:       rgba(0,212,255,0.18);
-            --dr-c:        #94a3b8;
-            --mo-bg:       #080e1a;
-            --mo-bd:       rgba(0,212,255,0.18);
-            --mo-t1:       #e2e8f0;
-            --mo-t2:       #4b5563;
-            --mo-ibg:      rgba(7,11,20,0.85);
-            --mo-ibd:      rgba(0,212,255,0.15);
-            --mo-ic:       #e2e8f0;
-            --mo-iph:      #374151;
-            --mo-cn:       #4b5563;
-            --thu-bg:      rgba(0,140,180,0.2);
-            --thu-bd:      rgba(0,212,255,0.2);
-            --thu-c:       #e2e8f0;
-            --tha-bg:      rgba(17,24,39,0.9);
-            --tha-bd:      rgba(0,212,255,0.1);
-            --tha-c:       #cbd5e1;
-            --sect-b:      rgba(0,212,255,0.08);
-            --qb-qbg:      rgba(0,212,255,0.06);
-            --qb-qbd:      rgba(0,212,255,0.18);
-            --logo-glow:   rgba(0,212,255,0.4);
-            --badge-c:     rgba(0,212,255,0.06);
-            --badge-bd:    rgba(0,212,255,0.12);
-            --avatar-bd:   rgba(0,212,255,0.3);
+            --sc-th:       rgba(46,168,255,0.25);
+            --sc-thh:      rgba(46,168,255,0.5);
+            --scan-c:      rgba(0,212,255,0.06);
+            --nt-c:        #00D4FF;
+            --dr-bg:       #0A1E38;
+            --dr-bd:       rgba(46,168,255,0.35);
+            --dr-c:        #BFD7F2;
+            --mo-bg:       #0F2744;
+            --mo-bd:       rgba(46,168,255,0.35);
+            --mo-t1:       #EAF6FF;
+            --mo-t2:       #7FA4C8;
+            --mo-ibg:      rgba(8,26,48,0.88);
+            --mo-ibd:      rgba(46,168,255,0.4);
+            --mo-ic:       #EAF6FF;
+            --mo-iph:      #5F7E9F;
+            --mo-cn:       #7FA4C8;
+            --thu-bg:      rgba(30,140,255,0.15);
+            --thu-bd:      rgba(46,168,255,0.3);
+            --thu-c:       #EAF6FF;
+            --tha-bg:      rgba(15,39,68,0.9);
+            --tha-bd:      rgba(46,168,255,0.2);
+            --tha-c:       #BFD7F2;
+            --sect-b:      rgba(46,168,255,0.18);
+            --qb-qbg:      rgba(0,212,255,0.08);
+            --qb-qbd:      rgba(46,168,255,0.25);
+            --logo-glow:   rgba(0,212,255,0.45);
+            --badge-c:     rgba(24,201,139,0.12);
+            --badge-bd:    rgba(24,201,139,0.35);
+            --online-tc:   #7CFFD2;
+            --avatar-bd:   rgba(46,168,255,0.4);
             --icon-filter: brightness(10) saturate(0.3);
-            --modal-close-hover-bg: rgba(0,212,255,0.06);
-            --modal-close-hover-c:  #e2e8f0;
+            --modal-close-hover-bg: rgba(0,212,255,0.08);
+            --modal-close-hover-c:  #EAF6FF;
         }
 
         /* ═══════════════ LIGHT MODE ═══════════════ */
@@ -197,6 +198,7 @@
             --icon-filter: none;
             --modal-close-hover-bg: rgba(13,110,253,0.07);
             --modal-close-hover-c:  #123A6F;
+            --online-tc:   #0D6EFD;
         }
 
         /* ═══════════════ BASE ═══════════════ */
@@ -221,6 +223,59 @@
             width: 60%; height: 60%;
             background: radial-gradient(ellipse, var(--glow2) 0%, transparent 65%);
             pointer-events: none; z-index: 0;
+        }
+
+        /* ══ DARK MODE: specific overrides ══════════════════ */
+        html:not(.light-mode) body {
+            background-image:
+                linear-gradient(var(--grid) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+                linear-gradient(135deg, #061426 0%, #0A1E38 45%, #102B4A 100%);
+            background-size: 40px 40px, 40px 40px, auto;
+        }
+        html:not(.light-mode) #sidebar {
+            background: linear-gradient(180deg, #081A30 0%, #0A223D 50%, #0D2C50 100%) !important;
+            border: 1.5px solid #1F4E7A !important;
+            box-shadow: 0 18px 45px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06) !important;
+        }
+        html:not(.light-mode) header.glass {
+            background: rgba(10,30,56,0.78) !important;
+            backdrop-filter: blur(18px);
+            border: 1.5px solid rgba(46,168,255,0.35) !important;
+            box-shadow: 0 12px 32px rgba(0,0,0,0.28), 0 0 28px rgba(46,168,255,0.08) !important;
+        }
+        html:not(.light-mode) section.glass {
+            background: linear-gradient(145deg, rgba(15,39,68,0.95), rgba(8,26,48,0.92)) !important;
+            border: 1.5px solid rgba(46,168,255,0.32) !important;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.35), 0 0 35px rgba(0,212,255,0.08), inset 0 1px 0 rgba(255,255,255,0.06) !important;
+        }
+        html:not(.light-mode) .conversation-item.active {
+            background: linear-gradient(135deg, rgba(30,140,255,0.22), rgba(0,212,255,0.10));
+            box-shadow: 0 10px 28px rgba(0,212,255,0.16), inset 0 1px 0 rgba(255,255,255,0.08);
+        }
+        html:not(.light-mode) .quick-btn {
+            background: linear-gradient(145deg, rgba(15,39,68,0.88), rgba(10,30,56,0.92));
+            box-shadow: 0 12px 30px rgba(0,0,0,0.28);
+        }
+        html:not(.light-mode) .quick-btn:hover {
+            background: linear-gradient(145deg, rgba(20,52,86,0.95), rgba(12,40,72,0.95)) !important;
+            box-shadow: 0 14px 36px rgba(0,212,255,0.16) !important;
+        }
+        html:not(.light-mode) .btn-primary {
+            box-shadow: 0 10px 28px rgba(0,212,255,0.30), inset 0 1px 0 rgba(255,255,255,0.25);
+        }
+        html:not(.light-mode) .btn-primary:hover {
+            background: linear-gradient(135deg, #1E8CFF 0%, #00F0FF 100%);
+            box-shadow: 0 12px 34px rgba(0,212,255,0.45);
+        }
+        html:not(.light-mode) #send-btn {
+            box-shadow: 0 0 0 6px rgba(0,212,255,0.12), 0 12px 30px rgba(0,212,255,0.35);
+        }
+        html:not(.light-mode) .input-tech {
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.25), 0 0 24px rgba(0,212,255,0.06) !important;
+        }
+        html:not(.light-mode) .input-tech:focus {
+            box-shadow: 0 0 0 4px rgba(0,212,255,0.14), 0 0 28px rgba(0,212,255,0.16) !important;
         }
 
         /* ── Light mode: background image ── */
@@ -507,7 +562,7 @@
                         <!-- Online status -->
                         <div class="hidden md:flex items-center gap-1.5 rounded-lg px-2.5 py-1.5" style="background:var(--badge-c); border:1px solid var(--badge-bd);">
                             <div class="status-online"></div>
-                            <span class="tech-label">ONLINE</span>
+                            <span class="tech-label" style="color:var(--online-tc);">ONLINE</span>
                         </div>
                         <!-- Theme toggle -->
                         <button id="theme-btn" onclick="toggleTheme()" class="theme-toggle-btn flex h-8 w-8 items-center justify-center rounded-lg" title="เปลี่ยนธีม">
