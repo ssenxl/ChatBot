@@ -35,7 +35,8 @@ $files = @(
     "chatbot_app.py", "database.py", "response_processor.py",
     "intent_detector.py", "data_cache.py", "powerbi_connector.py",
     "suggestion_engine.py", "mcp_client.py", "mcp_config.json",
-    "main.py", "cache.py", "load_balancer.py", "security.py", "utils.py"
+    "main.py", "cache.py", "load_balancer.py", "security.py", "utils.py",
+    "morning_greeting.py", "check_no_group.py", "gunicorn.conf.py"
 )
 foreach ($file in $files) {
     if (Test-Path $file) {

@@ -9,7 +9,7 @@ from typing import Dict, Optional, Tuple
 from collections import defaultdict
 
 from dotenv import load_dotenv
-from powerbi_connector import fetch_table as _pbi_fetch_table
+from powerbi_connector import fetch_table as _pbi_fetch_table, fetch_dax as _pbi_fetch_dax
 
 load_dotenv()
 
@@ -31,6 +31,7 @@ DATA_KEYS = [
     'query_knit_plan',
     'query_booking',
     'query_item',
+    'query_sales',
 ]
 
 
@@ -76,7 +77,7 @@ def _aggregate_item_plan(booking_rows: list) -> str:
     lines = ['Item,Group,KP_Weight,YW']
     for r in booking_rows:
         item = str(r.get('ITEM_CODE', '') or '').strip()
-        group = str(r.get('Master.Group', '') or '').strip()
+        group = str(r.get('MC_GROUP', '') or '').strip() or '(ไม่ระบุกลุ่ม)'
         kp_raw = r.get('KP_Weight')
         yw = str(r.get('YW', '') or '').strip()
         if not item or not yw or not (min_yw <= yw <= max_yw):
@@ -84,6 +85,66 @@ def _aggregate_item_plan(booking_rows: list) -> str:
         kp = str(kp_raw) if kp_raw is not None else ''
         lines.append(f"{item},{group},{kp},{yw}")
     return '\n'.join(lines)
+
+
+_KG_AVA_DAX = """EVALUATE
+SUMMARIZECOLUMNS(
+    Table_MC[YW],
+    Table_MC[Master.MC],
+    "KG_Ava", [KG_Ava_Display]
+)"""
+
+
+def _aggregate_kg_ava(rows: list) -> str:
+    """CSV: YW,Group,KG_Ava — จาก SUMMARIZECOLUMNS([KG_Ava_Display])"""
+    min_yw, max_yw = _week_range()
+    lines = ['YW,Group,KG_Ava']
+    for r in rows:
+        yw = str(r.get('YW', '') or '').strip()
+        if not yw or not (min_yw <= yw <= max_yw):
+            continue
+        group = str(r.get('Master.MC', '') or r.get('MC', '') or '').strip()
+        kg_ava = r.get('KG_Ava')
+        if kg_ava is None:
+            continue
+        lines.append(f"{yw},{group},{round(float(kg_ava), 2)}")
+    return '\n'.join(lines)
+
+
+def _aggregate_sales(booking_rows: list) -> dict:
+    """Returns {sales_name_lower: {name, item_count, kg}} from BookingMaster KNIT_SALE_NAME column"""
+    min_yw, max_yw = _week_range()
+    sales_map: dict = {}
+    for r in booking_rows:
+        yw = str(r.get('YW', '') or '').strip()
+        if not (min_yw <= yw <= max_yw):
+            continue
+        sales_name = str(r.get('KNIT_SALE_NAME', '') or '').strip()
+        if not sales_name:
+            continue
+        item = str(r.get('ITEM_CODE', '') or '').strip()
+        kp_raw = r.get('KP_Weight')
+        kp = float(kp_raw) if kp_raw is not None else 0.0
+
+        key = sales_name.lower()
+        if key not in sales_map:
+            sales_map[key] = {'name': sales_name, 'items': set(), 'kg': 0.0}
+        if item:
+            sales_map[key]['items'].add(item)
+        sales_map[key]['kg'] += kp
+
+    result = {k: {'name': v['name'], 'item_count': len(v['items']), 'kg': round(v['kg'], 1)}
+              for k, v in sales_map.items()}
+
+    # System-wide total (unique items across all sales)
+    all_items: set = set()
+    total_kg = 0.0
+    for v in sales_map.values():
+        all_items.update(v['items'])
+        total_kg += v['kg']
+    result['__system__'] = {'name': 'ระบบทั้งหมด', 'item_count': len(all_items), 'kg': round(total_kg, 1)}
+
+    return result
 
 
 def _aggregate_booking(rows: list) -> str:
@@ -182,6 +243,19 @@ class DataCache:
         # --- Item plan จาก BookingMaster โดยตรง (ITEM_CODE + YW + KP_Weight) ---
         item_summary = _aggregate_item_plan(booking_rows)
 
+        # --- Sales summary per KNIT_SALE_NAME (สำหรับ morning greeting) ---
+        sales_summary = _aggregate_sales(booking_rows)
+
+        # --- ดึง KG_Ava_Display measure ผ่าน DAX query ---
+        kg_ava_summary = ''
+        try:
+            result = _pbi_fetch_dax(_KG_AVA_DAX)
+            kg_ava_rows = result.get('data', [])
+            kg_ava_summary = _aggregate_kg_ava(kg_ava_rows)
+            logger.info(f"DataCache: KG_Ava_Display loaded — {len(kg_ava_rows)} rows")
+        except Exception as e:
+            logger.error(f"DataCache: failed to fetch KG_Ava_Display: {e}")
+
         with self._lock:
             if mc_summary or booking_summary:
                 machine_payload = {
@@ -189,6 +263,7 @@ class DataCache:
                     'data': {
                         'mc': mc_summary,
                         'booking': booking_summary,
+                        'kg_ava': kg_ava_summary,
                     }
                 }
                 self._cache['query_machine'] = machine_payload
@@ -205,6 +280,10 @@ class DataCache:
             if item_summary:
                 self._cache['query_item'] = {'success': True, 'data': item_summary}
                 self._ready['query_item'] = True
+
+            if sales_summary:
+                self._cache['query_sales'] = {'success': True, 'data': sales_summary}
+                self._ready['query_sales'] = True
 
             self._last_refresh = datetime.now()
             self._row_counts = {
@@ -229,6 +308,27 @@ class DataCache:
                 'next_refresh': self._next_refresh.strftime('%Y-%m-%d %H:%M:%S') if self._next_refresh else None,
                 'row_counts': dict(self._row_counts),
             }
+
+    def get_sales_data(self, username: str) -> tuple[dict | None, bool]:
+        """Find sales data for a username by matching against KNIT_SALE_NAME (case-insensitive).
+        Returns (data, is_personal) where is_personal=False means system-wide fallback."""
+        cached, ready = self.get('query_sales')
+        if not ready or not cached:
+            return None, False
+        sales_map: dict = cached.get('data', {})
+        username_lower = username.lower()
+        # Exact match first
+        if username_lower in sales_map:
+            return sales_map[username_lower], True
+        # Partial match: username contained in sales name or vice versa
+        for key, data in sales_map.items():
+            if key == '__system__':
+                continue
+            if username_lower in key or key in username_lower:
+                return data, True
+        # No match — return system-wide total
+        system = sales_map.get('__system__')
+        return system, False
 
     def force_refresh(self):
         """บังคับ refresh cache ทันที (เรียกจาก admin endpoint)"""

@@ -223,6 +223,17 @@ class Database:
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_support_replies_ticket_created ON support_replies (ticket_id, created_at ASC)")
             # message_feedback: UNIQUE(message_id, user_id) สร้าง index อัตโนมัติอยู่แล้ว
 
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS morning_greetings (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL REFERENCES users(id),
+                    greeting_date DATE NOT NULL,
+                    conversation_id INTEGER REFERENCES conversations(id),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE (user_id, greeting_date)
+                )
+            ''')
+
             # --- Column migrations (safe for existing databases) ---
             # เพิ่ม is_active ให้ tables เก่าที่สร้างก่อนจะมี column นี้
             cursor.execute("""
@@ -326,6 +337,29 @@ class Database:
             )
             conn.commit()
             return True
+
+    def has_morning_greeting_today(self, user_id: int) -> bool:
+        from datetime import date as _date
+        today = _date.today()
+        with self._conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT 1 FROM morning_greetings WHERE user_id = %s AND greeting_date = %s",
+                (user_id, today)
+            )
+            return cursor.fetchone() is not None
+
+    def record_morning_greeting(self, user_id: int, conversation_id: int):
+        from datetime import date as _date
+        today = _date.today()
+        with self._conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO morning_greetings (user_id, greeting_date, conversation_id) "
+                "VALUES (%s, %s, %s) ON CONFLICT (user_id, greeting_date) DO NOTHING",
+                (user_id, today, conversation_id)
+            )
+            conn.commit()
 
     def get_all_users(self):
         with self._conn() as conn:

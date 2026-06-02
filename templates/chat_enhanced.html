@@ -491,6 +491,27 @@
         .quick-icon-bg {
             background: var(--acc-soft); border: 1px solid var(--acc-mid);
         }
+
+        /* ═══════════════ CHAT DECOR (in-panel image) ═══════════════ */
+        .chat-decor {
+            position: absolute; right: 0; bottom: 0;
+            width: min(44%, 430px); max-height: 82%;
+            object-fit: contain; object-position: bottom right;
+            opacity: 0.34; pointer-events: none; user-select: none; z-index: 0;
+            -webkit-mask-image: linear-gradient(300deg, #000 32%, transparent 84%);
+                    mask-image: linear-gradient(300deg, #000 32%, transparent 84%);
+        }
+        /* dark image only in dark mode, light image only in light mode */
+        .chat-decor-light { display: none; }
+        .light-mode .chat-decor-dark  { display: none; }
+        .light-mode .chat-decor-light { display: block; opacity: 0.55; }
+
+        /* welcome banner image */
+        .welcome-hero { height: 8.5rem; width: 100%; object-fit: cover; object-position: center; }
+        .welcome-hero-fade {
+            position: absolute; inset: 0;
+            background: linear-gradient(to top, var(--glass-bg) 4%, rgba(0,0,0,0) 75%);
+        }
     </style>
 </head>
 <body>
@@ -559,11 +580,6 @@
                     </div>
                     <!-- Right -->
                     <div class="flex items-center gap-2">
-                        <!-- Online status -->
-                        <div class="hidden md:flex items-center gap-1.5 rounded-lg px-2.5 py-1.5" style="background:var(--badge-c); border:1px solid var(--badge-bd);">
-                            <div class="status-online"></div>
-                            <span class="tech-label" style="color:var(--online-tc);">ONLINE</span>
-                        </div>
                         <!-- Theme toggle -->
                         <button id="theme-btn" onclick="toggleTheme()" class="theme-toggle-btn flex h-8 w-8 items-center justify-center rounded-lg" title="เปลี่ยนธีม">
                             <i id="theme-icon" class="fas fa-moon text-xs"></i>
@@ -599,8 +615,10 @@
             </header>
 
             <section class="glass flex min-h-0 flex-1 flex-col rounded-2xl overflow-hidden relative z-0">
-                <div id="chat-messages" class="scrollbar-thin flex-1 space-y-3 overflow-y-auto px-4 py-5 lg:px-6"></div>
-                <div class="px-4 py-3 lg:px-5" style="border-top:1px solid var(--sect-b);">
+                <img src="/static/chat_decor.jpg" alt="" aria-hidden="true" class="chat-decor chat-decor-dark">
+                <img src="/static/chat_decor_light.jpg" alt="" aria-hidden="true" class="chat-decor chat-decor-light">
+                <div id="chat-messages" class="scrollbar-thin relative z-10 flex-1 space-y-3 overflow-y-auto px-4 py-5 lg:px-6"></div>
+                <div class="relative z-10 px-4 py-3 lg:px-5" style="border-top:1px solid var(--sect-b);background:var(--glass-bg);">
                     <div class="mb-2.5 grid grid-cols-2 gap-2">
                         <button onclick="sendQuickMessage('ข้อมูลเครื่องจักร')" class="quick-btn group rounded-2xl p-3">
                             <div class="flex items-center gap-2.5">
@@ -609,7 +627,7 @@
                                 </div>
                                 <div class="flex-1 text-left">
                                     <div class="text-xs font-bold" style="color:var(--t1);">Machine</div>
-                                    <div class="text-[10px]" style="color:var(--acc);opacity:0.75;">Capacity</div>
+                                    <div class="text-[10px]" style="color:var(--acc);opacity:0.75;">ข้อมูลเครื่องจักร</div>
                                 </div>
                             </div>
                         </button>
@@ -631,7 +649,7 @@
                                 </div>
                                 <div class="flex-1 text-left">
                                     <div class="text-xs font-bold" style="color:var(--t1);">Available</div>
-                                    <div class="text-[10px]" style="color:var(--acc);opacity:0.75;">Capacity</div>
+                                    <div class="text-[10px]" style="color:var(--acc);opacity:0.75;">ข้อมูล Capacity</div>
                                 </div>
                             </div>
                         </button>
@@ -642,7 +660,7 @@
                                 </div>
                                 <div class="flex-1 text-left">
                                     <div class="text-xs font-bold" style="color:var(--t1);">Knitting</div>
-                                    <div class="text-[10px]" style="color:var(--acc);opacity:0.75;">Plan</div>
+                                    <div class="text-[10px]" style="color:var(--acc);opacity:0.75;">ข้อมูลแผนทอ</div>
                                 </div>
                             </div>
                         </button>
@@ -741,7 +759,7 @@
             </div>
             <div class="flex" style="border-bottom:1px solid var(--sect-b);">
                 <button id="tab-new" onclick="switchSupportTab('new')" class="flex-1 py-2.5 text-sm font-semibold transition border-b-2 tab-active">✉️ ข้อความใหม่</button>
-                <button id="tab-history" onclick="switchSupportTab('history')" class="flex-1 py-2.5 text-sm font-semibold transition border-b-2 tab-inactive">📋 ประวัติ</button>
+                <button id="tab-history" onclick="switchSupportTab('history')" class="flex-1 py-2.5 text-sm font-semibold transition border-b-2 tab-inactive">📋 ประวัติ<span id="tab-history-badge" class="hidden ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white"></span></button>
             </div>
             <div id="support-panel-new" class="flex flex-col gap-3 p-5">
                 <textarea id="support-message-input" rows="4" placeholder="อธิบายปัญหาหรือข้อความที่ต้องการส่ง Admin..."
@@ -760,7 +778,8 @@
                     <div id="support-thread-messages" class="scrollbar-thin flex-1 space-y-2 overflow-y-auto p-4" style="max-height:220px;"></div>
                     <div class="flex gap-2 p-3" style="border-top:1px solid var(--sect-b);">
                         <textarea id="support-reply-input" rows="2" placeholder="พิมพ์ข้อความเพิ่มเติม..."
-                            class="input-tech flex-1 resize-none rounded-xl px-3 py-2 text-sm outline-none"></textarea>
+                            class="input-tech flex-1 resize-none rounded-xl px-3 py-2 text-sm outline-none"
+                            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();submitUserReply();}"></textarea>
                         <button onclick="submitUserReply()" class="btn-primary self-end flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl text-white">
                             <i class="fas fa-paper-plane text-xs"></i>
                         </button>
@@ -949,12 +968,18 @@
         }
         function renderWelcomeState() {
             document.getElementById("chat-messages").innerHTML =
-                `<div id="welcome-state" class="mx-auto max-w-md rounded-2xl p-6 text-center" style="background:var(--glass-bg);border:1px solid var(--glass-bd);">
-                    <div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full" style="background:linear-gradient(135deg,var(--acc-from),var(--acc-to));box-shadow:0 0 24px var(--acc-glow);">
-                        <i class="fas fa-comments text-white"></i>
+                `<div id="welcome-state" class="relative z-10 mx-auto max-w-md overflow-hidden rounded-2xl text-center" style="background:var(--glass-bg);border:1px solid var(--glass-bd);box-shadow:0 12px 32px rgba(0,0,0,0.25);">
+                    <div class="relative">
+                        <img src="/static/chat_hero.jpg" alt="I-SAVE" class="welcome-hero">
+                        <div class="welcome-hero-fade"></div>
                     </div>
-                    <h3 class="text-base font-bold" style="color:var(--t1);">เริ่มบทสนทนาใหม่</h3>
-                    <p class="mt-2 text-sm leading-6" style="color:var(--t3);">ระบบเก็บหัวข้อสนทนาแยกตามผู้ใช้ กลับมาเปิดอ่านได้ทุกเมื่อ หรือกด &ldquo;เริ่มแชทใหม่&rdquo; เพื่อเปลี่ยนเรื่องสนทนา</p>
+                    <div class="relative px-6 pb-6">
+                        <div class="mx-auto -mt-7 mb-3 flex h-12 w-12 items-center justify-center rounded-full" style="background:linear-gradient(135deg,var(--acc-from),var(--acc-to));box-shadow:0 0 24px var(--acc-glow);">
+                            <i class="fas fa-comments text-white"></i>
+                        </div>
+                        <h3 class="text-base font-bold" style="color:var(--t1);">เริ่มบทสนทนาใหม่</h3>
+                        <p class="mt-2 text-sm leading-6" style="color:var(--t3);">ระบบเก็บหัวข้อสนทนาแยกตามผู้ใช้ กลับมาเปิดอ่านได้ทุกเมื่อ หรือกด &ldquo;เริ่มแชทใหม่&rdquo; เพื่อเปลี่ยนเรื่องสนทนา</p>
+                    </div>
                 </div>`;
         }
         function removeWelcomeState() { document.getElementById("welcome-state")?.remove(); }
@@ -1209,13 +1234,46 @@
 
         /* ── Support ── */
         let currentTicketId = null;
+        let lastUnreadCount = null;
         async function loadUnreadCount() {
             try {
                 const r = await fetch('/support/unread-count'), d = await r.json();
                 const badge = document.getElementById('support-badge');
-                if (d.count > 0) { badge.textContent = d.count; badge.classList.remove('hidden'); badge.classList.add('flex'); }
+                const count = d.count || 0;
+                const modalOpen = document.getElementById('support-modal').style.display !== 'none';
+                const hasNew = lastUnreadCount !== null && count > lastUnreadCount;
+                if (hasNew && !modalOpen) showAdminReplyNotification();
+                lastUnreadCount = count;
+                if (count > 0) { badge.textContent = count; badge.classList.remove('hidden'); badge.classList.add('flex'); }
                 else { badge.classList.add('hidden'); badge.classList.remove('flex'); }
+                const tabBadge = document.getElementById('tab-history-badge');
+                if (count > 0) { tabBadge.textContent = count; tabBadge.classList.remove('hidden'); tabBadge.classList.add('inline-flex'); }
+                else { tabBadge.classList.add('hidden'); tabBadge.classList.remove('inline-flex'); }
+                if (hasNew && currentTicketId !== null) await refreshThreadMessages();
             } catch (_) {}
+        }
+        async function refreshThreadMessages() {
+            const r = await fetch(`/support/tickets/${currentTicketId}/replies`), d = await r.json();
+            if (!d.success) return;
+            const msgs = document.getElementById('support-thread-messages');
+            msgs.innerHTML = d.replies.map(rep => {
+                const isUser = rep.sender_role === 'user';
+                return `<div class="flex ${isUser ? 'justify-end' : 'justify-start'}">
+                    <div class="max-w-[80%] rounded-2xl ${isUser ? 'rounded-br-sm thread-user-msg' : 'rounded-bl-sm thread-admin-msg'} px-3 py-2 text-sm leading-relaxed">
+                        ${!isUser ? `<p class="text-[10px] font-bold mb-0.5" style="color:var(--acc);">Admin</p>` : ''}
+                        ${escapeHtml(rep.message).replace(/\n/g,'<br>')}
+                    </div>
+                </div>`;
+            }).join('');
+            msgs.scrollTop = msgs.scrollHeight;
+        }
+        function showAdminReplyNotification() {
+            const t = document.getElementById("toast");
+            t.textContent = 'Admin ตอบกลับแล้ว กด "ติดต่อ Admin" เพื่อดู';
+            t.classList.remove("hidden");
+            t.style.background = "linear-gradient(135deg,#059669,#10b981)";
+            t.style.boxShadow = "0 4px 20px rgba(16,185,129,0.4)";
+            clearTimeout(showToast._t); showToast._t = setTimeout(() => t.classList.add("hidden"), 5000);
         }
         async function openSupportModal() {
             document.getElementById('support-modal').style.display = 'flex';
@@ -1305,6 +1363,7 @@
             await openThread(currentTicketId);
         }
         loadUnreadCount();
+        setInterval(loadUnreadCount, 10000);
     </script>
 </body>
 </html>

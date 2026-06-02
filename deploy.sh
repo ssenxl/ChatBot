@@ -43,15 +43,15 @@ ssh "$SERVER" bash -s << EOF
 
   echo ""
   echo "=== Starting containers ==="
-  docker compose -f $COMPOSE_DIR/docker-compose.yml up -d
+  docker compose --env-file $ENV_DIR/.env -f $COMPOSE_DIR/docker-compose.yml up -d
 
   echo ""
   echo "=== Container status ==="
-  docker compose -f $COMPOSE_DIR/docker-compose.yml ps
+  docker compose --env-file $ENV_DIR/.env -f $COMPOSE_DIR/docker-compose.yml ps
 
   echo ""
   echo "=== Logs (20 lines) ==="
-  docker compose -f $COMPOSE_DIR/docker-compose.yml logs --tail=20
+  docker compose --env-file $ENV_DIR/.env -f $COMPOSE_DIR/docker-compose.yml logs --tail=20
 EOF
 
 echo ""

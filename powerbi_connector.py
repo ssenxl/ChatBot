@@ -38,6 +38,33 @@ def _get_access_token() -> str:
     return resp.json()['access_token']
 
 
+def _parse_pbi_response(result: dict, label: str) -> dict:
+    """แปลง Power BI executeQueries response เป็น list of dicts พร้อม clean column names"""
+    results = result.get('results', [])
+    if not results:
+        raise ValueError(f"Power BI returned no results for '{label}'. Full response: {result}")
+
+    tables = results[0].get('tables', [])
+    if not tables:
+        raise ValueError(f"Power BI returned no tables for '{label}'. results[0]: {results[0]}")
+
+    rows = tables[0].get('rows', [])
+    if not rows:
+        logger.info(f"powerbi_connector: '{label}' returned 0 rows")
+        return {'success': True, 'data': []}
+
+    def _clean(col: str) -> str:
+        if '[' in col and col.endswith(']'):
+            return col.split('[', 1)[1][:-1]
+        return col
+
+    raw_keys = list(rows[0].keys())
+    clean_keys = [_clean(k) for k in raw_keys]
+    data = [dict(zip(clean_keys, row.values())) for row in rows]
+    logger.info(f"powerbi_connector: fetched {len(data)} rows from '{label}'")
+    return {'success': True, 'data': data}
+
+
 def fetch_table(table_name: str | None = None) -> dict:
     """ดึงข้อมูลจากตารางใน Power BI dataset และคืนเป็น list of dicts"""
     table = table_name or _TABLE_NAME
@@ -57,33 +84,25 @@ def fetch_table(table_name: str | None = None) -> dict:
 
     result = resp.json()
     logger.debug(f"powerbi_connector raw response for '{table}': {result}")
+    return _parse_pbi_response(result, table)
 
-    # ตรวจสอบ error ระดับ results
-    results = result.get('results', [])
-    if not results:
-        raise ValueError(f"Power BI returned no results. Full response: {result}")
 
-    tables = results[0].get('tables', [])
-    if not tables:
-        raise ValueError(f"Power BI returned no tables. results[0]: {results[0]}")
+def fetch_dax(dax_query: str) -> dict:
+    """Execute a custom DAX query and return results as list of dicts"""
+    token = _get_access_token()
 
-    table_data = tables[0]
-    rows = table_data.get('rows', [])
+    payload = {
+        "queries": [{"query": dax_query}],
+        "serializerSettings": {"includeNulls": True},
+    }
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+    }
 
-    if not rows:
-        logger.info(f"powerbi_connector: '{table}' returned 0 rows")
-        return {'success': True, 'data': []}
+    resp = requests.post(_QUERY_URL, json=payload, headers=headers, timeout=60)
+    resp.raise_for_status()
 
-    # Power BI คืน column name เป็น key ของ row เช่น "TableName[ColumnName]" — ตัด prefix ออก
-    def _clean(col: str) -> str:
-        if '[' in col and col.endswith(']'):
-            return col.split('[', 1)[1][:-1]
-        return col
-
-    raw_keys = list(rows[0].keys())
-    clean_keys = [_clean(k) for k in raw_keys]
-
-    data = [dict(zip(clean_keys, row.values())) for row in rows]
-
-    logger.info(f"powerbi_connector: fetched {len(data)} rows from '{table}'")
-    return {'success': True, 'data': data}
+    result = resp.json()
+    logger.debug(f"powerbi_connector DAX response: {str(result)[:500]}")
+    return _parse_pbi_response(result, "DAX query")

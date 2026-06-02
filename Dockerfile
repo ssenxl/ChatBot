@@ -9,4 +9,4 @@ COPY . .
 
 EXPOSE 5000
 
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--threads", "4", "--worker-class", "gthread", "--timeout", "120", "--keep-alive", "5", "chatbot_app:app"]
+CMD ["gunicorn", "--config", "gunicorn.conf.py", "chatbot_app:app"]

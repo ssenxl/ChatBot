@@ -7,197 +7,450 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { background: #f8fafc; }
-        .gradient-bg {
-            background: linear-gradient(135deg, #0096ff 0%, #00bfff 100%);
-            box-shadow: 0 4px 20px rgba(0, 150, 255, 0.2);
+        /* ═══════════ DARK MODE (default) ═══════════ */
+        :root {
+            --bg:        #061426;
+            --grid:      rgba(0,212,255,0.022);
+            --glow1:     rgba(0,212,255,0.18);
+            --glow2:     rgba(30,140,255,0.16);
+            --glass-bg:  rgba(15,39,68,0.92);
+            --glass-bd:  #1F4E7A;
+            --acc-from:  #0057D9;
+            --acc-to:    #00D4FF;
+            --acc:       #00D4FF;
+            --t1:        #EAF6FF;
+            --t2:        #BFD7F2;
+            --t3:        #7FA4C8;
+            --card-bg:   rgba(15,39,68,0.88);
+            --card-bd:   rgba(46,168,255,0.28);
+            --th-bg:     rgba(8,26,48,0.6);
+            --th-c:      #7FA4C8;
+            --tr-hbg:    rgba(30,140,255,0.08);
+            --in-bg:     rgba(8,26,48,0.88);
+            --in-bd:     rgba(46,168,255,0.45);
+            --in-c:      #EAF6FF;
+            --in-ph:     #5F7E9F;
+            --badge-adm: rgba(168,85,247,0.15);
+            --badge-adm-c: #c084fc;
+            --badge-usr: rgba(30,140,255,0.15);
+            --badge-usr-c: #60a5fa;
         }
-        .card-shadow {
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
+        /* ═══════════ LIGHT MODE ═══════════ */
+        html.light-mode {
+            --bg:        #EBF4FF;
+            --grid:      transparent;
+            --glow1:     rgba(0,200,255,0.18);
+            --glow2:     rgba(13,110,253,0.14);
+            --glass-bg:  rgba(255,255,255,0.85);
+            --glass-bd:  #B8D8FF;
+            --acc-from:  #0D6EFD;
+            --acc-to:    #00C8FF;
+            --acc:       #0D6EFD;
+            --t1:        #123A6F;
+            --t2:        #2F4A66;
+            --t3:        #6D86A3;
+            --card-bg:   rgba(255,255,255,0.88);
+            --card-bd:   #CFE3FF;
+            --th-bg:     rgba(235,244,255,0.8);
+            --th-c:      #6D86A3;
+            --tr-hbg:    rgba(13,110,253,0.05);
+            --in-bg:     rgba(255,255,255,0.9);
+            --in-bd:     #6DB7FF;
+            --in-c:      #123A6F;
+            --in-ph:     #A7B8CC;
+            --badge-adm: rgba(168,85,247,0.1);
+            --badge-adm-c: #7c3aed;
+            --badge-usr: rgba(13,110,253,0.1);
+            --badge-usr-c: #1d4ed8;
         }
+
+        html, body { min-height: 100%; }
+        body {
+            font-family: "Noto Sans Thai", sans-serif;
+            background-color: var(--bg);
+            background-image:
+                linear-gradient(var(--grid) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+            background-size: 40px 40px;
+            color: var(--t1);
+            transition: background-color 0.3s, color 0.3s;
+            position: relative;
+        }
+        body::before {
+            content: ''; position: fixed; top: -25%; left: -15%;
+            width: 70%; height: 70%;
+            background: radial-gradient(ellipse, var(--glow1) 0%, transparent 65%);
+            pointer-events: none; z-index: 0;
+        }
+        body::after {
+            content: ''; position: fixed; bottom: -25%; right: -15%;
+            width: 60%; height: 60%;
+            background: radial-gradient(ellipse, var(--glow2) 0%, transparent 65%);
+            pointer-events: none; z-index: 0;
+        }
+        html:not(.light-mode) body {
+            background-image:
+                linear-gradient(var(--grid) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+                linear-gradient(135deg, #061426 0%, #0A1E38 45%, #102B4A 100%);
+            background-size: 40px 40px, 40px 40px, auto;
+        }
+        html.light-mode body {
+            background: url('/static/bg_light.jpg') center center / cover no-repeat fixed !important;
+        }
+
+        /* ── Header ── */
+        .admin-header {
+            background: var(--glass-bg);
+            border-bottom: 1.5px solid var(--glass-bd);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.18);
+            position: relative; z-index: 10;
+        }
+        .logo-glow { filter: drop-shadow(0 0 8px var(--acc)); }
+        .header-title { color: var(--t1); font-weight: 700; }
+        .header-sub { color: var(--t3); font-size: 0.72rem; }
+
+        /* ── Nav buttons ── */
+        .nav-btn {
+            background: rgba(46,168,255,0.1);
+            border: 1px solid var(--glass-bd);
+            color: var(--t2);
+            padding: 0.4rem 0.85rem;
+            border-radius: 0.6rem;
+            font-size: 0.8rem;
+            transition: background 0.2s, color 0.2s;
+            text-decoration: none;
+            display: inline-flex; align-items: center; gap: 0.4rem;
+        }
+        .nav-btn:hover { background: rgba(46,168,255,0.2); color: var(--t1); }
+        .nav-btn-danger {
+            background: rgba(255,77,94,0.1);
+            border-color: rgba(255,77,94,0.35);
+            color: #FF7A88;
+        }
+        .nav-btn-danger:hover { background: rgba(255,77,94,0.18); }
+
+        /* ── Cards ── */
+        .card {
+            background: var(--card-bg);
+            border: 1.5px solid var(--card-bd);
+            border-radius: 1rem;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            box-shadow: 0 8px 28px rgba(0,0,0,0.18);
+        }
+        html:not(.light-mode) .card {
+            background: linear-gradient(145deg, rgba(15,39,68,0.92), rgba(8,26,48,0.88));
+            box-shadow: 0 12px 36px rgba(0,0,0,0.28), 0 0 24px rgba(0,212,255,0.06);
+        }
+
+        /* ── Stat cards ── */
+        .stat-icon-wrap {
+            width: 3rem; height: 3rem; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.2rem;
+        }
+
+        /* ── Tables ── */
+        thead tr { background: var(--th-bg); }
+        th { color: var(--th-c); font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; padding: 0.75rem 1.25rem; }
+        td { padding: 0.9rem 1.25rem; font-size: 0.875rem; color: var(--t2); border-top: 1px solid var(--card-bd); }
+        tbody tr:hover { background: var(--tr-hbg); }
+        .card-header { border-bottom: 1.5px solid var(--card-bd); padding: 1.1rem 1.25rem; }
+
+        /* ── Input / Textarea ── */
+        .adm-input, .adm-textarea {
+            background: var(--in-bg);
+            border: 1.5px solid var(--in-bd);
+            color: var(--in-c);
+            border-radius: 0.75rem;
+            padding: 0.5rem 0.85rem;
+            font-size: 0.875rem;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .adm-input::placeholder, .adm-textarea::placeholder { color: var(--in-ph); }
+        .adm-input:focus, .adm-textarea:focus {
+            border-color: var(--acc);
+            box-shadow: 0 0 0 3px rgba(0,212,255,0.12);
+        }
+        html.light-mode .adm-input:focus, html.light-mode .adm-textarea:focus {
+            box-shadow: 0 0 0 3px rgba(13,110,253,0.12);
+        }
+
+        /* ── Accent button ── */
+        .btn-acc {
+            background: linear-gradient(135deg, var(--acc-from), var(--acc-to));
+            color: #fff;
+            border: none;
+            border-radius: 0.6rem;
+            padding: 0.45rem 1rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.15s;
+            display: inline-flex; align-items: center; gap: 0.35rem;
+        }
+        .btn-acc:hover { opacity: 0.88; transform: translateY(-1px); }
+        .btn-acc:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+        /* ── Badges ── */
+        .badge-admin { background: var(--badge-adm); color: var(--badge-adm-c); }
+        .badge-user  { background: var(--badge-usr); color: var(--badge-usr-c); }
+        .badge-round { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; }
+
+        /* ── Online badge ── */
+        .badge-online  { background: rgba(24,201,139,0.15); color: #18C98B; }
+        .badge-offline { background: rgba(100,116,139,0.15); color: var(--t3); }
+
+        /* ── Chat bubbles (in history panel) ── */
         .chat-bubble-user {
-            background: #0096ff;
+            background: linear-gradient(135deg, var(--acc-from), var(--acc-to));
             color: white;
             border-radius: 18px 18px 4px 18px;
         }
         .chat-bubble-bot {
-            background: #f1f5f9;
-            color: #1e293b;
+            background: var(--card-bg);
+            color: var(--t1);
+            border: 1px solid var(--card-bd);
             border-radius: 18px 18px 18px 4px;
         }
-        .conv-item:hover { background: #f0f7ff; }
-        .conv-item.active { background: #e0f0ff; border-left: 3px solid #0096ff; }
+
+        /* ── Conversation sidebar ── */
+        .conv-item { cursor: pointer; padding: 0.75rem 1rem; transition: background 0.15s; border-bottom: 1px solid var(--card-bd); }
+        .conv-item:hover { background: var(--tr-hbg); }
+        .conv-item.active { background: rgba(30,140,255,0.18); border-left: 3px solid var(--acc); }
+
+        /* ── Modal ── */
+        .adm-modal-inner {
+            background: var(--card-bg);
+            border: 1.5px solid var(--card-bd);
+            border-radius: 1.25rem;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+        }
+        html:not(.light-mode) .adm-modal-inner {
+            background: #0F2744;
+        }
+
+        /* ── Toast ── */
+        #toast-inner {
+            background: var(--card-bg);
+            border: 1.5px solid var(--card-bd);
+            border-radius: 0.75rem;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            padding: 0.65rem 1.1rem;
+            display: flex; align-items: center; gap: 0.6rem;
+        }
+
+        /* ── Theme toggle ── */
+        #theme-toggle {
+            width: 2.1rem; height: 2.1rem;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 50%;
+            border: 1.5px solid var(--glass-bd);
+            background: rgba(46,168,255,0.08);
+            color: var(--t2);
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            font-size: 0.9rem;
+        }
+        #theme-toggle:hover { background: rgba(46,168,255,0.18); color: var(--t1); }
+
+        /* ── Section divider ── */
+        .section-label { color: var(--t3); font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 0 1.25rem 0.5rem; }
+
+        /* ── Scrollbar ── */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(46,168,255,0.22); border-radius: 99px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(0,212,255,0.45); }
+
+        /* ── Ticket list ── */
+        .ticket-item { transition: background 0.15s; border-radius: 0.5rem; }
+        .ticket-item:hover { background: var(--tr-hbg); }
+        .ticket-item.active-ticket { background: rgba(30,140,255,0.15); border: 1px solid var(--card-bd); }
+
+        /* ── Page wrapper (above ::before/::after) ── */
+        .page-wrap { position: relative; z-index: 1; }
     </style>
+    <script>
+        (function() {
+            const saved = localStorage.getItem('isave-admin-theme');
+            if (saved === 'light') document.documentElement.classList.add('light-mode');
+        })();
+    </script>
 </head>
 <body>
     <!-- Header -->
-    <header class="gradient-bg text-white shadow-lg">
-        <div class="container mx-auto px-4 py-4">
+    <header class="admin-header">
+        <div class="container mx-auto px-4 py-3">
             <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-4">
-                    <div class="w-10 h-10 bg-white rounded-full overflow-hidden shadow-sm">
+                <div class="flex items-center space-x-3">
+                    <div class="w-9 h-9 rounded-full overflow-hidden logo-glow flex-shrink-0">
                         <img src="/static/logonew.png" alt="I-SAVE Logo" class="w-full h-full object-cover">
                     </div>
                     <div>
-                        <h1 class="text-xl font-bold">I-SAVE Admin Panel</h1>
-                        <p class="text-blue-100 text-xs">จัดการผู้ใช้งาน</p>
+                        <h1 class="header-title text-base">I-SAVE Admin Panel</h1>
+                        <p class="header-sub">จัดการผู้ใช้งาน</p>
                     </div>
                 </div>
-                <div class="flex items-center space-x-3">
-                    <a href="/chat" class="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-sm transition-all">
-                        <i class="fas fa-comments mr-2"></i>กลับหน้าแชท
+                <div class="flex items-center gap-2">
+                    <button id="theme-toggle" title="สลับธีม">
+                        <i id="theme-icon" class="fas fa-sun"></i>
+                    </button>
+                    <a href="/chat" class="nav-btn">
+                        <i class="fas fa-comments"></i>กลับหน้าแชท
                     </a>
-                    <a href="/logout" class="bg-red-500/80 hover:bg-red-600 px-4 py-2 rounded-lg text-sm transition-all">
-                        <i class="fas fa-sign-out-alt mr-2"></i>ออกจากระบบ
+                    <a href="/logout" class="nav-btn nav-btn-danger">
+                        <i class="fas fa-sign-out-alt"></i>ออกจากระบบ
                     </a>
                 </div>
             </div>
         </div>
     </header>
 
-    <div class="container mx-auto px-4 py-8 max-w-7xl">
+    <div class="page-wrap container mx-auto px-4 py-8 max-w-7xl">
         <!-- Cache Refresh Banner -->
-        <div class="card-shadow rounded-xl p-4 mb-6">
+        <div class="card mb-6 p-4">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
-                        <i class="fas fa-database text-indigo-600"></i>
+                    <div class="stat-icon-wrap" style="background:rgba(99,102,241,0.15);">
+                        <i class="fas fa-database" style="color:#818cf8;"></i>
                     </div>
                     <div>
-                        <p class="text-sm font-semibold text-gray-800">Data Cache</p>
-                        <p class="text-xs text-gray-500" id="cache-time-line">กำลังโหลดสถานะ...</p>
+                        <p class="text-sm font-semibold" style="color:var(--t1)">Data Cache</p>
+                        <p class="text-xs" style="color:var(--t3)" id="cache-time-line">กำลังโหลดสถานะ...</p>
                     </div>
                 </div>
-                <button onclick="refreshCache()" id="cache-btn"
-                    class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2">
-                    <i class="fas fa-sync" id="cache-icon"></i>Refresh Cache
-                </button>
+                <div class="flex gap-2">
+                    <button onclick="sendMorningGreeting()" id="greeting-btn" class="btn-acc" style="background:rgba(16,185,129,0.15);color:#10b981;border:1px solid rgba(16,185,129,0.3);">
+                        <i class="fas fa-sun" id="greeting-icon"></i>ส่ง Morning Greeting
+                    </button>
+                    <button onclick="refreshCache()" id="cache-btn" class="btn-acc">
+                        <i class="fas fa-sync" id="cache-icon"></i>Refresh Cache
+                    </button>
+                </div>
             </div>
             <div id="cache-status-row" class="mt-3 flex flex-wrap gap-2 hidden">
                 <span id="cs-item" class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium"></span>
                 <span id="cs-cap" class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium"></span>
                 <span id="cs-booking" class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium"></span>
-                <span class="border-l border-gray-200 mx-1"></span>
-                <span id="cs-bm" class="text-xs text-gray-500"></span>
-                <span id="cs-mc" class="text-xs text-gray-500"></span>
-                <span id="cs-ti" class="text-xs text-gray-500"></span>
+                <span class="mx-1" style="border-left:1px solid var(--card-bd)"></span>
+                <span id="cs-bm" class="text-xs" style="color:var(--t3)"></span>
+                <span id="cs-mc" class="text-xs" style="color:var(--t3)"></span>
+                <span id="cs-ti" class="text-xs" style="color:var(--t3)"></span>
             </div>
         </div>
 
         <!-- Stats -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <div class="card-shadow rounded-xl p-5 flex items-center space-x-4">
-                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                    <i class="fas fa-users text-blue-600 text-xl"></i>
+            <div class="card p-5 flex items-center space-x-4">
+                <div class="stat-icon-wrap" style="background:rgba(30,140,255,0.15);">
+                    <i class="fas fa-users" style="color:#60a5fa; font-size:1.2rem;"></i>
                 </div>
                 <div>
-                    <p class="text-gray-500 text-sm">ผู้ใช้ทั้งหมด</p>
-                    <p id="stat-total" class="text-2xl font-bold text-gray-800">-</p>
+                    <p class="text-sm" style="color:var(--t3)">ผู้ใช้ทั้งหมด</p>
+                    <p id="stat-total" class="text-2xl font-bold" style="color:var(--t1)">-</p>
                 </div>
             </div>
-            <div class="card-shadow rounded-xl p-5 flex items-center space-x-4">
-                <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                    <i class="fas fa-user-check text-green-600 text-xl"></i>
+            <div class="card p-5 flex items-center space-x-4">
+                <div class="stat-icon-wrap" style="background:rgba(24,201,139,0.15);">
+                    <i class="fas fa-user-check" style="color:#18C98B; font-size:1.2rem;"></i>
                 </div>
                 <div>
-                    <p class="text-gray-500 text-sm">ออนไลน์ตอนนี้</p>
-                    <p id="stat-active" class="text-2xl font-bold text-gray-800">-</p>
+                    <p class="text-sm" style="color:var(--t3)">ออนไลน์ตอนนี้</p>
+                    <p id="stat-active" class="text-2xl font-bold" style="color:var(--t1)">-</p>
                 </div>
             </div>
-            <div class="card-shadow rounded-xl p-5 flex items-center space-x-4">
-                <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                    <i class="fas fa-user-shield text-purple-600 text-xl"></i>
+            <div class="card p-5 flex items-center space-x-4">
+                <div class="stat-icon-wrap" style="background:rgba(168,85,247,0.15);">
+                    <i class="fas fa-user-shield" style="color:#c084fc; font-size:1.2rem;"></i>
                 </div>
                 <div>
-                    <p class="text-gray-500 text-sm">Admin</p>
-                    <p id="stat-admin" class="text-2xl font-bold text-gray-800">-</p>
+                    <p class="text-sm" style="color:var(--t3)">Admin</p>
+                    <p id="stat-admin" class="text-2xl font-bold" style="color:var(--t1)">-</p>
                 </div>
             </div>
         </div>
 
         <!-- User Table -->
-        <div class="card-shadow rounded-xl overflow-hidden mb-8">
-            <div class="flex flex-wrap items-center justify-between gap-3 p-5 border-b border-gray-100">
-                <h2 class="text-lg font-bold text-gray-800">
-                    <i class="fas fa-users mr-2 text-blue-500"></i>รายชื่อผู้ใช้งาน
+        <div class="card overflow-hidden mb-8">
+            <div class="card-header flex flex-wrap items-center justify-between gap-3">
+                <h2 class="text-base font-bold" style="color:var(--t1)">
+                    <i class="fas fa-users mr-2" style="color:var(--acc)"></i>รายชื่อผู้ใช้งาน
                 </h2>
                 <div class="flex items-center gap-2">
                     <div class="relative">
-                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-xs" style="color:var(--t3)"></i>
                         <input id="user-search" type="search" placeholder="ค้นหา Username / Email..."
                             oninput="filterUsers()"
-                            class="rounded-lg border border-gray-200 bg-gray-50 pl-8 pr-3 py-2 text-sm text-gray-800 outline-none focus:border-blue-400 transition w-56 placeholder-gray-400">
+                            class="adm-input pl-8 w-52">
                     </div>
-                    <button onclick="loadUsers()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition-all">
-                        <i class="fas fa-sync mr-2"></i>รีเฟรช
+                    <button onclick="loadUsers()" class="btn-acc">
+                        <i class="fas fa-sync"></i>รีเฟรช
                     </button>
                 </div>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">ID</th>
-                            <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Username</th>
-                            <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Email</th>
-                            <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Role</th>
-                            <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">สถานะ</th>
-                            <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">สมัครเมื่อ</th>
-                            <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Login ล่าสุด</th>
-                            <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">จัดการ</th>
-                        </tr>
-                    </thead>
+                    <thead><tr>
+                        <th class="text-left">ID</th>
+                        <th class="text-left">Username</th>
+                        <th class="text-left">Email</th>
+                        <th class="text-left">Role</th>
+                        <th class="text-left">สถานะ</th>
+                        <th class="text-left">สมัครเมื่อ</th>
+                        <th class="text-left">Login ล่าสุด</th>
+                        <th class="text-left">จัดการ</th>
+                    </tr></thead>
                     <tbody id="users-tbody">
-                        <tr>
-                            <td colspan="7" class="text-center py-12 text-gray-400">
-                                <i class="fas fa-spinner fa-spin text-2xl mb-2 block"></i>กำลังโหลด...
-                            </td>
-                        </tr>
+                        <tr><td colspan="8" class="text-center py-12" style="color:var(--t3)">
+                            <i class="fas fa-spinner fa-spin text-2xl mb-2 block"></i>กำลังโหลด...
+                        </td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
 
         <!-- Token Usage Table -->
-        <div class="card-shadow rounded-xl overflow-hidden mb-8">
-            <div class="flex items-center justify-between p-5 border-b border-gray-100">
-                <h2 class="text-lg font-bold text-gray-800">
-                    <i class="fas fa-coins mr-2 text-yellow-500"></i>Token Usage รายคน
+        <div class="card overflow-hidden mb-8">
+            <div class="card-header flex items-center justify-between">
+                <h2 class="text-base font-bold" style="color:var(--t1)">
+                    <i class="fas fa-coins mr-2" style="color:#fbbf24"></i>Token Usage รายคน
                 </h2>
-                <button onclick="loadTokenUsage()" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm transition-all">
-                    <i class="fas fa-sync mr-2"></i>รีเฟรช
+                <button onclick="loadTokenUsage()" class="btn-acc" style="background:linear-gradient(135deg,#d97706,#fbbf24)">
+                    <i class="fas fa-sync"></i>รีเฟรช
                 </button>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Username</th>
-                            <th class="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase">ครั้งที่ใช้ AI</th>
-                            <th class="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Prompt Tokens</th>
-                            <th class="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Completion Tokens</th>
-                            <th class="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Total Tokens</th>
-                            <th class="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Avg Response</th>
-                        </tr>
-                    </thead>
+                    <thead><tr>
+                        <th class="text-left">Username</th>
+                        <th class="text-right">ครั้งที่ใช้ AI</th>
+                        <th class="text-right">Prompt Tokens</th>
+                        <th class="text-right">Completion Tokens</th>
+                        <th class="text-right">Total Tokens</th>
+                        <th class="text-right">Avg Response</th>
+                    </tr></thead>
                     <tbody id="token-tbody">
-                        <tr>
-                            <td colspan="6" class="text-center py-12 text-gray-400">
-                                <i class="fas fa-spinner fa-spin text-2xl mb-2 block"></i>กำลังโหลด...
-                            </td>
-                        </tr>
+                        <tr><td colspan="6" class="text-center py-12" style="color:var(--t3)">
+                            <i class="fas fa-spinner fa-spin text-2xl mb-2 block"></i>กำลังโหลด...
+                        </td></tr>
                     </tbody>
                     <tfoot id="token-tfoot" class="hidden">
-                        <tr class="bg-yellow-50 font-semibold border-t-2 border-yellow-200">
-                            <td class="px-5 py-3 text-sm text-gray-700">รวมทั้งหมด</td>
-                            <td id="tfoot-calls" class="px-5 py-3 text-sm text-right text-gray-700">-</td>
-                            <td id="tfoot-prompt" class="px-5 py-3 text-sm text-right text-gray-700">-</td>
-                            <td id="tfoot-completion" class="px-5 py-3 text-sm text-right text-gray-700">-</td>
-                            <td id="tfoot-total" class="px-5 py-3 text-sm text-right text-yellow-700 font-bold">-</td>
-                            <td class="px-5 py-3"></td>
+                        <tr style="background:rgba(251,191,36,0.08); border-top:2px solid rgba(251,191,36,0.25); font-weight:600;">
+                            <td style="color:var(--t2)">รวมทั้งหมด</td>
+                            <td id="tfoot-calls" class="text-right" style="color:var(--t2)">-</td>
+                            <td id="tfoot-prompt" class="text-right" style="color:var(--t2)">-</td>
+                            <td id="tfoot-completion" class="text-right" style="color:var(--t2)">-</td>
+                            <td id="tfoot-total" class="text-right font-bold" style="color:#fbbf24">-</td>
+                            <td></td>
                         </tr>
                     </tfoot>
                 </table>
@@ -205,46 +458,46 @@
         </div>
 
         <!-- Support Tickets Section -->
-        <div class="card-shadow rounded-xl overflow-hidden mb-8">
-            <div class="flex items-center justify-between p-5 border-b border-gray-100">
-                <h2 class="text-lg font-bold text-gray-800">
-                    <i class="fas fa-headset mr-2 text-blue-500"></i>ข้อความจากผู้ใช้
+        <div class="card overflow-hidden mb-8">
+            <div class="card-header flex items-center justify-between">
+                <h2 class="text-base font-bold" style="color:var(--t1)">
+                    <i class="fas fa-headset mr-2" style="color:var(--acc)"></i>ข้อความจากผู้ใช้
                     <span id="pending-badge" class="hidden ml-2 rounded-full bg-red-500 px-2 py-0.5 text-xs font-bold text-white"></span>
                 </h2>
-                <button onclick="loadSupportTickets()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition-all">
-                    <i class="fas fa-sync mr-2"></i>รีเฟรช
+                <button onclick="loadSupportTickets()" class="btn-acc">
+                    <i class="fas fa-sync"></i>รีเฟรช
                 </button>
             </div>
             <div class="flex" style="height:480px;">
                 <!-- Ticket List -->
-                <div class="w-72 border-r border-gray-100 flex flex-col flex-shrink-0 min-h-0">
-                    <div class="flex gap-1 p-2 border-b border-gray-100 bg-gray-50">
-                        <button id="filter-all" onclick="filterTickets('all')" class="flex-1 rounded-lg py-1.5 text-xs font-semibold bg-blue-500 text-white transition">ทั้งหมด</button>
-                        <button id="filter-pending" onclick="filterTickets('pending')" class="flex-1 rounded-lg py-1.5 text-xs font-semibold text-gray-500 hover:bg-gray-100 transition">รอตอบ</button>
-                        <button id="filter-answered" onclick="filterTickets('answered')" class="flex-1 rounded-lg py-1.5 text-xs font-semibold text-gray-500 hover:bg-gray-100 transition">ตอบแล้ว</button>
+                <div class="flex flex-col flex-shrink-0 min-h-0" style="width:18rem; border-right:1.5px solid var(--card-bd);">
+                    <div class="flex gap-1 p-2" style="border-bottom:1px solid var(--card-bd); background:var(--th-bg);">
+                        <button id="filter-all" onclick="filterTickets('all')" class="flex-1 rounded-lg py-1.5 text-xs font-semibold transition" style="background:linear-gradient(135deg,var(--acc-from),var(--acc-to));color:#fff;">ทั้งหมด</button>
+                        <button id="filter-pending" onclick="filterTickets('pending')" class="flex-1 rounded-lg py-1.5 text-xs font-semibold transition" style="color:var(--t3);">รอตอบ</button>
+                        <button id="filter-answered" onclick="filterTickets('answered')" class="flex-1 rounded-lg py-1.5 text-xs font-semibold transition" style="color:var(--t3);">ตอบแล้ว</button>
                     </div>
                     <div id="admin-ticket-list" class="flex-1 overflow-y-auto space-y-0.5 p-2">
-                        <div class="text-center py-8 text-gray-400 text-sm"><i class="fas fa-spinner fa-spin block mb-2"></i>กำลังโหลด...</div>
+                        <div class="text-center py-8 text-sm" style="color:var(--t3)"><i class="fas fa-spinner fa-spin block mb-2"></i>กำลังโหลด...</div>
                     </div>
                 </div>
                 <!-- Thread View -->
                 <div class="flex-1 flex flex-col min-h-0">
-                    <div id="admin-thread-placeholder" class="flex-1 flex items-center justify-center text-gray-300">
+                    <div id="admin-thread-placeholder" class="flex-1 flex items-center justify-center" style="color:var(--t3)">
                         <div class="text-center"><i class="fas fa-comments text-4xl mb-3 block"></i><p class="text-sm">เลือกข้อความเพื่อดูรายละเอียด</p></div>
                     </div>
                     <div id="admin-thread-view" class="hidden flex-1 flex-col min-h-0">
-                        <div class="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-100">
+                        <div class="flex items-center justify-between px-4 py-2.5" style="background:var(--th-bg); border-bottom:1px solid var(--card-bd);">
                             <div>
-                                <span class="text-sm font-semibold text-gray-700" id="admin-thread-user"></span>
+                                <span class="text-sm font-semibold" style="color:var(--t1)" id="admin-thread-user"></span>
                                 <span id="admin-thread-status" class="ml-2 text-[10px] px-2 py-0.5 rounded-full font-semibold"></span>
                             </div>
-                            <button id="admin-close-btn" onclick="adminCloseTicket()" class="text-xs text-gray-400 hover:text-rose-500 transition border border-gray-200 rounded-lg px-2 py-1"><i class="fas fa-lock mr-1"></i>ปิด ticket</button>
+                            <button id="admin-close-btn" onclick="adminCloseTicket()" class="text-xs rounded-lg px-2 py-1 transition" style="color:var(--t3); border:1px solid var(--card-bd)"><i class="fas fa-lock mr-1"></i>ปิด ticket</button>
                         </div>
                         <div id="admin-thread-messages" class="flex-1 space-y-2 overflow-y-auto p-4"></div>
-                        <div class="flex gap-2 border-t border-gray-100 p-3">
+                        <div class="flex gap-2 p-3" style="border-top:1px solid var(--card-bd);">
                             <textarea id="admin-reply-input" rows="2" placeholder="พิมพ์คำตอบ..."
-                                class="flex-1 resize-none rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 outline-none focus:border-blue-400 transition placeholder-gray-400"></textarea>
-                            <button onclick="submitAdminReply()" class="self-end flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl text-white shadow" style="background:linear-gradient(135deg,#0096ff,#00bfff)">
+                                class="adm-textarea flex-1 resize-none"></textarea>
+                            <button onclick="submitAdminReply()" class="self-end btn-acc flex h-9 w-9 p-0 justify-center flex-shrink-0 rounded-xl">
                                 <i class="fas fa-paper-plane text-xs"></i>
                             </button>
                         </div>
@@ -254,52 +507,50 @@
         </div>
 
         <!-- Feedback Section -->
-        <div class="card-shadow rounded-xl overflow-hidden mb-8">
-            <div class="flex items-center justify-between p-5 border-b border-gray-100">
-                <h2 class="text-lg font-bold text-gray-800">
-                    <i class="fas fa-thumbs-up mr-2 text-green-500"></i>Feedback ผู้ใช้ (👍 / 👎)
+        <div class="card overflow-hidden mb-8">
+            <div class="card-header flex items-center justify-between">
+                <h2 class="text-base font-bold" style="color:var(--t1)">
+                    <i class="fas fa-thumbs-up mr-2" style="color:#22c55e"></i>Feedback ผู้ใช้ (👍 / 👎)
                 </h2>
-                <button onclick="loadFeedback()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm transition-all">
-                    <i class="fas fa-sync mr-2"></i>รีเฟรช
+                <button onclick="loadFeedback()" class="btn-acc" style="background:linear-gradient(135deg,#16a34a,#22c55e)">
+                    <i class="fas fa-sync"></i>รีเฟรช
                 </button>
             </div>
             <div class="p-5">
                 <div id="feedback-summary-cards" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 hidden">
-                    <div class="rounded-xl bg-green-50 border border-green-100 p-4 text-center">
-                        <p class="text-2xl font-bold text-green-600" id="fb-likes">-</p>
-                        <p class="text-xs text-green-700 mt-1">👍 ถูกใจ</p>
+                    <div class="rounded-xl p-4 text-center" style="background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.2);">
+                        <p class="text-2xl font-bold" style="color:#22c55e" id="fb-likes">-</p>
+                        <p class="text-xs mt-1" style="color:#16a34a">👍 ถูกใจ</p>
                     </div>
-                    <div class="rounded-xl bg-rose-50 border border-rose-100 p-4 text-center">
-                        <p class="text-2xl font-bold text-rose-500" id="fb-dislikes">-</p>
-                        <p class="text-xs text-rose-700 mt-1">👎 ปรับปรุง</p>
+                    <div class="rounded-xl p-4 text-center" style="background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.2);">
+                        <p class="text-2xl font-bold" style="color:#f87171" id="fb-dislikes">-</p>
+                        <p class="text-xs mt-1" style="color:#ef4444">👎 ปรับปรุง</p>
                     </div>
-                    <div class="rounded-xl bg-gray-50 border border-gray-200 p-4 text-center">
-                        <p class="text-2xl font-bold text-gray-500" id="fb-none">-</p>
-                        <p class="text-xs text-gray-500 mt-1">⬜ ไม่ได้กด</p>
+                    <div class="rounded-xl p-4 text-center" style="background:var(--th-bg); border:1px solid var(--card-bd);">
+                        <p class="text-2xl font-bold" style="color:var(--t3)" id="fb-none">-</p>
+                        <p class="text-xs mt-1" style="color:var(--t3)">⬜ ไม่ได้กด</p>
                     </div>
-                    <div class="rounded-xl bg-blue-50 border border-blue-100 p-4 text-center">
-                        <p class="text-2xl font-bold text-blue-600" id="fb-rate">-</p>
-                        <p class="text-xs text-blue-700 mt-1">% ความพึงพอใจ</p>
+                    <div class="rounded-xl p-4 text-center" style="background:rgba(30,140,255,0.1); border:1px solid var(--card-bd);">
+                        <p class="text-2xl font-bold" style="color:var(--acc)" id="fb-rate">-</p>
+                        <p class="text-xs mt-1" style="color:var(--t3)">% ความพึงพอใจ</p>
                     </div>
                 </div>
                 <div class="overflow-x-auto mb-6">
                     <table class="w-full">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">ผู้ใช้</th>
-                                <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">👍</th>
-                                <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">👎</th>
-                                <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">รวม</th>
-                                <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase">สัดส่วน</th>
-                            </tr>
-                        </thead>
+                        <thead><tr>
+                            <th class="text-left">ผู้ใช้</th>
+                            <th class="text-right">👍</th>
+                            <th class="text-right">👎</th>
+                            <th class="text-right">รวม</th>
+                            <th>สัดส่วน</th>
+                        </tr></thead>
                         <tbody id="feedback-tbody">
-                            <tr><td colspan="5" class="text-center py-10 text-gray-400"><i class="fas fa-spinner fa-spin text-2xl mb-2 block"></i>กำลังโหลด...</td></tr>
+                            <tr><td colspan="5" class="text-center py-10" style="color:var(--t3)"><i class="fas fa-spinner fa-spin text-2xl mb-2 block"></i>กำลังโหลด...</td></tr>
                         </tbody>
                     </table>
                 </div>
                 <div id="dislike-section" class="hidden">
-                    <p class="text-sm font-semibold text-gray-700 mb-3"><i class="fas fa-exclamation-circle text-rose-400 mr-1"></i>คำตอบล่าสุดที่ได้รับ 👎 (10 รายการ)</p>
+                    <p class="text-sm font-semibold mb-3" style="color:var(--t1)"><i class="fas fa-exclamation-circle text-rose-400 mr-1"></i>คำตอบล่าสุดที่ได้รับ 👎 (10 รายการ)</p>
                     <div id="dislike-list" class="space-y-2"></div>
                 </div>
             </div>
@@ -307,33 +558,31 @@
 
         <!-- Chat History Section -->
         <div id="chat-section" class="hidden">
-            <div class="card-shadow rounded-xl overflow-hidden">
-                <div class="flex items-center justify-between p-5 border-b border-gray-100">
-                    <h2 class="text-lg font-bold text-gray-800">
-                        <i class="fas fa-comments mr-2 text-blue-500"></i>
-                        ประวัติแชท: <span id="chat-username" class="text-blue-600"></span>
+            <div class="card overflow-hidden">
+                <div class="card-header flex items-center justify-between">
+                    <h2 class="text-base font-bold" style="color:var(--t1)">
+                        <i class="fas fa-comments mr-2" style="color:var(--acc)"></i>
+                        ประวัติแชท: <span id="chat-username" style="color:var(--acc)"></span>
                     </h2>
-                    <button onclick="closeChatSection()" class="text-gray-400 hover:text-gray-600 transition-all">
+                    <button onclick="closeChatSection()" style="color:var(--t3)" class="hover:opacity-70 transition">
                         <i class="fas fa-times text-xl"></i>
                     </button>
                 </div>
-
-                <div class="flex" style="height: 560px;">
+                <div class="flex" style="height:560px;">
                     <!-- Conversation List -->
-                    <div class="w-72 border-r border-gray-100 flex flex-col">
-                        <div class="p-3 border-b border-gray-100 bg-gray-50">
-                            <p class="text-xs font-semibold text-gray-500 uppercase">การสนทนา</p>
+                    <div class="flex flex-col" style="width:18rem; border-right:1.5px solid var(--card-bd);">
+                        <div class="p-3" style="border-bottom:1px solid var(--card-bd); background:var(--th-bg);">
+                            <p class="text-xs font-semibold uppercase" style="color:var(--t3)">การสนทนา</p>
                         </div>
                         <div id="conv-list" class="flex-1 overflow-y-auto">
-                            <div class="text-center py-8 text-gray-400 text-sm">
+                            <div class="text-center py-8 text-sm" style="color:var(--t3)">
                                 <i class="fas fa-spinner fa-spin block mb-2"></i>กำลังโหลด...
                             </div>
                         </div>
                     </div>
-
                     <!-- Messages Panel -->
                     <div class="flex-1 flex flex-col">
-                        <div id="msg-placeholder" class="flex-1 flex items-center justify-center text-gray-400">
+                        <div id="msg-placeholder" class="flex-1 flex items-center justify-center" style="color:var(--t3)">
                             <div class="text-center">
                                 <i class="fas fa-hand-pointer text-4xl mb-3 block"></i>
                                 <p class="text-sm">เลือกการสนทนาเพื่อดูข้อความ</p>
@@ -347,31 +596,27 @@
     </div>
 
     <!-- Reset Password Modal -->
-    <div id="reset-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
-        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4">
-            <h3 class="text-lg font-bold text-gray-800 mb-1">
-                <i class="fas fa-key mr-2 text-orange-500"></i>รีเซ็ตรหัสผ่าน
+    <div id="reset-modal" class="fixed inset-0 flex items-center justify-center z-50 hidden" style="background:rgba(0,0,0,0.6); backdrop-filter:blur(4px);">
+        <div class="adm-modal-inner p-6 w-full max-w-md mx-4">
+            <h3 class="text-base font-bold mb-1" style="color:var(--t1)">
+                <i class="fas fa-key mr-2" style="color:#fb923c"></i>รีเซ็ตรหัสผ่าน
             </h3>
-            <p id="reset-username-label" class="text-sm text-gray-500 mb-4"></p>
+            <p id="reset-username-label" class="text-sm mb-4" style="color:var(--t3)"></p>
             <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-1">รหัสผ่านใหม่</label>
-                <input type="password" id="new-password"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-                    placeholder="อย่างน้อย 6 ตัวอักษร">
+                <label class="block text-sm font-medium mb-1" style="color:var(--t2)">รหัสผ่านใหม่</label>
+                <input type="password" id="new-password" class="adm-input w-full" placeholder="อย่างน้อย 6 ตัวอักษร">
             </div>
             <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 mb-1">ยืนยันรหัสผ่าน</label>
-                <input type="password" id="confirm-password"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-                    placeholder="กรอกรหัสผ่านอีกครั้ง">
+                <label class="block text-sm font-medium mb-1" style="color:var(--t2)">ยืนยันรหัสผ่าน</label>
+                <input type="password" id="confirm-password" class="adm-input w-full" placeholder="กรอกรหัสผ่านอีกครั้ง">
             </div>
-            <p id="modal-error" class="text-red-500 text-sm mb-3 hidden"></p>
+            <p id="modal-error" class="text-red-400 text-sm mb-3 hidden"></p>
             <div class="flex space-x-3">
-                <button onclick="closeModal()" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all">
+                <button onclick="closeModal()" class="flex-1 px-4 py-2 rounded-lg text-sm transition" style="border:1.5px solid var(--card-bd); color:var(--t2);">
                     ยกเลิก
                 </button>
-                <button onclick="submitResetPassword()" class="flex-1 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-all">
-                    <i class="fas fa-key mr-2"></i>รีเซ็ต
+                <button onclick="submitResetPassword()" class="btn-acc flex-1 justify-center" style="background:linear-gradient(135deg,#c2410c,#fb923c)">
+                    <i class="fas fa-key"></i>รีเซ็ต
                 </button>
             </div>
         </div>
@@ -379,9 +624,9 @@
 
     <!-- Toast -->
     <div id="toast" class="fixed bottom-5 right-5 hidden z-50">
-        <div class="bg-white rounded-lg shadow-lg px-5 py-3 flex items-center space-x-3 border border-gray-100">
+        <div id="toast-inner">
             <span id="toast-icon"></span>
-            <span id="toast-message" class="text-sm font-medium"></span>
+            <span id="toast-message" class="text-sm font-medium" style="color:var(--t1)"></span>
         </div>
     </div>
 
@@ -390,26 +635,33 @@
         let activeConvId = null;
         let allUsers = [];
 
+        // ---- Theme Toggle ----
+        function initTheme() {
+            const isLight = document.documentElement.classList.contains('light-mode');
+            document.getElementById('theme-icon').className = isLight ? 'fas fa-moon' : 'fas fa-sun';
+        }
+        document.getElementById('theme-toggle').addEventListener('click', () => {
+            const html = document.documentElement;
+            html.classList.toggle('light-mode');
+            localStorage.setItem('isave-admin-theme', html.classList.contains('light-mode') ? 'light' : 'dark');
+            initTheme();
+        });
+
         // ---- Online Status Helper ----
-        // ถือว่า "ออนไลน์" ถ้า last_activity ภายใน 5 นาทีที่ผ่านมา
         function onlineBadge(lastActivity) {
             if (!lastActivity) {
-                return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-400">
-                    <span class="w-1.5 h-1.5 rounded-full bg-gray-300 inline-block"></span>ออฟไลน์</span>`;
+                return `<span class="badge-round badge-offline"><span class="w-1.5 h-1.5 rounded-full inline-block" style="background:currentColor;opacity:0.5"></span>ออฟไลน์</span>`;
             }
-            const diffMs = Date.now() - new Date(lastActivity).getTime();
-            const diffMin = diffMs / 60000;
+            const diffMin = (Date.now() - new Date(lastActivity).getTime()) / 60000;
             if (diffMin <= 5) {
-                return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
-                    <span class="w-1.5 h-1.5 rounded-full bg-green-500 inline-block animate-pulse"></span>ออนไลน์</span>`;
+                return `<span class="badge-round badge-online"><span class="w-1.5 h-1.5 rounded-full inline-block animate-pulse" style="background:#18C98B"></span>ออนไลน์</span>`;
             }
-            return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-400">
-                <span class="w-1.5 h-1.5 rounded-full bg-gray-300 inline-block"></span>ออฟไลน์</span>`;
+            return `<span class="badge-round badge-offline"><span class="w-1.5 h-1.5 rounded-full inline-block" style="background:currentColor;opacity:0.5"></span>ออฟไลน์</span>`;
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            initTheme();
             loadUsers(); loadTokenUsage(); loadFeedback(); loadSupportTickets(); loadCacheStatus();
-            // refresh online status ทุก 30 วินาที
             setInterval(() => loadUsers(), 30000);
             setInterval(async () => {
                 const prevPending = allTickets.filter(t => t.status === 'pending').length;
@@ -422,14 +674,14 @@
 
         async function loadUsers() {
             const tbody = document.getElementById('users-tbody');
-            tbody.innerHTML = `<tr><td colspan="8" class="text-center py-12 text-gray-400">
+            tbody.innerHTML = `<tr><td colspan="8" class="text-center py-12" style="color:var(--t3)">
                 <i class="fas fa-spinner fa-spin text-2xl mb-2 block"></i>กำลังโหลด...</td></tr>`;
 
             const res = await fetch('/admin/users');
             const data = await res.json();
 
             if (!data.success) {
-                tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-red-400">โหลดข้อมูลไม่สำเร็จ</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8" style="color:#f87171">โหลดข้อมูลไม่สำเร็จ</td></tr>`;
                 return;
             }
 
@@ -453,40 +705,42 @@
         function renderUsers(users) {
             const tbody = document.getElementById('users-tbody');
             if (users.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-gray-400">ไม่พบผู้ใช้</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8" style="color:var(--t3)">ไม่พบผู้ใช้</td></tr>`;
                 return;
             }
-
             tbody.innerHTML = users.map(u => `
-                <tr class="border-t border-gray-100 hover:bg-gray-50 transition-colors" id="user-row-${u.id}">
-                    <td class="px-5 py-4 text-sm text-gray-500">${u.id}</td>
-                    <td class="px-5 py-4 font-medium text-gray-800">${escHtml(u.username)}</td>
-                    <td class="px-5 py-4 text-sm text-gray-600">${escHtml(u.email)}</td>
-                    <td class="px-5 py-4">
-                        <span class="px-2 py-1 rounded-full text-xs font-semibold ${u.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}">
-                            ${u.role}
-                        </span>
+                <tr id="user-row-${u.id}">
+                    <td style="color:var(--t3)">${u.id}</td>
+                    <td style="color:var(--t1);font-weight:500">${escHtml(u.username)}</td>
+                    <td style="color:var(--t2)">${escHtml(u.email)}</td>
+                    <td>
+                        <span class="badge-round ${u.role === 'admin' ? 'badge-admin' : 'badge-user'}">${u.role}</span>
                     </td>
-                    <td class="px-5 py-4">
-                        ${onlineBadge(u.last_activity)}
-                    </td>
-                    <td class="px-5 py-4 text-sm text-gray-500">${formatDate(u.created_at)}</td>
-                    <td class="px-5 py-4 text-sm text-gray-500">${u.last_login ? formatDateTime(u.last_login) : '<span class="text-gray-300">ยังไม่เคย</span>'}</td>
-                    <td class="px-5 py-4 flex items-center gap-2">
-                        <button onclick="openChatHistory(${u.id}, '${escHtml(u.username)}')"
-                            class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-all">
-                            <i class="fas fa-comments mr-1"></i>ดูแชท
-                        </button>
-                        <button onclick="openResetModal(${u.id}, '${escHtml(u.username)}')"
-                            class="bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-all">
-                            <i class="fas fa-key mr-1"></i>รีเซ็ต
-                        </button>
-                        ${u.role !== 'admin' ? `
-                        <button onclick="toggleUserActive(${u.id}, ${!u.is_active})"
-                            id="toggle-btn-${u.id}"
-                            class="${u.is_active ? 'bg-red-100 hover:bg-red-200 text-red-700' : 'bg-green-100 hover:bg-green-200 text-green-700'} px-3 py-1.5 rounded-lg text-xs font-medium transition-all">
-                            <i class="fas ${u.is_active ? 'fa-ban' : 'fa-check'} mr-1"></i>${u.is_active ? 'ปิด' : 'เปิด'}
-                        </button>` : ''}
+                    <td>${onlineBadge(u.last_activity)}</td>
+                    <td style="color:var(--t3)">${formatDate(u.created_at)}</td>
+                    <td style="color:var(--t3)">${u.last_login ? formatDateTime(u.last_login) : `<span style="color:var(--t3);opacity:0.4">ยังไม่เคย</span>`}</td>
+                    <td>
+                        <div class="flex items-center gap-1.5">
+                            <button onclick="openChatHistory(${u.id}, '${escHtml(u.username)}')"
+                                class="px-2.5 py-1 rounded-lg text-xs font-medium transition"
+                                style="background:rgba(30,140,255,0.12);color:#60a5fa">
+                                <i class="fas fa-comments mr-1"></i>ดูแชท
+                            </button>
+                            <button onclick="openResetModal(${u.id}, '${escHtml(u.username)}')"
+                                class="px-2.5 py-1 rounded-lg text-xs font-medium transition"
+                                style="background:rgba(251,146,60,0.12);color:#fb923c">
+                                <i class="fas fa-key mr-1"></i>รีเซ็ต
+                            </button>
+                            ${u.role !== 'admin' ? `
+                            <button onclick="toggleUserActive(${u.id}, ${!u.is_active})"
+                                id="toggle-btn-${u.id}"
+                                class="px-2.5 py-1 rounded-lg text-xs font-medium transition"
+                                style="${u.is_active
+                                    ? 'background:rgba(239,68,68,0.12);color:#f87171'
+                                    : 'background:rgba(34,197,94,0.12);color:#4ade80'}">
+                                <i class="fas ${u.is_active ? 'fa-ban' : 'fa-check'} mr-1"></i>${u.is_active ? 'ปิด' : 'เปิด'}
+                            </button>` : ''}
+                        </div>
                     </td>
                 </tr>
             `).join('');
@@ -530,11 +784,10 @@
         // ---- Cache Status & Refresh ----
 
         function _badge(ready, label) {
-            const cls = ready
-                ? 'bg-green-100 text-green-700'
-                : 'bg-red-100 text-red-600';
-            const dot = ready ? '●' : '●';
-            return { cls, text: `${dot} ${label}` };
+            const style = ready
+                ? 'background:rgba(34,197,94,0.15);color:#4ade80'
+                : 'background:rgba(239,68,68,0.12);color:#f87171';
+            return { style, text: `● ${label}` };
         }
 
         async function loadCacheStatus() {
@@ -562,9 +815,10 @@
                     { el: 'cs-cap',     ...(_badge(ready.query_cap_ava, 'Capacity')) },
                     { el: 'cs-booking', ...(_badge(ready.query_booking, 'Booking')) },
                 ];
-                badges.forEach(({ el, cls, text }) => {
+                badges.forEach(({ el, style, text }) => {
                     const span = document.getElementById(el);
-                    span.className = `inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${cls}`;
+                    span.className = 'inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium';
+                    span.style.cssText = style;
                     span.textContent = text;
                 });
 
@@ -594,24 +848,38 @@
             if (data.success) loadCacheStatus();
         }
 
+        async function sendMorningGreeting() {
+            const btn = document.getElementById('greeting-btn');
+            const icon = document.getElementById('greeting-icon');
+            btn.disabled = true;
+            icon.className = 'fas fa-sun fa-spin';
+
+            const res = await fetch('/admin/morning-greeting/send', { method: 'POST', headers: { 'X-CSRFToken': csrfToken() } });
+            const data = await res.json();
+
+            icon.className = 'fas fa-sun';
+            btn.disabled = false;
+            showToast(data.message || (data.success ? 'ส่ง Morning Greeting สำเร็จ' : 'ส่งไม่สำเร็จ'), data.success ? 'success' : 'error');
+        }
+
         // ---- Token Usage ----
 
         async function loadTokenUsage() {
             const tbody = document.getElementById('token-tbody');
-            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-12 text-gray-400">
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-12" style="color:var(--t3)">
                 <i class="fas fa-spinner fa-spin text-2xl mb-2 block"></i>กำลังโหลด...</td></tr>`;
 
             const res = await fetch('/admin/token-usage');
             const data = await res.json();
 
             if (!data.success) {
-                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-red-400">โหลดข้อมูลไม่สำเร็จ</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8" style="color:#f87171">โหลดข้อมูลไม่สำเร็จ</td></tr>`;
                 return;
             }
 
             const rows = data.rows;
             if (rows.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-gray-400">ยังไม่มีข้อมูล Token</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8" style="color:var(--t3)">ยังไม่มีข้อมูล Token</td></tr>`;
                 return;
             }
 
@@ -624,25 +892,25 @@
 
             tbody.innerHTML = rows.map(r => {
                 const barPct = Math.round(r.total_tokens / maxTokens * 100);
-                const barColor = barPct > 75 ? 'bg-red-400' : barPct > 40 ? 'bg-yellow-400' : 'bg-green-400';
+                const barColor = barPct > 75 ? '#f87171' : barPct > 40 ? '#fbbf24' : '#4ade80';
                 return `
-                <tr class="border-t border-gray-100 hover:bg-gray-50 transition-colors">
-                    <td class="px-5 py-3 font-medium text-gray-800 text-sm">
+                <tr>
+                    <td style="font-weight:500;color:var(--t1)">
                         ${escHtml(r.username)}
-                        <p class="text-xs text-gray-400 font-normal">${escHtml(r.email)}</p>
+                        <p class="text-xs font-normal" style="color:var(--t3)">${escHtml(r.email)}</p>
                     </td>
-                    <td class="px-5 py-3 text-right text-sm text-gray-600">${r.api_calls.toLocaleString()}</td>
-                    <td class="px-5 py-3 text-right text-sm text-gray-600">${r.prompt_tokens.toLocaleString()}</td>
-                    <td class="px-5 py-3 text-right text-sm text-gray-600">${r.completion_tokens.toLocaleString()}</td>
-                    <td class="px-5 py-3 text-right text-sm font-semibold text-gray-800">
+                    <td class="text-right" style="color:var(--t2)">${r.api_calls.toLocaleString()}</td>
+                    <td class="text-right" style="color:var(--t2)">${r.prompt_tokens.toLocaleString()}</td>
+                    <td class="text-right" style="color:var(--t2)">${r.completion_tokens.toLocaleString()}</td>
+                    <td class="text-right font-semibold" style="color:var(--t1)">
                         <div class="flex items-center justify-end gap-2">
-                            <div class="w-20 bg-gray-200 rounded-full h-1.5 hidden sm:block">
-                                <div class="${barColor} h-1.5 rounded-full" style="width:${barPct}%"></div>
+                            <div class="w-20 rounded-full h-1.5 hidden sm:block" style="background:var(--card-bd)">
+                                <div class="h-1.5 rounded-full" style="width:${barPct}%;background:${barColor}"></div>
                             </div>
                             ${r.total_tokens.toLocaleString()}
                         </div>
                     </td>
-                    <td class="px-5 py-3 text-right text-sm text-gray-500">${r.avg_response_ms > 0 ? r.avg_response_ms.toLocaleString() + ' ms' : '-'}</td>
+                    <td class="text-right" style="color:var(--t3)">${r.avg_response_ms > 0 ? r.avg_response_ms.toLocaleString() + ' ms' : '-'}</td>
                 </tr>`;
             }).join('');
 
@@ -657,14 +925,14 @@
 
         async function loadFeedback() {
             document.getElementById('feedback-tbody').innerHTML =
-                `<tr><td colspan="5" class="text-center py-10 text-gray-400"><i class="fas fa-spinner fa-spin text-2xl mb-2 block"></i>กำลังโหลด...</td></tr>`;
+                `<tr><td colspan="5" class="text-center py-10" style="color:var(--t3)"><i class="fas fa-spinner fa-spin text-2xl mb-2 block"></i>กำลังโหลด...</td></tr>`;
 
             const res = await fetch('/admin/feedback');
             const data = await res.json();
 
             if (!data.success) {
                 document.getElementById('feedback-tbody').innerHTML =
-                    `<tr><td colspan="5" class="text-center py-8 text-red-400">โหลดไม่สำเร็จ</td></tr>`;
+                    `<tr><td colspan="5" class="text-center py-8" style="color:#f87171">โหลดไม่สำเร็จ</td></tr>`;
                 return;
             }
 
@@ -684,22 +952,22 @@
 
             if (rows.length === 0) {
                 document.getElementById('feedback-tbody').innerHTML =
-                    `<tr><td colspan="5" class="text-center py-8 text-gray-400">ยังไม่มี Feedback</td></tr>`;
+                    `<tr><td colspan="5" class="text-center py-8" style="color:var(--t3)">ยังไม่มี Feedback</td></tr>`;
             } else {
                 document.getElementById('feedback-tbody').innerHTML = rows.map(r => {
                     const likePct = r.total > 0 ? Math.round(r.likes / r.total * 100) : 0;
-                    const barColor = likePct >= 70 ? 'bg-green-400' : likePct >= 40 ? 'bg-yellow-400' : 'bg-rose-400';
-                    return `<tr class="border-t border-gray-100 hover:bg-gray-50">
-                        <td class="px-4 py-3 text-sm font-medium text-gray-800">${escHtml(r.username)}</td>
-                        <td class="px-4 py-3 text-right text-sm text-green-600 font-semibold">${r.likes}</td>
-                        <td class="px-4 py-3 text-right text-sm text-rose-500 font-semibold">${r.dislikes}</td>
-                        <td class="px-4 py-3 text-right text-sm text-gray-600">${r.total}</td>
-                        <td class="px-4 py-3">
+                    const barColor = likePct >= 70 ? '#4ade80' : likePct >= 40 ? '#fbbf24' : '#f87171';
+                    return `<tr>
+                        <td style="font-weight:500;color:var(--t1)">${escHtml(r.username)}</td>
+                        <td class="text-right font-semibold" style="color:#4ade80">${r.likes}</td>
+                        <td class="text-right font-semibold" style="color:#f87171">${r.dislikes}</td>
+                        <td class="text-right" style="color:var(--t2)">${r.total}</td>
+                        <td>
                             <div class="flex items-center gap-2">
-                                <div class="flex-1 bg-gray-200 rounded-full h-2">
-                                    <div class="${barColor} h-2 rounded-full" style="width:${likePct}%"></div>
+                                <div class="flex-1 rounded-full h-2" style="background:var(--card-bd)">
+                                    <div class="h-2 rounded-full" style="width:${likePct}%;background:${barColor}"></div>
                                 </div>
-                                <span class="text-xs text-gray-500 w-8 text-right">${likePct}%</span>
+                                <span class="text-xs w-8 text-right" style="color:var(--t3)">${likePct}%</span>
                             </div>
                         </td>
                     </tr>`;
@@ -710,12 +978,12 @@
             if (dislikes.length > 0) {
                 document.getElementById('dislike-section').classList.remove('hidden');
                 document.getElementById('dislike-list').innerHTML = dislikes.map(d => `
-                    <div class="rounded-lg border border-rose-100 bg-rose-50 px-4 py-3">
+                    <div class="rounded-lg px-4 py-3" style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2)">
                         <div class="flex items-center justify-between mb-1">
-                            <span class="text-xs font-semibold text-rose-600">${escHtml(d.username)}</span>
-                            <span class="text-xs text-gray-400">${formatDateTime(d.created_at)}</span>
+                            <span class="text-xs font-semibold" style="color:#f87171">${escHtml(d.username)}</span>
+                            <span class="text-xs" style="color:var(--t3)">${formatDateTime(d.created_at)}</span>
                         </div>
-                        <p class="text-sm text-gray-700 leading-relaxed">${escHtml(d.message)}</p>
+                        <p class="text-sm leading-relaxed" style="color:var(--t2)">${escHtml(d.message)}</p>
                     </div>`).join('');
             }
         }
@@ -732,23 +1000,22 @@
             document.getElementById('msg-placeholder').classList.remove('hidden');
 
             const convList = document.getElementById('conv-list');
-            convList.innerHTML = `<div class="text-center py-8 text-gray-400 text-sm">
+            convList.innerHTML = `<div class="text-center py-8 text-sm" style="color:var(--t3)">
                 <i class="fas fa-spinner fa-spin block mb-2"></i>กำลังโหลด...</div>`;
 
             const res = await fetch(`/admin/users/${userId}/conversations`);
             const data = await res.json();
 
             if (!data.success || data.conversations.length === 0) {
-                convList.innerHTML = `<div class="text-center py-8 text-gray-400 text-sm">
+                convList.innerHTML = `<div class="text-center py-8 text-sm" style="color:var(--t3)">
                     <i class="fas fa-comment-slash block text-2xl mb-2"></i>ยังไม่มีการสนทนา</div>`;
                 return;
             }
 
             convList.innerHTML = data.conversations.map(c => `
-                <div class="conv-item cursor-pointer p-3 border-b border-gray-50 transition-all"
-                     id="conv-${c.id}" onclick="loadMessages(${c.id})">
-                    <p class="text-sm font-medium text-gray-800 truncate">${escHtml(c.title || 'แชทใหม่')}</p>
-                    <p class="text-xs text-gray-400 mt-0.5">${formatDateTime(c.updated_at)}</p>
+                <div class="conv-item" id="conv-${c.id}" onclick="loadMessages(${c.id})">
+                    <p class="text-sm font-medium truncate" style="color:var(--t1)">${escHtml(c.title || 'แชทใหม่')}</p>
+                    <p class="text-xs mt-0.5" style="color:var(--t3)">${formatDateTime(c.updated_at)}</p>
                 </div>
             `).join('');
         }
@@ -769,14 +1036,14 @@
             const placeholder = document.getElementById('msg-placeholder');
             placeholder.classList.add('hidden');
             msgPanel.classList.remove('hidden');
-            msgPanel.innerHTML = `<div class="text-center py-8 text-gray-400 text-sm">
+            msgPanel.innerHTML = `<div class="text-center py-8 text-sm" style="color:var(--t3)">
                 <i class="fas fa-spinner fa-spin block mb-2"></i>กำลังโหลด...</div>`;
 
             const res = await fetch(`/admin/conversations/${convId}/messages`);
             const data = await res.json();
 
             if (!data.success || data.messages.length === 0) {
-                msgPanel.innerHTML = `<div class="text-center py-8 text-gray-400 text-sm">ไม่มีข้อความ</div>`;
+                msgPanel.innerHTML = `<div class="text-center py-8 text-sm" style="color:var(--t3)">ไม่มีข้อความ</div>`;
                 return;
             }
 
@@ -787,8 +1054,8 @@
                     : renderMarkdown(m.message);
                 const feedbackBadge = !isUser && m.feedback_type
                     ? m.feedback_type === 'like'
-                        ? `<span class="ml-1.5 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">👍 Like</span>`
-                        : `<span class="ml-1.5 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium bg-rose-100 text-rose-600">👎 Dislike</span>`
+                        ? `<span class="ml-1.5 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium" style="background:rgba(34,197,94,0.15);color:#4ade80">👍 Like</span>`
+                        : `<span class="ml-1.5 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium" style="background:rgba(239,68,68,0.12);color:#f87171">👎 Dislike</span>`
                     : '';
                 return `
                 <div class="flex ${isUser ? 'justify-end' : 'justify-start'}">
@@ -796,7 +1063,7 @@
                         <div class="${isUser ? 'chat-bubble-user' : 'chat-bubble-bot'} px-4 py-2.5 text-sm leading-relaxed">
                             ${content}
                         </div>
-                        <p class="text-xs text-gray-400 mt-1 ${isUser ? 'text-right' : 'text-left'}">
+                        <p class="text-xs mt-1 ${isUser ? 'text-right' : 'text-left'}" style="color:var(--t3)">
                             ${isUser ? 'ผู้ใช้' : 'AI'} · ${formatDateTime(m.created_at)}${feedbackBadge}
                         </p>
                     </div>
@@ -851,9 +1118,9 @@
         function csrfToken() { return document.querySelector('meta[name="csrf-token"]').content; }
         function showToast(message, type = 'info') {
             const icons = {
-                success: '<i class="fas fa-check-circle text-green-500"></i>',
-                error: '<i class="fas fa-times-circle text-red-500"></i>',
-                info: '<i class="fas fa-info-circle text-blue-500"></i>'
+                success: '<i class="fas fa-check-circle" style="color:#4ade80"></i>',
+                error:   '<i class="fas fa-times-circle" style="color:#f87171"></i>',
+                info:    '<i class="fas fa-info-circle" style="color:var(--acc)"></i>'
             };
             document.getElementById('toast-icon').innerHTML = icons[type] || icons.info;
             document.getElementById('toast-message').textContent = message;
@@ -893,7 +1160,13 @@
             activeTicketFilter = f;
             ['all','pending','answered'].forEach(k => {
                 const btn = document.getElementById('filter-' + k);
-                btn.className = `flex-1 rounded-lg py-1.5 text-xs font-semibold transition ${k === f ? 'bg-blue-500 text-white' : 'text-gray-500 hover:bg-gray-100'}`;
+                if (k === f) {
+                    btn.style.background = `linear-gradient(135deg,var(--acc-from),var(--acc-to))`;
+                    btn.style.color = '#fff';
+                } else {
+                    btn.style.background = '';
+                    btn.style.color = 'var(--t3)';
+                }
             });
             renderTicketList();
         }
@@ -901,18 +1174,22 @@
         function renderTicketList() {
             const list = document.getElementById('admin-ticket-list');
             const filtered = activeTicketFilter === 'all' ? allTickets : allTickets.filter(t => t.status === activeTicketFilter);
-            if (!filtered.length) { list.innerHTML = '<p class="text-center text-xs text-gray-400 py-6">ไม่มีข้อความ</p>'; return; }
-            const statusCls = { pending: 'bg-yellow-100 text-yellow-700', answered: 'bg-green-100 text-green-700', closed: 'bg-gray-100 text-gray-500' };
+            if (!filtered.length) { list.innerHTML = `<p class="text-center text-xs py-6" style="color:var(--t3)">ไม่มีข้อความ</p>`; return; }
+            const statusStyle = {
+                pending:  'background:rgba(234,179,8,0.15);color:#fbbf24',
+                answered: 'background:rgba(34,197,94,0.15);color:#4ade80',
+                closed:   'background:rgba(100,116,139,0.15);color:var(--t3)'
+            };
             const statusTxt = { pending: 'รอตอบ', answered: 'ตอบแล้ว', closed: 'ปิดแล้ว' };
             list.innerHTML = filtered.map(t => `
                 <button onclick="openAdminThread(${t.id})" id="atkt-${t.id}"
-                    class="w-full text-left rounded-lg px-3 py-2.5 transition hover:bg-blue-50 ${t.id === activeAdminTicketId ? 'bg-blue-50 border border-blue-200' : ''}">
+                    class="w-full text-left rounded-lg px-3 py-2.5 transition ticket-item ${t.id === activeAdminTicketId ? 'active-ticket' : ''}">
                     <div class="flex items-center justify-between gap-1 mb-0.5">
-                        <span class="text-xs font-bold text-blue-600">${escHtml(t.username)}</span>
-                        <span class="text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${statusCls[t.status] || statusCls.pending}">${statusTxt[t.status] || t.status}</span>
+                        <span class="text-xs font-bold" style="color:var(--acc)">${escHtml(t.username)}</span>
+                        <span class="text-[9px] px-1.5 py-0.5 rounded-full font-semibold" style="${statusStyle[t.status] || statusStyle.pending}">${statusTxt[t.status] || t.status}</span>
                     </div>
-                    <p class="text-xs text-gray-600 truncate">${escHtml((t.first_message || '').substring(0, 55))}</p>
-                    <p class="text-[10px] text-gray-400 mt-0.5">${formatDateTime(t.updated_at)}</p>
+                    <p class="text-xs truncate" style="color:var(--t2)">${escHtml((t.first_message || '').substring(0, 55))}</p>
+                    <p class="text-[10px] mt-0.5" style="color:var(--t3)">${formatDateTime(t.updated_at)}</p>
                 </button>`).join('');
         }
 
@@ -925,11 +1202,16 @@
             const ticket = allTickets.find(t => t.id === ticketId);
             if (ticket) {
                 document.getElementById('admin-thread-user').textContent = ticket.username;
-                const statusCls = { pending: 'bg-yellow-100 text-yellow-700', answered: 'bg-green-100 text-green-700', closed: 'bg-gray-100 text-gray-500' };
+                const statusStyle = {
+                    pending:  'background:rgba(234,179,8,0.15);color:#fbbf24',
+                    answered: 'background:rgba(34,197,94,0.15);color:#4ade80',
+                    closed:   'background:rgba(100,116,139,0.15);color:var(--t3)'
+                };
                 const statusTxt = { pending: 'รอตอบ', answered: 'ตอบแล้ว', closed: 'ปิดแล้ว' };
                 const s = document.getElementById('admin-thread-status');
                 s.textContent = statusTxt[ticket.status] || ticket.status;
-                s.className = `ml-2 text-[10px] px-2 py-0.5 rounded-full font-semibold ${statusCls[ticket.status] || statusCls.pending}`;
+                s.className = 'ml-2 text-[10px] px-2 py-0.5 rounded-full font-semibold';
+                s.style.cssText = statusStyle[ticket.status] || statusStyle.pending;
                 document.getElementById('admin-close-btn').classList.toggle('hidden', ticket.status === 'closed');
                 document.getElementById('admin-reply-input').disabled = ticket.status === 'closed';
             }
@@ -939,9 +1221,14 @@
             const msgs = document.getElementById('admin-thread-messages');
             msgs.innerHTML = d.replies.map(rep => {
                 const isUser = rep.sender_role === 'user';
+                const bubbleStyle = isUser
+                    ? 'background:var(--card-bg);border:1px solid var(--card-bd);color:var(--t1)'
+                    : 'background:linear-gradient(135deg,var(--acc-from),var(--acc-to));color:#fff';
                 return `<div class="flex ${isUser ? 'justify-start' : 'justify-end'}">
-                    <div class="max-w-[80%] rounded-2xl ${isUser ? 'rounded-bl-sm bg-gray-100 text-gray-800' : 'rounded-br-sm text-white'} px-3 py-2 text-sm leading-relaxed" style="${!isUser ? 'background:linear-gradient(135deg,#0096ff,#00bfff)' : ''}">
-                        ${isUser ? `<p class="text-[10px] font-bold text-blue-500 mb-0.5">${escHtml(ticket?.username || 'ผู้ใช้')}</p>` : '<p class="text-[10px] font-bold text-blue-100 mb-0.5">Admin</p>'}
+                    <div class="max-w-[80%] rounded-2xl ${isUser ? 'rounded-bl-sm' : 'rounded-br-sm'} px-3 py-2 text-sm leading-relaxed" style="${bubbleStyle}">
+                        ${isUser
+                            ? `<p class="text-[10px] font-bold mb-0.5" style="color:var(--acc)">${escHtml(ticket?.username || 'ผู้ใช้')}</p>`
+                            : '<p class="text-[10px] font-bold mb-0.5" style="color:rgba(255,255,255,0.7)">Admin</p>'}
                         ${escHtml(rep.message).replace(/\n/g, '<br>')}
                         <p class="text-[9px] mt-1 opacity-60">${formatDateTime(rep.created_at)}</p>
                     </div>

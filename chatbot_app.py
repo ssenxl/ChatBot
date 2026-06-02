@@ -19,6 +19,7 @@ from intent_detector import get_intent_detector
 from response_processor import get_response_processor
 from suggestion_engine import get_suggestion_engine
 from data_cache import get_data_cache
+from morning_greeting import MorningGreetingScheduler
 
 _BKK = _tz(_td(hours=7))
 
@@ -52,6 +53,7 @@ mcp_client = get_mcp_client()
 intent_detector = get_intent_detector()
 response_processor = get_response_processor()
 suggestion_engine = get_suggestion_engine()
+morning_scheduler = MorningGreetingScheduler(db)
 
 DEFAULT_CONVERSATION_TITLE = 'แชทใหม่'
 
@@ -155,6 +157,11 @@ with app.app_context():
         print("DataCache started — pre-loading booking data in background...")
     except Exception as e:
         print(f"DataCache start failed: {e}")
+    try:
+        morning_scheduler.start()
+        print("MorningGreetingScheduler started — daily greeting at 08:00")
+    except Exception as e:
+        print(f"MorningGreetingScheduler start failed: {e}")
     # ตรวจสอบ default password ที่ยังไม่ถูกเปลี่ยน
     import warnings as _w
     from werkzeug.security import check_password_hash as _cph
@@ -442,7 +449,42 @@ def dashboard():
 @app.route('/chat')
 @login_required
 def chat():
+    _try_send_morning_greeting(session['user_id'])
     return render_template('chat_enhanced.html')
+
+
+def _try_send_morning_greeting(user_id: int):
+    """ส่ง morning greeting เมื่อ user เปิด chat หลัง 08:00 ถ้ายังไม่ได้รับวันนี้"""
+    try:
+        now = _dt.now(_BKK)
+        if now.hour < 8:
+            return
+        if db.has_morning_greeting_today(user_id):
+            return
+        user = db.get_user_by_username(session.get('username', ''))
+        if not user or user.get('role') == 'admin':
+            return
+
+        from data_cache import get_data_cache as _gdc
+        _cache = _gdc()
+        mc_cached, mc_ready = _cache.get('query_machine')
+        mc_data    = mc_cached.get('data', {}) if mc_ready and mc_cached else {}
+        mc_csv     = mc_data.get('mc', '')
+        kg_ava_csv = mc_data.get('kg_ava', '')
+        booking_cached, _ = _cache.get('query_booking')
+        booking_csv = booking_cached.get('data', '') if booking_cached else ''
+        item_cached, _   = _cache.get('query_item')
+        item_csv   = item_cached.get('data', '') if item_cached else ''
+
+        from morning_greeting import build_greeting_text as _bgt
+        text = _bgt(session.get('username', ''), mc_csv, kg_ava_csv, booking_csv, item_csv)
+        today = now.date()
+        conv_id = db.create_conversation(user_id, f"I-SAVE News {today.day:02d}/{today.month:02d}")
+        db.add_message(conv_id, 'assistant', text, 'text')
+        db.record_morning_greeting(user_id, conv_id)
+    except Exception as e:
+        import logging as _log
+        _log.getLogger(__name__).warning(f"_try_send_morning_greeting failed: {e}")
 
 
 @app.route('/user-info')
@@ -812,6 +854,40 @@ def admin_cache_refresh():
     from data_cache import get_data_cache
     get_data_cache().force_refresh()
     return jsonify({'success': True, 'message': 'รีเฟรช cache เสร็จสิ้น'})
+
+
+@app.route('/admin/morning-greeting/debug-sales')
+@admin_required
+def admin_debug_sales():
+    """ตรวจสอบว่า query_sales cache มีข้อมูลอะไรบ้าง"""
+    cached, ready = get_data_cache().get('query_sales')
+    if not ready or not cached:
+        return jsonify({'ready': False, 'message': 'query_sales ยังไม่พร้อม กรุณากด Refresh Cache ก่อน'})
+    sales_map = cached.get('data', {})
+    names = [v['name'] for k, v in sales_map.items() if k != '__system__']
+    system = sales_map.get('__system__', {})
+    return jsonify({
+        'ready': True,
+        'sales_count': len(names),
+        'sales_names': names[:20],
+        'system_total': system,
+        'message': 'ถ้า sales_count = 0 แสดงว่าคอลัมน์ KNIT_SALE_NAME ไม่มีในข้อมูล หรือ cache ยังไม่ refresh'
+    })
+
+
+@app.route('/admin/morning-greeting/send', methods=['POST'])
+@admin_required
+def admin_send_morning_greeting():
+    """ส่ง morning greeting ให้ทุก user ทันที (สำหรับทดสอบ)"""
+    result = morning_scheduler.send_now()
+    if result['sent'] == 0 and result['errors'] == 0:
+        msg = 'ไม่มี user ที่ต้องส่ง (อาจส่งไปแล้ววันนี้ หรือยังไม่มี user ในระบบ)'
+    else:
+        names = ', '.join(result['usernames']) or '-'
+        msg = f"ส่งสำเร็จ {result['sent']} คน ({names})"
+        if result['errors']:
+            msg += f", ผิดพลาด {result['errors']} คน"
+    return jsonify({'success': True, 'message': msg, **result})
 
 
 # New API Endpoints for Intent Detection & MCP

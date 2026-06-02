@@ -136,7 +136,7 @@ LANGUAGE RULE (highest priority — overrides ALL template responses below):
 3. ต้องการข้อมูลหลายอย่าง → เรียก tool ได้หลายครั้ง
 4. YW = week code in format YYYYWW e.g. 202622 = year 2026 week 22
 5. Earliest plannable week = YW {min_yw} (current +2 weeks) — exclude YW below this
-6. Ava = available machines (Total − Used_N − Used_F)
+6. Ava = available machines (Total − Used_N − Used_F). KG_Ava = available production capacity in kg (from KG_Ava_Display measure). When Ava > 0, always include KG_Ava in the response (format as tons: KG_Ava/1000 with 2 decimal places, e.g. "**X.XX ตัน**"). If KG_Ava is blank/empty for a row, omit it.
 7. Be concise. Use bold (**text**) for key numbers. Use exactly ONE newline (\\n) between each bullet and between paragraphs. NEVER put multiple bullets on the same line. No blank lines (double newlines \\n\\n) anywhere in the response.
    - If tool result contains a line starting with [หมายเหตุ:...], you MUST include that warning in your response.
    - If tool result contains TOTAL_KP_WEIGHT=..., use that exact value for the total — never compute the sum yourself. Do NOT copy or show the [TOTAL_KP_WEIGHT=...] line in your response; it is for your internal use only.
@@ -158,8 +158,9 @@ LANGUAGE RULE (highest priority — overrides ALL template responses below):
 10. Week terminology: Thai responses → always use "สัปดาห์" (e.g. "สัปดาห์ที่ 22") — never "week 22" or "วีค 22". English responses → use "week" (e.g. "Week 22").
     Gauge terminology: always write "Gauge" or abbreviate as "G" (e.g. "24G", "28G") — never use "เกจ" in any language.
 11. When multiple machine groups have available capacity, give a summary first:
-    - Thai: "มีเครื่องว่างรวม **XX เครื่อง** ใน YY กลุ่ม" แล้วถามว่า "ต้องการดูรายละเอียดแต่ละกลุ่มเพิ่มเติมไหมคะ"
-    - English: "Total **XX machines** available across YY groups. Would you like details per group?"
+    - Thai: "มีเครื่องว่างรวม **XX เครื่อง** ใน YY กลุ่ม (KG_Ava รวม **Z.ZZ ตัน**)" แล้วถามว่า "ต้องการดูรายละเอียดแต่ละกลุ่มเพิ่มเติมไหมคะ"
+    - English: "Total **XX machines** available across YY groups (KG_Ava: **Z.ZZ tons**). Would you like details per group?"
+    - Include KG_Ava only when KG_Ava column has values; omit the "(KG_Ava ...)" part if blank.
 12. If no Item or group is specified, give an overview:
     - Thai: "พบ Item ในแผนทั้งหมด [จำนวน] รายการ อยู่ใน [จำนวน] กลุ่มเครื่อง เช่น [รายชื่อกลุ่มหลัก]\nKP_Weight รวม [ยอดรวม] ตัน\nต้องการดูรายละเอียดเพิ่มเติมไหมคะ เช่น Item, กลุ่มเครื่อง, Gauge หรือช่วงสัปดาห์"
     - English: "Found [count] items in the plan across [count] machine groups (e.g. [main groups]).\nTotal KP_Weight: [total] tons.\nWould you like more details by item, group, Gauge, or week range?"
@@ -209,7 +210,8 @@ TOOLS = [
             "description": (
                 "ดึงข้อมูลกำลังการผลิต Table_MC: "
                 "YW=สัปดาห์, Group=กลุ่มเครื่อง, Guage=gauge (column name in DB is misspelled), "
-                "Total=เครื่องทั้งหมด, Used_N=ใช้ Normal, Used_F=ใช้ FQC, Ava=เครื่องว่าง. "
+                "Total=เครื่องทั้งหมด, Used_N=ใช้ Normal, Used_F=ใช้ FQC, Ava=เครื่องว่าง, "
+                "KG_Ava=กำลังการผลิตที่ว่างในหน่วย kg (มีค่าเฉพาะแถวที่ Ava > 0). "
                 "ใช้ตอบคำถามเรื่องเครื่องว่าง, กำลังการผลิต, เครื่องทั้งหมดในกลุ่ม"
             ),
             "parameters": {
@@ -374,8 +376,19 @@ class ResponseProcessor:
         if not csv_text:
             return "ไม่มีข้อมูล Machine Capacity"
 
+        # Build KG_Ava lookup: (yw, group) -> kg_ava
+        kg_ava_lookup: dict = {}
+        kg_ava_csv = data.get('kg_ava', '') if isinstance(data, dict) else ''
+        if kg_ava_csv:
+            for line in kg_ava_csv.splitlines()[1:]:
+                parts = line.split(',')
+                if len(parts) >= 3:
+                    try:
+                        kg_ava_lookup[(parts[0].strip(), parts[1].strip().lower())] = float(parts[2].strip())
+                    except ValueError:
+                        pass
+
         lines = csv_text.splitlines()
-        header = lines[0]
         # columns: YW,Group,Guage,Total,Used_N,Used_F,Ava
 
         yw_filter = None
@@ -391,6 +404,7 @@ class ResponseProcessor:
             yw_col = cols[0].strip() if len(cols) > 0 else ''
             group_col = cols[1].strip().lower() if len(cols) > 1 else ''
             gauge_col = cols[2].strip() if len(cols) > 2 else ''
+            ava_col = cols[6].strip() if len(cols) > 6 else ''
 
             if yw_filter and yw_col != yw_filter:
                 continue
@@ -398,11 +412,22 @@ class ResponseProcessor:
                 continue
             if gauge and gauge_col != gauge:
                 continue
-            result.append(line)
+
+            # เพิ่ม KG_Ava ต่อท้าย line เมื่อเครื่องว่าง (Ava > 0)
+            try:
+                ava_val = float(ava_col) if ava_col else 0.0
+            except ValueError:
+                ava_val = 0.0
+            kg_ava_val = kg_ava_lookup.get((yw_col, group_col))
+            if kg_ava_val is not None and ava_val > 0:
+                result.append(f"{line},{kg_ava_val:.2f}")
+            else:
+                result.append(f"{line},")
 
         if result:
             min_yw = _min_plannable_yw()
             note = f"[หมายเหตุ: week เร็วที่สุดที่วางแผนได้ = YW {min_yw}]\n"
+            header = "YW,Group,Guage,Total,Used_N,Used_F,Ava,KG_Ava"
             return header + '\n' + '\n'.join(result) + '\n' + note
         return f"ไม่พบข้อมูล Machine Capacity (group={group}, week={week}, gauge={gauge})"
 
@@ -633,6 +658,18 @@ class ResponseProcessor:
                     except ValueError:
                         pass
 
+        # KG_Ava รวมของ snapshot week
+        total_kg_ava = 0.0
+        kg_ava_csv = data.get('kg_ava', '') if isinstance(data, dict) else ''
+        if kg_ava_csv:
+            for ka_line in kg_ava_csv.splitlines()[1:]:
+                ka_cols = ka_line.split(',')
+                if len(ka_cols) >= 3 and ka_cols[0].strip() == snapshot_yw:
+                    try:
+                        total_kg_ava += float(ka_cols[2].strip())
+                    except ValueError:
+                        pass
+
         n_main = len(all_groups)
         n_sub = len(all_subgroups)
         tightest_util_pct = round(group_util.get(tightest_group, 0) * 100)
@@ -652,7 +689,10 @@ class ResponseProcessor:
                 f"กลุ่มที่ Capacity ค่อนข้างตึงคือ **{tightest_group}** "
                 f"(ใช้ไปแล้ว {tightest_util_pct}% เครื่องว่าง {tightest_ava} เครื่อง)"
             )
-        out_lines.append(f"เครื่องว่างรวม **{int(total_ava)} เครื่อง** จาก {int(total_machines)} เครื่องทั้งหมด")
+        ava_line = f"เครื่องว่างรวม **{int(total_ava)} เครื่อง** จาก {int(total_machines)} เครื่องทั้งหมด"
+        if total_kg_ava > 0 and total_ava > 0:
+            ava_line += f" (KG_Ava รวม **{total_kg_ava/1000:.2f} ตัน**)"
+        out_lines.append(ava_line)
         out_lines.append("ถ้าต้องการดูรายละเอียดเพิ่มเติม สามารถเลือกกลุ่มเครื่อง หรือระบุสัปดาห์ที่ต้องการได้เลยค่ะ")
 
         return '\n'.join(out_lines)
@@ -750,6 +790,19 @@ class ResponseProcessor:
 
         remaining_kp = total_kp_all - snapshot_kp
 
+        # KG_Ava รวมของ snapshot week
+        total_kg_ava = 0.0
+        cap_cached, _ = get_data_cache().get('query_cap_ava')
+        if cap_cached:
+            kg_ava_csv = cap_cached.get('data', {}).get('kg_ava', '') if isinstance(cap_cached.get('data'), dict) else ''
+            for ka_line in kg_ava_csv.splitlines()[1:]:
+                ka_cols = ka_line.split(',')
+                if len(ka_cols) >= 3 and ka_cols[0].strip() == snapshot_yw:
+                    try:
+                        total_kg_ava += float(ka_cols[2].strip())
+                    except ValueError:
+                        pass
+
         # Per-group utilization %
         group_util_pct = {
             g: (group_used[g] / group_total[g] * 100) if group_total.get(g, 0) > 0 else 0
@@ -771,8 +824,11 @@ class ResponseProcessor:
             out.append(f"- Capacity รวมทั้งหมด (KP Weight ทุกสัปดาห์) : **{total_kp_all/1000:.2f} ตัน**")
             out.append(f"- ใช้งานไปแล้ว (สัปดาห์ที่ {week_num}) : **{snapshot_kp/1000:.2f} ตัน**")
             out.append(f"- Capacity คงเหลือในแผน : **{remaining_kp/1000:.2f} ตัน**")
+        mc_ava_line = f"- เครื่องทั้งหมด : **{int(total_machines)} เครื่อง** | ใช้งาน **{int(total_used)}** | ว่าง **{int(total_ava)}**"
+        if total_kg_ava > 0 and total_ava > 0:
+            mc_ava_line += f" | KG_Ava **{total_kg_ava/1000:.2f} ตัน**"
         out += [
-            f"- เครื่องทั้งหมด : **{int(total_machines)} เครื่อง** | ใช้งาน **{int(total_used)}** | ว่าง **{int(total_ava)}**",
+            mc_ava_line,
             f"- % การใช้ Capacity เฉลี่ย : **{round(util_pct, 1)}%**",
             "",
             "จากภาพรวมตอนนี้",
@@ -977,7 +1033,8 @@ class ResponseProcessor:
         for g in sorted_groups[:6]:
             n_items = len(group_items[g])
             kp = int(group_kp[g])
-            out.append(f"- **{g}** : {n_items} Item / {kp/1000:.2f} ตัน")
+            label = g if g else '(ไม่ระบุกลุ่ม)'
+            out.append(f"- **{label}** : {n_items} Item / {kp/1000:.2f} ตัน")
 
         out += [
             "",
