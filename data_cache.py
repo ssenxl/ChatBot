@@ -16,6 +16,8 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 REFRESH_HOURS = (5, 12, 20)  # 05:00, 12:00, 20:00
+_RETRY_SECS = 300         # หน่วงก่อน retry เมื่อ refresh ดึง Power BI ล้มเหลว (5 นาที)
+_MAX_QUICK_RETRIES = 3    # จำนวน retry เร็วก่อนกลับไปรอ schedule ปกติ
 
 _TABLE_BOOKING = os.getenv('TABLE_NAME', 'BookingMaster')
 _TABLE_MC = os.getenv('TABLE_NAME_MC', 'Table_MC')
@@ -181,17 +183,34 @@ class DataCache:
         logger.info("DataCache: background thread started — loading data from Power BI...")
 
     def _run(self):
-        self._refresh_all()
+        ok = self._refresh_all()
+        retries = 0
 
         while True:
-            next_time = self._next_refresh_time()
+            if not ok and retries < _MAX_QUICK_RETRIES:
+                # refresh รอบล่าสุดมี fetch ที่ล้มเหลว — ลองใหม่เร็วๆ แทนการรอ schedule ถัดไป
+                retries += 1
+                next_time = datetime.now() + timedelta(seconds=_RETRY_SECS)
+                logger.warning(
+                    f"DataCache: last refresh had fetch errors — quick retry #{retries}/{_MAX_QUICK_RETRIES} "
+                    f"in {_RETRY_SECS}s"
+                )
+            else:
+                if not ok:
+                    logger.error(
+                        f"DataCache: refresh still failing after {_MAX_QUICK_RETRIES} retries — "
+                        f"falling back to normal schedule"
+                    )
+                retries = 0
+                next_time = self._next_refresh_time()
+                logger.info(f"DataCache: next refresh at {next_time.strftime('%H:%M')}")
+
             with self._lock:
                 self._next_refresh = next_time
             sleep_secs = max((next_time - datetime.now()).total_seconds(), 0)
-            logger.info(f"DataCache: next refresh at {next_time.strftime('%H:%M')} (in {sleep_secs/3600:.1f}h)")
             time.sleep(sleep_secs)
-            logger.info("DataCache: scheduled refresh starting...")
-            self._refresh_all()
+            logger.info("DataCache: refresh starting...")
+            ok = self._refresh_all()
 
     def _next_refresh_time(self) -> datetime:
         now = datetime.now()
@@ -206,7 +225,11 @@ class DataCache:
             candidates = [datetime.combine(tomorrow, dt_time(REFRESH_HOURS[0], 0))]
         return min(candidates)
 
-    def _refresh_all(self):
+    def _refresh_all(self) -> bool:
+        """ดึงข้อมูลทั้งหมดจาก Power BI. คืน True ถ้าทุก fetch สำเร็จ,
+        False ถ้ามีอย่างน้อย 1 fetch ล้มเหลว (ให้ caller สั่ง retry เร็วได้)"""
+        fetch_failed = False
+
         # --- ดึง BookingMaster ---
         booking_rows = []
         try:
@@ -215,6 +238,7 @@ class DataCache:
             logger.info(f"DataCache: BookingMaster loaded — {len(booking_rows)} rows")
         except Exception as e:
             logger.error(f"DataCache: failed to load BookingMaster: {e}")
+            fetch_failed = True
 
         # --- ดึง Table_MC ---
         mc_rows = []
@@ -224,6 +248,7 @@ class DataCache:
             logger.info(f"DataCache: Table_MC loaded — {len(mc_rows)} rows")
         except Exception as e:
             logger.error(f"DataCache: failed to load Table_MC: {e}")
+            fetch_failed = True
 
         # --- ดึง Table_Item ---
         item_rows = []
@@ -233,6 +258,7 @@ class DataCache:
             logger.info(f"DataCache: Table_Item loaded — {len(item_rows)} rows")
         except Exception as e:
             logger.error(f"DataCache: failed to load Table_Item: {e}")
+            fetch_failed = True
 
         # --- Aggregate Table_MC: group by YW + Master.MC ---
         mc_summary = _aggregate_mc(mc_rows)
@@ -255,6 +281,7 @@ class DataCache:
             logger.info(f"DataCache: KG_Ava_Display loaded — {len(kg_ava_rows)} rows")
         except Exception as e:
             logger.error(f"DataCache: failed to fetch KG_Ava_Display: {e}")
+            fetch_failed = True
 
         with self._lock:
             if mc_summary or booking_summary:
@@ -291,6 +318,8 @@ class DataCache:
                 'table_mc': len(mc_rows),
                 'table_item': len(item_rows),
             }
+
+        return not fetch_failed
 
     def get(self, key: str) -> Tuple[Optional[dict], bool]:
         with self._lock:

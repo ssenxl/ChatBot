@@ -17,3 +17,4 @@ openai>=1.0.0
 oracledb>=1.4.0
 psycopg2-binary>=2.9.0
 flask-wtf>=1.2.0
+pytest>=8.0.0  # dev: รัน `pytest tests/` เพื่อเก็บ regression

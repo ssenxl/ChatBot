@@ -1,9 +1,7 @@
-from collections import defaultdict
 from functools import wraps
 import asyncio
 import os
 from pathlib import Path
-import threading
 import time
 
 from datetime import datetime as _dt, timezone as _tz, timedelta as _td
@@ -57,23 +55,8 @@ morning_scheduler = MorningGreetingScheduler(db)
 
 DEFAULT_CONVERSATION_TITLE = 'แชทใหม่'
 
-_rate_lock = threading.Lock()
-_rate_attempts: dict = defaultdict(list)
-_RATE_WINDOW = 300   # 5 นาที
-_RATE_MAX_LOGIN = 10
-_RATE_MAX_FORGOT = 5
+from rate_limit import is_rate_limited as _is_rate_limited  # noqa: E402
 
-
-def _is_rate_limited(ip: str, bucket: str = 'login') -> bool:
-    max_attempts = _RATE_MAX_FORGOT if bucket == 'forgot' else _RATE_MAX_LOGIN
-    now = time.time()
-    key = f"{bucket}:{ip}"
-    with _rate_lock:
-        _rate_attempts[key] = [t for t in _rate_attempts[key] if now - t < _RATE_WINDOW]
-        if len(_rate_attempts[key]) >= max_attempts:
-            return True
-        _rate_attempts[key].append(now)
-        return False
 REQUIRED_SESSION_KEYS = ('user_id', 'username', 'user_role', 'user_email')
 SIGNUP_EMAIL_COLUMN = os.getenv('SIGNUP_EMAIL_COLUMN', 'EMPLOYEE_EMAIL').strip() or 'EMPLOYEE_EMAIL'
 SIGNUP_EMAIL_SOURCE_FILE = Path(
@@ -559,6 +542,13 @@ def send_message(conversation_id):
 
     if not message:
         return jsonify({'success': False, 'message': 'กรุณากรอกข้อความ'}), 400
+
+    # กัน spam/abuse: จำกัดจำนวนข้อความต่อ user ต่อช่วงเวลา (key ด้วย user_id ไม่ใช่ IP)
+    if _is_rate_limited(str(user_id), 'chat'):
+        return jsonify({
+            'success': False,
+            'message': 'คุณส่งข้อความถี่เกินไป กรุณารอสักครู่แล้วลองใหม่อีกครั้งนะคะ',
+        }), 429
 
     # ดึง history ก่อนบันทึกข้อความปัจจุบัน เพื่อให้ได้ context ที่ถูกต้อง
     conv_history = db.get_conversation_messages(conversation_id, user_id)

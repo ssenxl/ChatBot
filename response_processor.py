@@ -13,6 +13,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 MAX_TOOL_ITERATIONS = 5
+OPENAI_MAX_RETRIES = 2  # จำนวนครั้งที่ลองเรียก OpenAI ซ้ำเมื่อ API พลาด (รวมครั้งแรกเป็น 3)
+OPENAI_RETRY_BACKOFF = 0.8  # วินาที, หน่วงก่อน retry (เพิ่มขึ้นแบบ exponential)
 
 
 @dataclass
@@ -1352,20 +1354,35 @@ class ResponseProcessor:
         loop = asyncio.get_running_loop()
 
         for _ in range(MAX_TOOL_ITERATIONS):
-            try:
-                response = await loop.run_in_executor(
-                    None,
-                    lambda: self._openai.chat.completions.create(
-                        model=self._model,
-                        messages=messages,
-                        tools=TOOLS,
-                        tool_choice="auto",
-                        max_completion_tokens=1500,
-                    ),
+            response = None
+            last_error: Optional[Exception] = None
+            for attempt in range(OPENAI_MAX_RETRIES + 1):
+                try:
+                    response = await loop.run_in_executor(
+                        None,
+                        lambda: self._openai.chat.completions.create(
+                            model=self._model,
+                            messages=messages,
+                            tools=TOOLS,
+                            tool_choice="auto",
+                            max_completion_tokens=1500,
+                        ),
+                    )
+                    break
+                except Exception as e:
+                    last_error = e
+                    logger.error(f"OpenAI API error (attempt {attempt + 1}/{OPENAI_MAX_RETRIES + 1}): {e}")
+                    if attempt < OPENAI_MAX_RETRIES:
+                        await asyncio.sleep(OPENAI_RETRY_BACKOFF * (2 ** attempt))
+
+            if response is None:
+                # ลองครบทุกครั้งแล้วยังพลาด — ซ่อนรายละเอียด error ดิบจาก user (log ไว้แล้วด้านบน)
+                logger.error(f"OpenAI API failed after {OPENAI_MAX_RETRIES + 1} attempts: {last_error}")
+                err_msg = (
+                    "Sorry, the AI system is temporarily unavailable. Please try again shortly."
+                    if lang == 'english'
+                    else "ขออภัยค่ะ ระบบ AI ขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้งในอีกสักครู่นะคะ"
                 )
-            except Exception as e:
-                logger.error(f"OpenAI API error: {e}")
-                err_msg = f"Sorry, the AI system is temporarily unavailable. ({e})" if lang == 'english' else f"ขออภัยค่ะ ระบบ AI ขัดข้องชั่วคราว ({e})"
                 return ProcessedResponse(
                     message=err_msg,
                     response_type='text',
