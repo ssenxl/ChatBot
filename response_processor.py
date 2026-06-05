@@ -79,9 +79,85 @@ def _min_plannable_yw() -> str:
     return f"{iso[0]}{iso[1]:02d}"
 
 
+def _yw_from_date(d: datetime) -> str:
+    iso = d.isocalendar()
+    return f"{iso[0]}{iso[1]:02d}"
+
+
+def _add_months(d: datetime, months: int) -> datetime:
+    """เลื่อนเดือน รองรับข้ามปี (วันที่ 1 ของเดือนเป้าหมาย)"""
+    m = d.month - 1 + months
+    year = d.year + m // 12
+    month = m % 12 + 1
+    return datetime(year, month, 1)
+
+
+def _yws_in_month(year: int, month: int) -> list:
+    """คืน YW ทุกสัปดาห์ที่คาบเกี่ยวกับเดือนนั้น"""
+    yws = []
+    d = datetime(year, month, 1)
+    while d.month == month:
+        yw = _yw_from_date(d)
+        if yw not in yws:
+            yws.append(yw)
+        d += timedelta(days=1)
+    return yws
+
+
 def _week_keyword_to_yw(text: str) -> list:
-    year = datetime.now().year
+    """แปลงคำพูดเรื่องสัปดาห์/เดือนเป็น YW (YYYYWW) — รองรับทั้งแบบระบุเลขและแบบสัมพัทธ์
+    เช่น 'สัปดาห์นี้/หน้า/ที่แล้ว', 'อีก 3 สัปดาห์', 'เดือนนี้/หน้า/ที่แล้ว',
+    'this/next/last week', 'in 3 weeks', 'this/next/last month'."""
+    now = datetime.now()
+    year = now.year
+    t = text.lower()
     yw_list = []
+
+    def _add(yw):
+        if yw not in yw_list:
+            yw_list.append(yw)
+
+    # --- relative weeks (อีก N / N ที่แล้ว) ---
+    # จับ N-pattern ก่อน แล้วตัดส่วนที่จับได้ออกจาก t_single เพื่อไม่ให้ pattern เดี่ยวแมตช์ซ้อน
+    t_single = t
+    n_patterns = [
+        (r'(?:อีก|in|after)\s*(\d{1,2})\s*(?:สัปดาห์|อาทิตย์|weeks?)', 1),
+        (r'(\d{1,2})\s*(?:สัปดาห์|อาทิตย์|weeks?)\s*(?:ข้างหน้า|ถัดไป|จากนี้|from now|ahead|later)', 1),
+        (r'(\d{1,2})\s*(?:สัปดาห์|อาทิตย์|weeks?)\s*(?:ที่แล้ว|ก่อน|ago|earlier)', -1),
+    ]
+    for pat, sign in n_patterns:
+        for m in re.finditer(pat, t):
+            _add(_yw_from_date(now + timedelta(weeks=sign * int(m.group(1)))))
+        t_single = re.sub(pat, ' ', t_single)
+
+    # --- single relative week (หาใน t_single ที่ตัด N-pattern ออกแล้ว) ---
+    if re.search(r'สัปดาห์หน้า|อาทิตย์หน้า|สัปดาห์ถัดไป|อาทิตย์ถัดไป|next\s*week', t_single):
+        _add(_yw_from_date(now + timedelta(weeks=1)))
+    if re.search(r'สัปดาห์ที่แล้ว|อาทิตย์ที่แล้ว|สัปดาห์ก่อน|อาทิตย์ก่อน|last\s*week|previous\s*week', t_single):
+        _add(_yw_from_date(now - timedelta(weeks=1)))
+    if re.search(r'สัปดาห์นี้|อาทิตย์นี้|this\s*week', t_single):
+        _add(_yw_from_date(now))
+
+    # --- months (range of weeks) ---
+    if re.search(r'เดือนนี้|this\s*month', t):
+        for yw in _yws_in_month(now.year, now.month):
+            _add(yw)
+    if re.search(r'เดือนหน้า|เดือนถัดไป|next\s*month', t):
+        nm = _add_months(now, 1)
+        for yw in _yws_in_month(nm.year, nm.month):
+            _add(yw)
+    if re.search(r'เดือนที่แล้ว|เดือนก่อน|last\s*month|previous\s*month', t):
+        pm = _add_months(now, -1)
+        for yw in _yws_in_month(pm.year, pm.month):
+            _add(yw)
+
+    # --- explicit 6-digit YW (e.g. 202627) ---
+    for m in re.finditer(r'\b(20\d{2})(\d{2})\b', text):
+        wk = int(m.group(2))
+        if 1 <= wk <= 53:
+            _add(f"{m.group(1)}{wk:02d}")
+
+    # --- explicit week number (week 22 / wk22 / w22 / สัปดาห์ที่ 22) ---
     patterns = [
         r'\bweek\s*(\d{1,2})\b',
         r'\bwk(\d{1,2})\b',
@@ -89,12 +165,11 @@ def _week_keyword_to_yw(text: str) -> list:
         r'สัปดาห์(?:ที่)?\s*(\d{1,2})',
     ]
     for pattern in patterns:
-        for m in re.finditer(pattern, text.lower()):
+        for m in re.finditer(pattern, t):
             week_num = int(m.group(1))
             if 1 <= week_num <= 53:
-                yw = f"{year}{week_num:02d}"
-                if yw not in yw_list:
-                    yw_list.append(yw)
+                _add(f"{year}{week_num:02d}")
+
     return yw_list
 
 
@@ -124,17 +199,20 @@ LANGUAGE RULE (highest priority — overrides ALL template responses below):
 - get_machine_capacity : กำลังการผลิต (Total, Used_N, Used_F, Ava=available machines)
 - get_booking          : การจองเครื่องต่อกลุ่มต่อสัปดาห์
 - get_knit_plan        : แผนการทอ (item, กลุ่ม, KP_Weight ตามสัปดาห์)
+- render_chart         : วาดกราฟ/แผนภูมิ (เรียกเมื่อ user ขอกราฟเท่านั้น)
 
 กฎสำคัญ:
 1. ตอบเฉพาะคำถามที่ user ถามใน message ปัจจุบันเท่านั้น — ห้ามนำคำถามหรือคำตอบจาก message ก่อนหน้ามาตอบซ้ำในรอบนี้ไม่ว่ากรณีใดทั้งสิ้น:
    - ห้ามเด็ดขาด: รวม/สรุป/ย้ำคำตอบเก่าไว้ในคำตอบปัจจุบัน แม้จะ "เพื่อความสะดวก" หรือ "สรุปให้ครบ"
    - ห้ามเด็ดขาด: ขึ้นต้นคำตอบด้วย "ขอตอบแยก 2 คำถาม" หรือ format ที่รวมหลายรอบคำถามเข้าด้วยกัน
-   - ต้องตอบใหม่: item/กลุ่ม/สัปดาห์เดิมแต่ถามคนละประเด็น, ถามเพิ่มเงื่อนไข, ถามซ้ำจริงๆ
-   - ห้าม re-fetch ข้อมูลชุดเดิมที่ตอบไปแล้วทุกประเด็นครบถ้วนแล้ว
+   - ถ้า user ถามซ้ำหรือวนกลับมาถามคำถามเดิมใน message ใหม่ → ให้ call tool ใหม่เสมอ ห้ามนำคำตอบเก่าจาก history มาตอบแทน
+   - ห้าม re-fetch ข้อมูลชุดเดิมในรอบเดียวกัน (same tool-call loop) เท่านั้น ไม่ใช่ข้ามรอบสนทนา
    - ถ้า message ใหม่ไม่ได้ถามเรื่องข้อมูล ห้ามเรียก tool เด็ดขาด
 2. ถ้าคำถามเกี่ยวกับข้อมูลในระบบ ให้เรียก tool ก่อนเสมอ อย่าตอบจากความรู้ตัวเอง
 3. ต้องการข้อมูลหลายอย่าง → เรียก tool ได้หลายครั้ง
 4. YW = week code in format YYYYWW e.g. 202622 = year 2026 week 22
+   - วันนี้คือ {today} (สัปดาห์ปัจจุบัน = YW {current_yw}). ใช้ค่านี้อ้างอิงเมื่อ user พูดถึงเวลาแบบสัมพัทธ์
+   - เมื่อ user พูดถึงสัปดาห์/เดือนแบบคำพูด (สัปดาห์นี้/หน้า/ที่แล้ว, อีก N สัปดาห์, เดือนนี้/หน้า/ที่แล้ว, this/next/last week, this/next/last month) ให้ส่งวลีนั้นเป็น argument `week` ของ tool ตรงๆ — ระบบจะแปลงเป็น YW ให้เอง ห้ามเดา YW เอง
 5. Earliest plannable week = YW {min_yw} (current +2 weeks) — exclude YW below this
 6. Ava = available machines (Total − Used_N − Used_F). KG_Ava = available production capacity in kg (from KG_Ava_Display measure). When Ava > 0, always include KG_Ava in the response (format as tons: KG_Ava/1000 with 2 decimal places, e.g. "**X.XX ตัน**"). If KG_Ava is blank/empty for a row, omit it.
 7. Be concise. Use bold (**text**) for key numbers. Use exactly ONE newline (\\n) between each bullet and between paragraphs. NEVER put multiple bullets on the same line. No blank lines (double newlines \\n\\n) anywhere in the response.
@@ -144,6 +222,11 @@ LANGUAGE RULE (highest priority — overrides ALL template responses below):
    - Thai: "สวัสดีค่ะ น้อง I-SAVE Chatbot ค่ะพี่ๆ สามารถสอบถามข้อมูล หรือพิมพ์คำถามที่ต้องการได้เลยนะคะ น้องยินดีช่วยเหลือค่ะ"
    - English: "Hello! I'm I-SAVE Chatbot. Feel free to ask me anything about the I-SAVE system. I'm happy to help!"
    - คำถามเช่น "มีอะไรบ้าง", "ดูข้อมูล", "มีข้อมูลอะไร" ไม่ใช่การทักทาย → ให้ถือว่าถามภาพรวม I-SAVE แล้วตอบตามข้อ 12
+   - Small-talk / courtesy (ขอบคุณ, ขอบใจ, thanks, thank you, โอเค, ok, เยี่ยม, ดีมาก, เก่งมาก, บาย, bye, ลาก่อน) — DO NOT call any tool and DO NOT use the rejection message in rule 9. Reply warmly and briefly, then invite the next question:
+     - Thai (ขอบคุณ/ชม): "ยินดีค่ะ 😊 ถ้ามีอะไรให้ช่วยเพิ่มเติม สอบถามน้องได้เลยนะคะ"
+     - Thai (ลา/บาย): "ขอบคุณค่ะ แล้วพบกันใหม่นะคะ 😊"
+     - English (thanks/praise): "You're welcome! 😊 Feel free to ask if you need anything else."
+     - English (goodbye): "Thank you! See you next time. 😊"
 9. FIRST check: does the message relate to any of these I-SAVE topics?
    → items / item codes / item plan / แผน item / ข้อมูล item
    → machine groups / เครื่องจักร / เครื่องทอ / ข้อมูลเครื่อง
@@ -171,7 +254,14 @@ LANGUAGE RULE (highest priority — overrides ALL template responses below):
     - Thai: "Item {{actual_item_code}} สามารถทอได้ที่กลุ่มเครื่อง {{actual_group_name}} โดยมีรายละเอียดแผนทอ ดังนี้\n1.สัปดาห์ที่ {{actual_YW}} จำนวน {{actual_KP_Weight}} ตัน\n...\nหากต้องการสอบถามเรื่องไหนเพิ่มเติม สามารถพิมพ์สอบถามได้เลยค่ะ"
     - English: "Item {{actual_item_code}} can be knitted at machine group {{actual_group_name}}. Knitting plan details:\n1. Week {{actual_YW}}: {{actual_KP_Weight}} tons\n...\nFeel free to ask if you need more information."
     - Always convert KP_Weight from kg to tons (divide by 1000) and display with "ตัน" (Thai) or "tons" (English). E.g. 859739 kg → 859.74 ตัน
-    - If item spans multiple groups, list each group separately"""
+    - If item spans multiple groups, list each group separately
+15. Charts/graphs (กราฟ, แผนภูมิ, chart, plot, วาดกราฟ): ONLY when the user explicitly asks for one.
+    - Step 1: call the data tool(s) first (get_item_plan ฯลฯ) to get REAL values. NEVER invent numbers.
+    - Step 2: call render_chart with those real values. Convert KP_Weight kg→tons (÷1000) before putting into data.
+    - chart_type: 'line' = trend over weeks (แนวโน้มรายสัปดาห์), 'bar' = compare weeks/groups, 'pie'/'doughnut' = proportions/สัดส่วน. If user names a type, use it.
+    - labels = x-axis (เช่น สัปดาห์ YW), each dataset.data must align 1:1 with labels.
+    - After render_chart, write only a SHORT caption (1-2 lines). Do NOT re-list every number — the chart already shows them.
+    - If there is no data to plot (tool returned not found), do NOT call render_chart; reply that there is no data to chart."""
 
 TOOLS = [
     {
@@ -196,7 +286,7 @@ TOOLS = [
                     },
                     "week": {
                         "type": "string",
-                        "description": "กรองเฉพาะสัปดาห์ เช่น week22, wk22, 202622"
+                        "description": "สัปดาห์ — ส่งได้ทั้งเลข (week22, wk22, 202622) และคำพูดสัมพัทธ์ตรงๆ เช่น 'สัปดาห์นี้/หน้า/ที่แล้ว', 'อีก 3 สัปดาห์', 'เดือนนี้/หน้า/ที่แล้ว' (ระบบคำนวณ YW ให้เอง). ไม่ระบุ = ทุกสัปดาห์"
                     }
                 },
                 "required": []
@@ -223,7 +313,7 @@ TOOLS = [
                     },
                     "week": {
                         "type": "string",
-                        "description": "สัปดาห์ เช่น week22, wk22, 202622 ถ้าไม่ระบุจะคืนทุกสัปดาห์"
+                        "description": "สัปดาห์ — ส่งได้ทั้งเลข (week22, wk22, 202622) และคำพูดสัมพัทธ์ตรงๆ เช่น 'สัปดาห์นี้/หน้า/ที่แล้ว', 'อีก 3 สัปดาห์', 'เดือนนี้/หน้า/ที่แล้ว' (ระบบคำนวณ YW ให้เอง). ไม่ระบุ = ทุกสัปดาห์"
                     },
                     "gauge": {
                         "type": "string",
@@ -252,7 +342,7 @@ TOOLS = [
                     },
                     "week": {
                         "type": "string",
-                        "description": "สัปดาห์ ถ้าไม่ระบุจะคืนทุกสัปดาห์"
+                        "description": "สัปดาห์ — ส่งได้ทั้งเลข (week22, 202622) และคำพูดสัมพัทธ์ตรงๆ เช่น 'สัปดาห์นี้/หน้า/ที่แล้ว', 'อีก 3 สัปดาห์', 'เดือนนี้/หน้า/ที่แล้ว'. ไม่ระบุ = ทุกสัปดาห์"
                     }
                 },
                 "required": []
@@ -273,7 +363,7 @@ TOOLS = [
                 "properties": {
                     "week": {
                         "type": "string",
-                        "description": "สัปดาห์ ถ้าไม่ระบุจะคืนทุกสัปดาห์"
+                        "description": "สัปดาห์ — ส่งได้ทั้งเลข (week22, 202622) และคำพูดสัมพัทธ์ตรงๆ เช่น 'สัปดาห์นี้/หน้า/ที่แล้ว', 'อีก 3 สัปดาห์', 'เดือนนี้/หน้า/ที่แล้ว'. ไม่ระบุ = ทุกสัปดาห์"
                     },
                     "group": {
                         "type": "string",
@@ -287,6 +377,58 @@ TOOLS = [
                 "required": []
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "render_chart",
+            "description": (
+                "วาดกราฟ/แผนภูมิให้ผู้ใช้ เรียกใช้เมื่อผู้ใช้ขอกราฟ/แผนภูมิ/chart/plot/วาดกราฟ เท่านั้น. "
+                "ต้องเรียก tool ดึงข้อมูล (get_item_plan ฯลฯ) ให้ได้ค่าจริงก่อน แล้วนำตัวเลขจริงมาใส่. "
+                "เลือก chart_type: 'line'=แนวโน้มตามสัปดาห์, 'bar'=เปรียบเทียบ (สัปดาห์/กลุ่ม), "
+                "'pie'/'doughnut'=สัดส่วน. labels และ data ต้องยาวเท่ากัน. แปลง KP_Weight เป็นตัน (kg/1000) ก่อนใส่"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "chart_type": {
+                        "type": "string",
+                        "enum": ["bar", "line", "pie", "doughnut"],
+                        "description": "ชนิดกราฟ"
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "หัวข้อกราฟ เช่น 'แผนทอ F100114/10A0 รายสัปดาห์ (ตัน)'"
+                    },
+                    "labels": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "ป้ายแกน X เช่น ['202615','202617','202618']"
+                    },
+                    "datasets": {
+                        "type": "array",
+                        "description": "ชุดข้อมูล แต่ละชุด = {label, data}. ปกติมีชุดเดียว",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "label": {"type": "string", "description": "ชื่อชุดข้อมูล เช่น 'KP Weight (ตัน)'"},
+                                "data": {
+                                    "type": "array",
+                                    "items": {"type": "number"},
+                                    "description": "ค่าตัวเลข เรียงตรงกับ labels"
+                                }
+                            },
+                            "required": ["label", "data"]
+                        }
+                    },
+                    "y_label": {
+                        "type": "string",
+                        "description": "ชื่อแกน Y เช่น 'ตัน' (ไม่บังคับ)"
+                    }
+                },
+                "required": ["chart_type", "labels", "datasets"]
+            }
+        }
     }
 ]
 
@@ -296,9 +438,12 @@ class ResponseProcessor:
         self._openai = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         self._model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
-    def _build_history_messages(self, conversation_history: list, limit: int = 6) -> list:
+    def _build_history_messages(self, conversation_history: list, limit: int = 12) -> list:
+        # conversation_history มาจาก get_conversation_messages ที่ดึง "ก่อน" บันทึก message ปัจจุบัน
+        # (chatbot_app.send_message) → element สุดท้ายคือคำตอบ assistant ของรอบก่อน ต้องเก็บไว้
+        # ห้าม slice [:-1] เพราะจะตัดคำตอบรอบก่อนทิ้ง ทำให้โมเดลคิดว่าคำถามเก่ายังไม่ถูกตอบแล้วตอบซ้ำ
         messages = []
-        recent = conversation_history[-(limit + 1):-1] if len(conversation_history) > 1 else []
+        recent = conversation_history[-limit:]
         for msg in recent:
             role = msg.get('sender') or msg.get('role') or msg.get('message_type', '')
             content = msg.get('content') or msg.get('message', '')
@@ -327,9 +472,14 @@ class ResponseProcessor:
         yw_filter = None
         if week:
             yws = _week_keyword_to_yw(week)
-            yw_filter = yws[0] if yws else (week if re.match(r'^\d{6}$', week) else None)
+            if not yws and re.match(r'^\d{6}$', week.strip()):
+                yws = [week.strip()]
+            yw_filter = set(yws) if yws else None
 
         result = []
+        exact_match = []
+        prefix_match = []
+        ic = item_code.strip().upper() if item_code else None
         for line in lines[1:]:
             cols = line.split(',')
             if not cols:
@@ -338,18 +488,27 @@ class ResponseProcessor:
             group_col = cols[1].strip().lower() if len(cols) > 1 else ''
             yw_col = cols[3].strip() if len(cols) > 3 else ''
 
-            if item_code and item_col != item_code.upper():
-                continue
             if group and not _group_matches(group_col, [group.lower()]):
                 continue
-            if yw_filter and yw_col != yw_filter:
+            if yw_filter and yw_col not in yw_filter:
+                continue
+            if ic:
+                # exact ก่อน ถ้าไม่เจอค่อย fallback เป็น prefix (เช่น "F100114" → "F100114/10A0")
+                if item_col == ic:
+                    exact_match.append(line)
+                elif item_col.startswith(ic):
+                    prefix_match.append(line)
                 continue
             result.append(line)
 
+        if ic:
+            result = exact_match or prefix_match
+
         if result:
             min_yw = _min_plannable_yw()
-            if yw_filter and yw_filter < min_yw:
-                note = f"[หมายเหตุ: YW {yw_filter} ผ่านมาแล้ว สัปดาห์เร็วที่สุดที่วางแผนได้ = YW {min_yw}]\n"
+            if yw_filter and max(yw_filter) < min_yw:
+                yw_show = ', '.join(sorted(yw_filter))
+                note = f"[หมายเหตุ: YW {yw_show} ผ่านมาแล้ว สัปดาห์เร็วที่สุดที่วางแผนได้ = YW {min_yw}]\n"
             else:
                 past = [l for l in result if len(l.split(',')) > 3 and l.split(',')[3].strip() < min_yw]
                 note = f"[หมายเหตุ: มี {len(past)} รายการที่อยู่ใน YW ที่ผ่านมาแล้ว (ก่อน YW {min_yw})]\n" if past else ""
@@ -394,7 +553,9 @@ class ResponseProcessor:
         yw_filter = None
         if week:
             yws = _week_keyword_to_yw(week)
-            yw_filter = yws[0] if yws else (week if re.match(r'^\d{6}$', week) else None)
+            if not yws and re.match(r'^\d{6}$', week.strip()):
+                yws = [week.strip()]
+            yw_filter = set(yws) if yws else None
 
         result = []
         for line in lines[1:]:
@@ -406,7 +567,7 @@ class ResponseProcessor:
             gauge_col = cols[2].strip() if len(cols) > 2 else ''
             ava_col = cols[6].strip() if len(cols) > 6 else ''
 
-            if yw_filter and yw_col != yw_filter:
+            if yw_filter and yw_col not in yw_filter:
                 continue
             if group and not _group_matches(group_col, [group.lower()]):
                 continue
@@ -446,7 +607,9 @@ class ResponseProcessor:
         yw_filter = None
         if week:
             yws = _week_keyword_to_yw(week)
-            yw_filter = yws[0] if yws else (week if re.match(r'^\d{6}$', week) else None)
+            if not yws and re.match(r'^\d{6}$', week.strip()):
+                yws = [week.strip()]
+            yw_filter = set(yws) if yws else None
 
         result = []
         for line in lines[1:]:
@@ -456,7 +619,7 @@ class ResponseProcessor:
             yw_col = cols[0].strip() if len(cols) > 0 else ''
             group_col = cols[1].strip().lower() if len(cols) > 1 else ''
 
-            if yw_filter and yw_col != yw_filter:
+            if yw_filter and yw_col not in yw_filter:
                 continue
             if group and not _group_matches(group_col, [group.lower()]):
                 continue
@@ -501,6 +664,46 @@ class ResponseProcessor:
                 item_code=args.get("item_code"),
             )
         return f"ไม่รู้จัก tool: {name}"
+
+    def _build_chart_spec(self, raw_arguments: str):
+        """แปลง arguments จาก render_chart เป็น chart spec ที่ frontend ใช้วาด (Chart.js).
+        คืน (spec | None, ข้อความผลลัพธ์สำหรับป้อนกลับให้โมเดล)."""
+        try:
+            args = json.loads(raw_arguments)
+        except Exception:
+            return None, "สร้างกราฟไม่สำเร็จ: ข้อมูลกราฟไม่ถูกต้อง"
+
+        chart_type = (args.get("chart_type") or "bar").lower()
+        if chart_type not in ("bar", "line", "pie", "doughnut"):
+            chart_type = "bar"
+
+        labels = [str(x) for x in (args.get("labels") or [])]
+        raw_datasets = args.get("datasets") or []
+        datasets = []
+        for ds in raw_datasets:
+            if not isinstance(ds, dict):
+                continue
+            values = []
+            for v in (ds.get("data") or []):
+                try:
+                    values.append(round(float(v), 4))
+                except (TypeError, ValueError):
+                    values.append(0)
+            if values:
+                datasets.append({"label": str(ds.get("label") or "ข้อมูล"), "data": values})
+
+        if not labels or not datasets:
+            return None, "สร้างกราฟไม่สำเร็จ: ต้องมี labels และ datasets ที่มีค่าตัวเลข"
+
+        spec = {
+            "type": chart_type,
+            "title": str(args.get("title") or ""),
+            "labels": labels,
+            "datasets": datasets,
+            "y_label": str(args.get("y_label") or ""),
+        }
+        logger.info(f"render_chart: {chart_type} | {len(labels)} labels | {len(datasets)} datasets")
+        return spec, "สร้างกราฟเรียบร้อยแล้ว แสดงให้ผู้ใช้ทางหน้าจอแล้ว — ให้เขียนคำอธิบายสั้นๆ ประกอบกราฟ ห้ามลิสต์ตัวเลขทั้งหมดซ้ำ"
 
     _MACHINE_INFO_REPLY = (
         "ตอนนี้น้อง I-SAVE Chatbot ยังไม่รู้เลยว่าพี่ๆ ต้องการดูข้อมูลเครื่องจักรส่วนไหนค่ะ เช่น\n"
@@ -1126,7 +1329,12 @@ class ResponseProcessor:
             )
 
         history_msgs = self._build_history_messages(conversation_history or [])
-        system_prompt = SYSTEM_PROMPT_TEMPLATE.format(min_yw=_min_plannable_yw())
+        _now = datetime.now()
+        system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
+            min_yw=_min_plannable_yw(),
+            today=_now.strftime('%Y-%m-%d'),
+            current_yw=_yw_from_date(_now),
+        )
         lang = _detect_reply_language(user_message, conversation_history)
         lang_instruction = "IMPORTANT: Reply in Thai language." if lang == 'thai' else "IMPORTANT: Reply in English."
 
@@ -1138,6 +1346,7 @@ class ResponseProcessor:
         ]
 
         tool_calls_log: List[Dict] = []
+        chart_spec: Optional[Dict] = None
         total_prompt_tokens = 0
         total_completion_tokens = 0
         loop = asyncio.get_running_loop()
@@ -1183,7 +1392,12 @@ class ResponseProcessor:
                     ],
                 })
                 for tool_call in msg.tool_calls:
-                    result = self._execute_tool_call(tool_call)
+                    if tool_call.function.name == "render_chart":
+                        spec, result = self._build_chart_spec(tool_call.function.arguments)
+                        if spec:
+                            chart_spec = spec
+                    else:
+                        result = self._execute_tool_call(tool_call)
                     tool_calls_log.append({
                         'tool': tool_call.function.name,
                         'args': tool_call.function.arguments,
@@ -1198,7 +1412,8 @@ class ResponseProcessor:
                 fallback = "Sorry, I'm unable to respond." if lang == 'english' else "ขออภัยค่ะ ไม่สามารถตอบได้"
                 return ProcessedResponse(
                     message=_clean_response(msg.content or fallback),
-                    response_type='text',
+                    response_type='chart' if chart_spec else 'text',
+                    data={'chart': chart_spec} if chart_spec else None,
                     processing_path='agent',
                     mcp_calls=tool_calls_log,
                     metadata={

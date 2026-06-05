@@ -597,6 +597,9 @@ def send_message(conversation_id):
             'processing_path': processed_response.processing_path,
             'mcp_calls_count': len(processed_response.mcp_calls) if processed_response.mcp_calls else 0
         }
+        # เก็บ chart spec ไว้ใน metadata เพื่อให้กราฟแสดงอีกครั้งเมื่อเปิดบทสนทนาเดิม
+        if processed_response.data and processed_response.data.get('chart'):
+            response_metadata['chart'] = processed_response.data['chart']
 
         # บันทึก AI response ก่อน (สำคัญที่สุด)
         ai_message_id = db.add_message(

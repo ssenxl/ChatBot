@@ -6,6 +6,7 @@
     <title>I-SAVE Chat</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/static/js/chart.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
@@ -943,7 +944,7 @@
                 const r = await fetch("/conversations/" + currentConversationId + "/messages", { method: "POST", headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken() }, body: JSON.stringify({ message: payload }) }), d = await r.json();
                 hideTypingIndicator();
                 if (!d.success) { showToast(d.message || "ส่งข้อความไม่สำเร็จ"); return; }
-                addMessageToChat(d.ai_response.message, "assistant", d.ai_response.suggestions, d.ai_response.message_id);
+                addMessageToChat(d.ai_response.message, "assistant", d.ai_response.suggestions, d.ai_response.message_id, null, null, (d.ai_response.data && d.ai_response.data.chart) || null);
                 if (d.conversation) setActiveConversationTitle(d.conversation.title);
                 await loadConversations(currentConversationId, true);
             } catch (err) {
@@ -964,7 +965,7 @@
         function displayMessages(messages) {
             const c = document.getElementById("chat-messages"); c.innerHTML = "";
             if (!messages.length) { renderWelcomeState(); return; }
-            messages.forEach(m => addMessageToChat(m.message, m.sender, null, m.sender === 'assistant' ? m.id : null, m.feedback_type, m.created_at));
+            messages.forEach(m => addMessageToChat(m.message, m.sender, null, m.sender === 'assistant' ? m.id : null, m.feedback_type, m.created_at, (m.metadata && m.metadata.chart) || null));
         }
         function renderWelcomeState() {
             document.getElementById("chat-messages").innerHTML =
@@ -996,7 +997,88 @@
                 .replace(/^[-*•]\s*(.+)$/gm,'<div style="padding-left:1em;margin:0.25em 0">• $1</div>')
                 .replace(/<\/div>\n/g,'</div>').replace(/\n<div/g,'<div').replace(/\n/g,'<br>');
         }
-        function addMessageToChat(message, sender, suggestions, messageId, feedbackType, rawTimestamp) {
+        let _chartSeq = 0;
+        function renderChart(canvas, spec) {
+            if (!canvas || !spec) return;
+            if (typeof Chart === "undefined") {
+                const box = canvas.parentElement;
+                if (box) box.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:12px;color:var(--t3);text-align:center;padding:1em;">ไม่สามารถโหลดไลบรารีกราฟได้<br>กรุณารีเฟรชหน้าอีกครั้ง</div>';
+                return;
+            }
+            const palette = ['#38bdf8','#818cf8','#34d399','#fbbf24','#f472b6','#f87171','#a78bfa','#2dd4bf','#fb923c','#60a5fa','#4ade80','#facc15'];
+            const isPie = spec.type === 'pie' || spec.type === 'doughnut';
+            const ctx = canvas.getContext('2d');
+            const css = getComputedStyle(document.documentElement);
+            const axisColor = (css.getPropertyValue('--t3') || '#94a3b8').trim();
+            const titleColor = (css.getPropertyValue('--t1') || '#e2e8f0').trim();
+            const fontFamily = "'Noto Sans Thai', sans-serif";
+            const singleBar = spec.type === 'bar' && (spec.datasets || []).length === 1;
+            const datasets = (spec.datasets || []).map((ds, i) => {
+                if (isPie) return {
+                    label: ds.label, data: ds.data,
+                    backgroundColor: (spec.labels || []).map((_, j) => palette[j % palette.length]),
+                    borderColor: (css.getPropertyValue('--glass-bg') || '#0f172a').trim(),
+                    borderWidth: 2, hoverOffset: 6
+                };
+                if (spec.type === 'line') {
+                    const grad = ctx.createLinearGradient(0, 0, 0, 300);
+                    grad.addColorStop(0, palette[i % palette.length] + '55');
+                    grad.addColorStop(1, palette[i % palette.length] + '05');
+                    return {
+                        label: ds.label, data: ds.data,
+                        backgroundColor: grad, borderColor: palette[i % palette.length],
+                        borderWidth: 2.5, fill: true, tension: 0.35,
+                        pointRadius: 3, pointHoverRadius: 5,
+                        pointBackgroundColor: palette[i % palette.length],
+                        pointBorderColor: '#fff', pointBorderWidth: 1.5
+                    };
+                }
+                // bar
+                return {
+                    label: ds.label, data: ds.data,
+                    backgroundColor: singleBar
+                        ? ds.data.map((_, j) => palette[j % palette.length] + 'cc')
+                        : palette[i % palette.length] + 'cc',
+                    borderColor: singleBar
+                        ? ds.data.map((_, j) => palette[j % palette.length])
+                        : palette[i % palette.length],
+                    borderWidth: 1.5, borderRadius: 6, borderSkipped: false,
+                    maxBarThickness: 38, hoverBackgroundColor: singleBar
+                        ? ds.data.map((_, j) => palette[j % palette.length])
+                        : palette[i % palette.length]
+                };
+            });
+            try {
+                new Chart(ctx, {
+                    type: spec.type,
+                    data: { labels: spec.labels || [], datasets },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        layout: { padding: { top: 4, bottom: 4 } },
+                        animation: { duration: 600, easing: 'easeOutQuart' },
+                        font: { family: fontFamily },
+                        plugins: {
+                            legend: {
+                                display: isPie || datasets.length > 1,
+                                position: isPie ? 'right' : 'top',
+                                labels: { color: axisColor, font: { size: 11, family: fontFamily }, usePointStyle: true, pointStyle: 'circle', padding: 12 }
+                            },
+                            title: { display: !!spec.title, text: spec.title, color: titleColor, font: { size: 13, weight: 'bold', family: fontFamily }, padding: { bottom: 12 } },
+                            tooltip: {
+                                backgroundColor: 'rgba(15,23,42,0.92)', titleColor: '#fff', bodyColor: '#e2e8f0',
+                                borderColor: 'rgba(148,163,184,0.3)', borderWidth: 1, padding: 10, cornerRadius: 8,
+                                titleFont: { family: fontFamily }, bodyFont: { family: fontFamily }, displayColors: true, usePointStyle: true
+                            }
+                        },
+                        scales: isPie ? {} : {
+                            y: { beginAtZero: true, title: { display: !!spec.y_label, text: spec.y_label, color: axisColor, font: { family: fontFamily } }, ticks: { color: axisColor, font: { family: fontFamily } }, grid: { color: 'rgba(148,163,184,0.12)', drawBorder: false }, border: { display: false } },
+                            x: { ticks: { color: axisColor, font: { size: 10, family: fontFamily }, maxRotation: 45, minRotation: 0, autoSkip: false }, grid: { display: false }, border: { display: false } }
+                        }
+                    }
+                });
+            } catch (e) { console.error('chart render failed', e); }
+        }
+        function addMessageToChat(message, sender, suggestions, messageId, feedbackType, rawTimestamp, chartSpec) {
             const c = document.getElementById("chat-messages"), w = document.createElement("div");
             w.className = "message-enter flex items-start gap-2 " + (sender === "user" ? "justify-end" : "justify-start");
             const tsDate = rawTimestamp ? new Date(rawTimestamp) : new Date();
@@ -1018,7 +1100,12 @@
                 const actionsHtml = `<div class="flex items-center gap-0.5 px-1 mt-0.5">
                     <button title="คัดลอก" data-encoded="${encodedMsg}" onclick="copyMessage(this)" class="rounded-md p-1.5 text-slate-500 hover:text-cyan-400 hover:bg-cyan-400/10 transition-colors"><i class="far fa-copy text-xs"></i></button>
                     ${feedbackHtml}</div>`;
-                w.innerHTML = `<div class="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden" style="border:1.5px solid var(--cv-hbd);"><img src="/static/chat-bot.png" alt="AI" class="w-full h-full object-cover"></div><div class="max-w-[75%] flex flex-col gap-1"><div class="msg-ai rounded-2xl rounded-bl-sm px-4 py-3 text-sm leading-7 break-words overflow-wrap-anywhere" title="${nowStr}">${renderMarkdown(message)}</div>${actionsHtml}<span class="text-[10px] pl-1" style="color:var(--t3);">${nowStr}</span>${chipsHtml}</div>`;
+                const chartId = chartSpec ? `chart-${++_chartSeq}` : null;
+                const chartHtml = chartSpec
+                    ? `<div class="mt-1 rounded-xl px-3 py-3" style="background:var(--glass-bg);border:1px solid var(--glass-bd);"><div style="position:relative;height:320px;width:100%;"><canvas id="${chartId}"></canvas></div></div>`
+                    : '';
+                w.innerHTML = `<div class="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden" style="border:1.5px solid var(--cv-hbd);"><img src="/static/chat-bot.png" alt="AI" class="w-full h-full object-cover"></div><div class="max-w-[75%] flex flex-col gap-1"><div class="msg-ai rounded-2xl rounded-bl-sm px-4 py-3 text-sm leading-7 break-words overflow-wrap-anywhere" title="${nowStr}">${renderMarkdown(message)}</div>${chartHtml}${actionsHtml}<span class="text-[10px] pl-1" style="color:var(--t3);">${nowStr}</span>${chipsHtml}</div>`;
+                if (chartSpec && chartId) { c.appendChild(w); c.scrollTop = c.scrollHeight; renderChart(document.getElementById(chartId), chartSpec); return; }
             }
             c.appendChild(w); c.scrollTop = c.scrollHeight;
         }
