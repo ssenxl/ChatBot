@@ -2,7 +2,7 @@
 import pytest
 
 import rate_limit
-from rate_limit import is_rate_limited, RATE_MAX_CHAT, RATE_MAX_FORGOT, RATE_MAX_LOGIN
+from rate_limit import is_rate_limited, RATE_MAX_CHAT, RATE_MAX_FORGOT, RATE_MAX_LOGIN, _RATE_WINDOW_BY_BUCKET
 
 
 @pytest.fixture(autouse=True)
@@ -57,6 +57,6 @@ def test_window_expiry_resets_count(monkeypatch):
         is_rate_limited("user-x", "chat")
     assert is_rate_limited("user-x", "chat") is True  # เต็มแล้ว
 
-    # ขยับเวลาเลย window ไป (RATE_WINDOW + 1 วินาที)
-    fake["t"] += rate_limit.RATE_WINDOW + 1
+    # ขยับเวลาเลย window ไป (chat window + 1 วินาที)
+    fake["t"] += _RATE_WINDOW_BY_BUCKET['chat'] + 1
     assert is_rate_limited("user-x", "chat") is False  # นับใหม่ได้

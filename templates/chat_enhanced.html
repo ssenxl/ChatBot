@@ -851,8 +851,9 @@
         }
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('confirm-modal-ok').addEventListener('click', () => {
+                const cb = _confirmCallback;
                 closeConfirmModal();
-                if (_confirmCallback) _confirmCallback();
+                if (cb) cb();
             });
         });
 
