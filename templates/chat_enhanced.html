@@ -513,6 +513,11 @@
             position: absolute; inset: 0;
             background: linear-gradient(to top, var(--glass-bg) 4%, rgba(0,0,0,0) 75%);
         }
+        /* light mode: replace dark hero with soft blue gradient */
+        .light-mode .welcome-hero { opacity: 0; }
+        .light-mode .welcome-hero-fade {
+            background: linear-gradient(180deg, #93C5FD 0%, #BFDBFE 45%, rgba(255,255,255,0.85) 100%);
+        }
     </style>
 </head>
 <body>

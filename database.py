@@ -442,6 +442,20 @@ class Database:
             conn.commit()
             return updated
 
+    def update_user_role(self, user_id, new_role):
+        allowed = ('user', 'admin')
+        if new_role not in allowed:
+            return False
+        with self._conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE users SET role = %s WHERE id = %s",
+                (new_role, user_id)
+            )
+            updated = cursor.rowcount > 0
+            conn.commit()
+            return updated
+
     def admin_reset_password(self, user_id, new_password):
         with self._conn() as conn:
             cursor = conn.cursor()

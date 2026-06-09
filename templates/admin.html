@@ -202,6 +202,11 @@
         .badge-admin { background: var(--badge-adm); color: var(--badge-adm-c); }
         .badge-user  { background: var(--badge-usr); color: var(--badge-usr-c); }
         .badge-round { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; }
+        .role-badge-clickable { cursor: pointer; transition: opacity .15s, box-shadow .15s; }
+        .role-badge-clickable:hover { opacity: .8; box-shadow: 0 0 0 2px rgba(192,132,252,.4); }
+        #role-dropdown { background: var(--card-bg); }
+        .role-dd-item { padding: 8px 16px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; color: var(--t2); transition: background .12s; }
+        .role-dd-item:hover { background: rgba(168,85,247,0.12); color: #c084fc; }
 
         /* ── Online badge ── */
         .badge-online  { background: rgba(24,201,139,0.15); color: #18C98B; }
@@ -622,6 +627,16 @@
         </div>
     </div>
 
+    <!-- Role inline dropdown -->
+    <div id="role-dropdown" class="hidden" style="position:fixed;z-index:200;min-width:130px;border-radius:10px;border:1px solid var(--card-bd);padding:6px 0;box-shadow:0 8px 24px rgba(0,0,0,0.35)">
+        <div id="role-dd-user" onclick="selectRole('user')" class="role-dd-item">
+            <i class="fas fa-user mr-2" style="width:14px"></i>user
+        </div>
+        <div id="role-dd-admin" onclick="selectRole('admin')" class="role-dd-item">
+            <i class="fas fa-shield-alt mr-2" style="width:14px"></i>admin
+        </div>
+    </div>
+
     <!-- Toast -->
     <div id="toast" class="fixed bottom-5 right-5 hidden z-50">
         <div id="toast-inner">
@@ -634,6 +649,8 @@
         let targetUserId = null;
         let activeConvId = null;
         let allUsers = [];
+        const isSuperAdmin = {{ 'true' if is_super_admin else 'false' }};
+        const currentUserId = {{ current_user_id }};
 
         // ---- Theme Toggle ----
         function initTheme() {
@@ -708,14 +725,25 @@
                 tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8" style="color:var(--t3)">ไม่พบผู้ใช้</td></tr>`;
                 return;
             }
-            tbody.innerHTML = users.map(u => `
+            const sorted = [...users].sort((a, b) => {
+                if (a.role === b.role) return a.id - b.id;
+                return a.role === 'admin' ? -1 : 1;
+            });
+            tbody.innerHTML = sorted.map(u => {
+                const canChangeRole = isSuperAdmin && u.id !== currentUserId;
+                const roleBadge = canChangeRole
+                    ? `<span class="badge-round ${u.role === 'admin' ? 'badge-admin' : 'badge-user'} role-badge-clickable"
+                            onclick="toggleRoleDropdown(event, ${u.id}, '${escHtml(u.username)}', '${u.role}')"
+                            title="คลิกเพื่อเปลี่ยน Role">
+                            ${u.role} <i class="fas fa-caret-down" style="font-size:9px;margin-left:2px"></i>
+                       </span>`
+                    : `<span class="badge-round ${u.role === 'admin' ? 'badge-admin' : 'badge-user'}">${u.role}</span>`;
+                return `
                 <tr id="user-row-${u.id}">
                     <td style="color:var(--t3)">${u.id}</td>
                     <td style="color:var(--t1);font-weight:500">${escHtml(u.username)}</td>
                     <td style="color:var(--t2)">${escHtml(u.email)}</td>
-                    <td>
-                        <span class="badge-round ${u.role === 'admin' ? 'badge-admin' : 'badge-user'}">${u.role}</span>
-                    </td>
+                    <td style="position:relative">${roleBadge}</td>
                     <td>${onlineBadge(u.last_activity)}</td>
                     <td style="color:var(--t3)">${formatDate(u.created_at)}</td>
                     <td style="color:var(--t3)">${u.last_login ? formatDateTime(u.last_login) : `<span style="color:var(--t3);opacity:0.4">ยังไม่เคย</span>`}</td>
@@ -743,7 +771,8 @@
                         </div>
                     </td>
                 </tr>
-            `).join('');
+            `;
+            }).join('');
         }
 
         // ---- Toggle User Active ----
@@ -779,6 +808,64 @@
             showToast(newState ? 'เปิดใช้งานผู้ใช้แล้ว' : 'ปิดใช้งานผู้ใช้แล้ว', 'success');
             // reload จาก DB เพื่อยืนยันว่า persist จริง (badge/toggle จะอัปเดตพร้อมกัน)
             await loadUsers();
+        }
+
+        // ---- Role Dropdown ----
+
+        let roleDdUserId = null;
+        let roleDdCurrentRole = null;
+
+        function toggleRoleDropdown(event, userId, username, currentRole) {
+            event.stopPropagation();
+            const dd = document.getElementById('role-dropdown');
+            const rect = event.currentTarget.getBoundingClientRect();
+            const alreadyOpen = !dd.classList.contains('hidden') && roleDdUserId === userId;
+            closeRoleDropdown();
+            if (alreadyOpen) return;
+
+            roleDdUserId = userId;
+            roleDdCurrentRole = currentRole;
+
+            ['user', 'admin'].forEach(r => {
+                const el = document.getElementById(`role-dd-${r}`);
+                el.style.fontWeight = r === currentRole ? '700' : '400';
+                el.style.color = r === currentRole ? '#c084fc' : '';
+            });
+
+            dd.style.left = `${rect.left + window.scrollX}px`;
+            dd.style.top = `${rect.bottom + window.scrollY + 4}px`;
+            dd.classList.remove('hidden');
+        }
+
+        function closeRoleDropdown() {
+            document.getElementById('role-dropdown').classList.add('hidden');
+            roleDdUserId = null;
+            roleDdCurrentRole = null;
+        }
+
+        document.addEventListener('click', function(e) {
+            if (!document.getElementById('role-dropdown').contains(e.target)) {
+                closeRoleDropdown();
+            }
+        });
+
+        async function selectRole(newRole) {
+            if (!roleDdUserId || newRole === roleDdCurrentRole) { closeRoleDropdown(); return; }
+            const userId = roleDdUserId;
+            closeRoleDropdown();
+            try {
+                const res = await fetch(`/admin/users/${userId}/update-role`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+                    body: JSON.stringify({ role: newRole })
+                });
+                const data = await res.json();
+                if (!data.success) { showToast(data.message || 'เกิดข้อผิดพลาด', 'error'); return; }
+                showToast(data.message || 'เปลี่ยน Role สำเร็จ', 'success');
+                await loadUsers();
+            } catch (err) {
+                showToast(`เกิดข้อผิดพลาด: ${err.message}`, 'error');
+            }
         }
 
         // ---- Cache Status & Refresh ----

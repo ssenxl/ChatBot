@@ -759,7 +759,8 @@ def change_password():
 @app.route('/admin')
 @admin_required
 def admin_panel():
-    return render_template('admin.html')
+    is_super_admin = session.get('user_email') == 'admin@powerbi.com'
+    return render_template('admin.html', is_super_admin=is_super_admin, current_user_id=session['user_id'])
 
 
 @app.route('/admin/users')
@@ -805,6 +806,24 @@ def admin_toggle_user_active(user_id):
         return jsonify({'success': False, 'message': 'ไม่พบผู้ใช้หรือไม่สามารถแก้ไข admin ได้'}), 404
     db.log_activity(session['user_id'], 'toggle_user_active', {'target_user_id': user_id, 'is_active': is_active})
     return jsonify({'success': True})
+
+
+@app.route('/admin/users/<int:user_id>/update-role', methods=['POST'])
+@admin_required
+def admin_update_user_role(user_id):
+    if session.get('user_email') != 'admin@powerbi.com':
+        return jsonify({'success': False, 'message': 'สิทธิ์นี้สงวนไว้เฉพาะ Super Admin เท่านั้น'}), 403
+    if user_id == session['user_id']:
+        return jsonify({'success': False, 'message': 'ไม่สามารถเปลี่ยน role ของตัวเองได้'}), 400
+    data = request.get_json(silent=True) or {}
+    new_role = (data.get('role') or '').strip().lower()
+    if new_role not in ('user', 'admin'):
+        return jsonify({'success': False, 'message': 'Role ไม่ถูกต้อง (รองรับ: user, admin)'}), 400
+    success = db.update_user_role(user_id, new_role)
+    if not success:
+        return jsonify({'success': False, 'message': 'ไม่พบผู้ใช้'}), 404
+    db.log_activity(session['user_id'], 'admin_update_role', {'target_user_id': user_id, 'new_role': new_role})
+    return jsonify({'success': True, 'message': f'เปลี่ยน role เป็น {new_role} สำเร็จ'})
 
 
 @app.route('/admin/users/<int:user_id>/reset-password', methods=['POST'])

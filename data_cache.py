@@ -4,6 +4,8 @@ import threading
 import time
 from datetime import datetime, timedelta
 from datetime import time as dt_time
+from zoneinfo import ZoneInfo
+_BKK = ZoneInfo("Asia/Bangkok")
 from typing import Dict, Optional, Tuple
 
 from collections import defaultdict
@@ -43,7 +45,7 @@ _MAX_WEEKS = 52  # จำกัดแค่ 20 สัปดาห์ข้าง
 _PAST_WEEKS = 52  # แสดงย้อนหลัง 4 สัปดาห์
 
 def _week_range() -> tuple[str, str]:
-    now = datetime.now()
+    now = datetime.now(_BKK)
     past = now - timedelta(weeks=_PAST_WEEKS)
     min_yw = f"{past.year}{past.isocalendar()[1]:02d}"
     future = now + timedelta(weeks=_MAX_WEEKS)
@@ -190,7 +192,7 @@ class DataCache:
             if not ok and retries < _MAX_QUICK_RETRIES:
                 # refresh รอบล่าสุดมี fetch ที่ล้มเหลว — ลองใหม่เร็วๆ แทนการรอ schedule ถัดไป
                 retries += 1
-                next_time = datetime.now() + timedelta(seconds=_RETRY_SECS)
+                next_time = datetime.now(_BKK) + timedelta(seconds=_RETRY_SECS)
                 logger.warning(
                     f"DataCache: last refresh had fetch errors — quick retry #{retries}/{_MAX_QUICK_RETRIES} "
                     f"in {_RETRY_SECS}s"
@@ -207,13 +209,13 @@ class DataCache:
 
             with self._lock:
                 self._next_refresh = next_time
-            sleep_secs = max((next_time - datetime.now()).total_seconds(), 0)
+            sleep_secs = max((next_time - datetime.now(_BKK)).total_seconds(), 0)
             time.sleep(sleep_secs)
             logger.info("DataCache: refresh starting...")
             ok = self._refresh_all()
 
     def _next_refresh_time(self) -> datetime:
-        now = datetime.now()
+        now = datetime.now(_BKK)
         today = now.date()
         candidates = [
             datetime.combine(today, dt_time(hour, 0))
@@ -312,7 +314,7 @@ class DataCache:
                 self._cache['query_sales'] = {'success': True, 'data': sales_summary}
                 self._ready['query_sales'] = True
 
-            self._last_refresh = datetime.now()
+            self._last_refresh = datetime.now(_BKK)
             self._row_counts = {
                 'booking_master': len(booking_rows),
                 'table_mc': len(mc_rows),
