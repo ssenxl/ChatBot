@@ -258,6 +258,24 @@ class Database:
             cursor.execute("UPDATE users SET is_active = TRUE WHERE is_active IS NULL")
             cursor.execute("UPDATE conversations SET is_active = TRUE WHERE is_active IS NULL")
 
+            # --- Teams Bot columns ---
+            cursor.execute("""
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS teams_aad_oid TEXT
+            """)
+            cursor.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_users_teams_aad_oid
+                ON users (teams_aad_oid) WHERE teams_aad_oid IS NOT NULL
+            """)
+            cursor.execute("""
+                ALTER TABLE conversations
+                ADD COLUMN IF NOT EXISTS teams_conv_id TEXT
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_conversations_teams_conv_id
+                ON conversations (teams_conv_id) WHERE teams_conv_id IS NOT NULL
+            """)
+
             cursor.execute("SELECT COUNT(*) AS cnt FROM users")
             if cursor.fetchone()['cnt'] == 0:
                 cursor.execute(
@@ -270,6 +288,52 @@ class Database:
                 )
 
             conn.commit()
+
+    # Teams Bot helpers
+    def get_or_create_teams_user(self, teams_oid: str, display_name: str) -> dict:
+        """หา user จาก Teams AAD OID หรือสร้างใหม่ถ้ายังไม่มี"""
+        with self._conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM users WHERE teams_aad_oid = %s", (teams_oid,))
+            user = cursor.fetchone()
+            if user:
+                return dict(user)
+
+            username = f"teams_{teams_oid[:12]}"
+            cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
+            if cursor.fetchone():
+                username = f"teams_{teams_oid}"
+
+            email = f"teams_{teams_oid}@teams.local"
+            cursor.execute(
+                """INSERT INTO users (username, email, password_hash, role, teams_aad_oid, is_active)
+                   VALUES (%s, %s, %s, 'user', %s, TRUE)
+                   RETURNING *""",
+                (username, email, generate_password_hash(teams_oid), teams_oid),
+            )
+            conn.commit()
+            return dict(cursor.fetchone())
+
+    def get_or_create_teams_conversation(self, user_id: int, teams_conv_id: str) -> dict:
+        """หา conversation ของ Teams chat thread หรือสร้างใหม่"""
+        with self._conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT * FROM conversations WHERE user_id = %s AND teams_conv_id = %s AND is_active = TRUE",
+                (user_id, teams_conv_id),
+            )
+            conv = cursor.fetchone()
+            if conv:
+                return dict(conv)
+
+            cursor.execute(
+                """INSERT INTO conversations (user_id, title, teams_conv_id, is_active)
+                   VALUES (%s, 'Teams Chat', %s, TRUE)
+                   RETURNING *""",
+                (user_id, teams_conv_id),
+            )
+            conn.commit()
+            return dict(cursor.fetchone())
 
     # User Management
     def create_user(self, username, email, password, role='user'):

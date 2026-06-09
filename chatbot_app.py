@@ -6,7 +6,7 @@ import time
 
 from datetime import datetime as _dt, timezone as _tz, timedelta as _td
 
-from flask import Flask, flash, jsonify, redirect, render_template, request, session, url_for
+from flask import Flask, flash, jsonify, redirect, render_template, request, session, url_for, Response
 from flask.json.provider import DefaultJSONProvider
 from flask_wtf.csrf import CSRFProtect
 from openpyxl import load_workbook
@@ -52,6 +52,12 @@ intent_detector = get_intent_detector()
 response_processor = get_response_processor()
 suggestion_engine = get_suggestion_engine()
 morning_scheduler = MorningGreetingScheduler(db)
+
+# Teams Bot Framework
+from teams_bot import TeamsBot, create_teams_adapter  # noqa: E402
+from botbuilder.schema import Activity as _BotActivity  # noqa: E402
+_teams_adapter = create_teams_adapter()
+_teams_bot = TeamsBot(response_processor, db)
 
 DEFAULT_CONVERSATION_TITLE = 'แชทใหม่'
 
@@ -1078,6 +1084,29 @@ def admin_reply_ticket(ticket_id):
 def admin_close_ticket(ticket_id):
     db.close_ticket(ticket_id)
     return jsonify({'success': True})
+
+
+@app.route("/api/messages", methods=["POST"])
+@csrf.exempt
+def teams_messages():
+    """Microsoft Teams Bot Framework webhook — รับ Activity จาก Azure Bot Service"""
+    if not request.is_json:
+        return Response(status=415)
+
+    activity = _BotActivity().deserialize(request.json)
+    auth_header = request.headers.get("Authorization", "")
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(
+            _teams_adapter.process_activity(activity, auth_header, _teams_bot.on_turn)
+        )
+    finally:
+        loop.close()
+        asyncio.set_event_loop(None)
+
+    return Response(status=201)
 
 
 if __name__ == '__main__':
