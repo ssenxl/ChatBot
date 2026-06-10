@@ -6,6 +6,7 @@
     <title>Admin Panel - I-SAVE</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/static/js/chart.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -832,8 +833,8 @@
                 el.style.color = r === currentRole ? '#c084fc' : '';
             });
 
-            dd.style.left = `${rect.left + window.scrollX}px`;
-            dd.style.top = `${rect.bottom + window.scrollY + 4}px`;
+            dd.style.left = `${rect.left}px`;
+            dd.style.top = `${rect.bottom + 4}px`;
             dd.classList.remove('hidden');
         }
 
@@ -848,6 +849,8 @@
                 closeRoleDropdown();
             }
         });
+
+        window.addEventListener('scroll', closeRoleDropdown, true);
 
         async function selectRole(newRole) {
             if (!roleDdUserId || newRole === roleDdCurrentRole) { closeRoleDropdown(); return; }
@@ -1068,7 +1071,14 @@
                     <div class="rounded-lg px-4 py-3" style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2)">
                         <div class="flex items-center justify-between mb-1">
                             <span class="text-xs font-semibold" style="color:#f87171">${escHtml(d.username)}</span>
-                            <span class="text-xs" style="color:var(--t3)">${formatDateTime(d.created_at)}</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs" style="color:var(--t3)">${formatDateTime(d.created_at)}</span>
+                                <button onclick="openChatFromFeedback(${d.user_id}, '${escHtml(d.username)}', ${d.conversation_id})"
+                                    class="px-2 py-0.5 rounded text-xs font-medium transition hover:opacity-80"
+                                    style="background:rgba(30,140,255,0.12);color:#60a5fa;border:1px solid rgba(30,140,255,0.2)">
+                                    <i class="fas fa-comments mr-1"></i>ดูแชท
+                                </button>
+                            </div>
                         </div>
                         <p class="text-sm leading-relaxed" style="color:var(--t2)">${escHtml(d.message)}</p>
                     </div>`).join('');
@@ -1076,6 +1086,87 @@
         }
 
         // ---- Chat History ----
+
+        let _adminChartSeq = 0;
+        function renderAdminChart(canvas, spec) {
+            if (!canvas || !spec) return;
+            if (typeof Chart === 'undefined') {
+                const box = canvas.parentElement;
+                if (box) box.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:12px;color:var(--t3);text-align:center;padding:1em;">ไม่สามารถโหลดไลบรารีกราฟได้<br>กรุณารีเฟรชหน้าอีกครั้ง</div>';
+                return;
+            }
+            const palette = ['#38bdf8','#818cf8','#34d399','#fbbf24','#f472b6','#f87171','#a78bfa','#2dd4bf','#fb923c','#60a5fa','#4ade80','#facc15'];
+            const isPie = spec.type === 'pie' || spec.type === 'doughnut';
+            const ctx = canvas.getContext('2d');
+            const css = getComputedStyle(document.documentElement);
+            const axisColor = (css.getPropertyValue('--t3') || '#94a3b8').trim();
+            const titleColor = (css.getPropertyValue('--t1') || '#e2e8f0').trim();
+            const fontFamily = "'Noto Sans Thai', sans-serif";
+            const singleBar = spec.type === 'bar' && (spec.datasets || []).length === 1;
+            const datasets = (spec.datasets || []).map((ds, i) => {
+                if (isPie) return {
+                    label: ds.label, data: ds.data,
+                    backgroundColor: (spec.labels || []).map((_, j) => palette[j % palette.length]),
+                    borderColor: (css.getPropertyValue('--glass-bg') || '#0f172a').trim(),
+                    borderWidth: 2, hoverOffset: 6
+                };
+                if (spec.type === 'line') {
+                    const grad = ctx.createLinearGradient(0, 0, 0, 300);
+                    grad.addColorStop(0, palette[i % palette.length] + '55');
+                    grad.addColorStop(1, palette[i % palette.length] + '05');
+                    return {
+                        label: ds.label, data: ds.data,
+                        backgroundColor: grad, borderColor: palette[i % palette.length],
+                        borderWidth: 2.5, fill: true, tension: 0.35,
+                        pointRadius: 3, pointHoverRadius: 5,
+                        pointBackgroundColor: palette[i % palette.length],
+                        pointBorderColor: '#fff', pointBorderWidth: 1.5
+                    };
+                }
+                return {
+                    label: ds.label, data: ds.data,
+                    backgroundColor: singleBar
+                        ? ds.data.map((_, j) => palette[j % palette.length] + 'cc')
+                        : palette[i % palette.length] + 'cc',
+                    borderColor: singleBar
+                        ? ds.data.map((_, j) => palette[j % palette.length])
+                        : palette[i % palette.length],
+                    borderWidth: 1.5, borderRadius: 6, borderSkipped: false,
+                    maxBarThickness: 38, hoverBackgroundColor: singleBar
+                        ? ds.data.map((_, j) => palette[j % palette.length])
+                        : palette[i % palette.length]
+                };
+            });
+            try {
+                new Chart(ctx, {
+                    type: spec.type,
+                    data: { labels: spec.labels || [], datasets },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        layout: { padding: { top: 4, bottom: 4 } },
+                        animation: { duration: 600, easing: 'easeOutQuart' },
+                        font: { family: fontFamily },
+                        plugins: {
+                            legend: {
+                                display: isPie || datasets.length > 1,
+                                position: isPie ? 'right' : 'top',
+                                labels: { color: axisColor, font: { size: 11, family: fontFamily }, usePointStyle: true, pointStyle: 'circle', padding: 12 }
+                            },
+                            title: { display: !!spec.title, text: spec.title, color: titleColor, font: { size: 13, weight: 'bold', family: fontFamily }, padding: { bottom: 12 } },
+                            tooltip: {
+                                backgroundColor: 'rgba(15,23,42,0.92)', titleColor: '#fff', bodyColor: '#e2e8f0',
+                                borderColor: 'rgba(148,163,184,0.3)', borderWidth: 1, padding: 10, cornerRadius: 8,
+                                titleFont: { family: fontFamily }, bodyFont: { family: fontFamily }, displayColors: true, usePointStyle: true
+                            }
+                        },
+                        scales: isPie ? {} : {
+                            y: { beginAtZero: true, title: { display: !!spec.y_label, text: spec.y_label, color: axisColor, font: { family: fontFamily } }, ticks: { color: axisColor, font: { family: fontFamily } }, grid: { color: 'rgba(148,163,184,0.12)', drawBorder: false }, border: { display: false } },
+                            x: { ticks: { color: axisColor, font: { size: 10, family: fontFamily }, maxRotation: 45, minRotation: 0, autoSkip: false }, grid: { display: false }, border: { display: false } }
+                        }
+                    }
+                });
+            } catch (e) { console.error('admin chart render failed', e); }
+        }
 
         async function openChatHistory(userId, username) {
             document.getElementById('chat-username').textContent = username;
@@ -1107,6 +1198,38 @@
             `).join('');
         }
 
+        async function openChatFromFeedback(userId, username, convId) {
+            document.getElementById('chat-username').textContent = username;
+            document.getElementById('chat-section').classList.remove('hidden');
+            document.getElementById('chat-section').scrollIntoView({ behavior: 'smooth' });
+
+            activeConvId = null;
+            document.getElementById('msg-panel').classList.add('hidden');
+            document.getElementById('msg-placeholder').classList.remove('hidden');
+
+            const convList = document.getElementById('conv-list');
+            convList.innerHTML = `<div class="text-center py-8 text-sm" style="color:var(--t3)">
+                <i class="fas fa-spinner fa-spin block mb-2"></i>กำลังโหลด...</div>`;
+
+            const res = await fetch(`/admin/users/${userId}/conversations`);
+            const data = await res.json();
+
+            if (!data.success || data.conversations.length === 0) {
+                convList.innerHTML = `<div class="text-center py-8 text-sm" style="color:var(--t3)">
+                    <i class="fas fa-comment-slash block text-2xl mb-2"></i>ยังไม่มีการสนทนา</div>`;
+                return;
+            }
+
+            convList.innerHTML = data.conversations.map(c => `
+                <div class="conv-item" id="conv-${c.id}" onclick="loadMessages(${c.id})">
+                    <p class="text-sm font-medium truncate" style="color:var(--t1)">${escHtml(c.title || 'แชทใหม่')}</p>
+                    <p class="text-xs mt-0.5" style="color:var(--t3)">${formatDateTime(c.updated_at)}</p>
+                </div>
+            `).join('');
+
+            await loadMessages(convId);
+        }
+
         function closeChatSection() {
             document.getElementById('chat-section').classList.add('hidden');
             activeConvId = null;
@@ -1134,6 +1257,7 @@
                 return;
             }
 
+            const pendingCharts = {};
             msgPanel.innerHTML = data.messages.map(m => {
                 const isUser = m.sender === 'user';
                 const content = isUser
@@ -1144,18 +1268,29 @@
                         ? `<span class="ml-1.5 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium" style="background:rgba(34,197,94,0.15);color:#4ade80">👍 Like</span>`
                         : `<span class="ml-1.5 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium" style="background:rgba(239,68,68,0.12);color:#f87171">👎 Dislike</span>`
                     : '';
+                const chartSpec = !isUser && m.metadata && m.metadata.chart ? m.metadata.chart : null;
+                const chartId = chartSpec ? `admin-chart-${++_adminChartSeq}` : null;
+                if (chartSpec && chartId) pendingCharts[chartId] = chartSpec;
+                const chartHtml = chartSpec
+                    ? `<div class="mt-2 rounded-xl px-3 py-3" style="background:var(--glass-bg,rgba(30,41,59,0.7));border:1px solid rgba(148,163,184,0.1);"><div style="position:relative;height:320px;width:100%;"><canvas id="${chartId}"></canvas></div></div>`
+                    : '';
                 return `
                 <div class="flex ${isUser ? 'justify-end' : 'justify-start'}">
-                    <div class="max-w-[75%]">
+                    <div class="max-w-[80%]">
                         <div class="${isUser ? 'chat-bubble-user' : 'chat-bubble-bot'} px-4 py-2.5 text-sm leading-relaxed">
                             ${content}
                         </div>
+                        ${chartHtml}
                         <p class="text-xs mt-1 ${isUser ? 'text-right' : 'text-left'}" style="color:var(--t3)">
                             ${isUser ? 'ผู้ใช้' : 'AI'} · ${formatDateTime(m.created_at)}${feedbackBadge}
                         </p>
                     </div>
                 </div>`;
             }).join('');
+
+            Object.entries(pendingCharts).forEach(([id, spec]) => {
+                renderAdminChart(document.getElementById(id), spec);
+            });
 
             msgPanel.scrollTop = msgPanel.scrollHeight;
         }

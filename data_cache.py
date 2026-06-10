@@ -17,7 +17,7 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-REFRESH_HOURS = (5, 12, 20)  # 05:00, 12:00, 20:00
+REFRESH_HOURS = (0, 4, 8, 12, 16, 20)  # ทุก 4 ชั่วโมง
 _RETRY_SECS = 300         # หน่วงก่อน retry เมื่อ refresh ดึง Power BI ล้มเหลว (5 นาที)
 _MAX_QUICK_RETRIES = 3    # จำนวน retry เร็วก่อนกลับไปรอ schedule ปกติ
 
@@ -218,13 +218,13 @@ class DataCache:
         now = datetime.now(_BKK)
         today = now.date()
         candidates = [
-            datetime.combine(today, dt_time(hour, 0))
+            datetime.combine(today, dt_time(hour, 0), tzinfo=_BKK)
             for hour in REFRESH_HOURS
-            if datetime.combine(today, dt_time(hour, 0)) > now
+            if datetime.combine(today, dt_time(hour, 0), tzinfo=_BKK) > now
         ]
         if not candidates:
             tomorrow = today + timedelta(days=1)
-            candidates = [datetime.combine(tomorrow, dt_time(REFRESH_HOURS[0], 0))]
+            candidates = [datetime.combine(tomorrow, dt_time(REFRESH_HOURS[0], 0), tzinfo=_BKK)]
         return min(candidates)
 
     def _refresh_all(self) -> bool:

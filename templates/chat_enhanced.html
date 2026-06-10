@@ -7,6 +7,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="/static/js/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2/dist/chartjs-plugin-datalabels.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
@@ -678,9 +679,18 @@
                             <i class="fas fa-xmark text-xs"></i>
                         </button>
                     </div>
+                    <div id="image-preview-container" class="hidden flex items-center gap-2 mb-2">
+                        <div class="relative inline-block">
+                            <img id="image-preview-thumb" class="h-14 w-auto rounded-lg object-cover" style="border:1px solid var(--in-bd);max-width:140px;" />
+                            <button onclick="clearPastedImage()" class="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full flex items-center justify-center" style="background:#ef4444;color:white;">
+                                <i class="fas fa-times" style="font-size:8px;"></i>
+                            </button>
+                        </div>
+                        <span class="text-xs" style="color:var(--in-ph);">รูปภาพพร้อมส่ง</span>
+                    </div>
                     <div class="flex items-end gap-2">
-                        <textarea id="message-input" rows="1" oninput="autoResize(this)" onkeypress="handleKeyPress(event)"
-                            placeholder="พิมพ์ข้อความ..."
+                        <textarea id="message-input" rows="1" oninput="autoResize(this)" onkeypress="handleKeyPress(event)" onpaste="handleImagePaste(event)"
+                            placeholder="พิมพ์ข้อความ หรือ Ctrl+V เพื่อวางรูป..."
                             class="input-tech min-h-[46px] flex-1 resize-none rounded-xl px-4 py-3 text-sm break-words overflow-hidden"></textarea>
                         <button id="send-btn" onclick="sendMessage()" class="btn-primary flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl text-white shadow disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none">
                             <i class="fas fa-paper-plane text-sm"></i>
@@ -824,14 +834,14 @@
         }
         (function applyTheme() {
             const saved = localStorage.getItem('i_save_theme');
-            if (saved === 'light') {
+            if (saved !== 'dark') {
                 document.documentElement.classList.add('light-mode');
             }
         })();
 
         document.addEventListener("DOMContentLoaded", async () => {
             const saved = localStorage.getItem('i_save_theme');
-            document.getElementById('theme-icon').className = (saved === 'light') ? 'fas fa-sun text-xs' : 'fas fa-moon text-xs';
+            document.getElementById('theme-icon').className = (saved === 'dark') ? 'fas fa-moon text-xs' : 'fas fa-sun text-xs';
             const si = document.getElementById("search-input");
             si.value = ""; setTimeout(() => { si.value = ""; }, 150);
             await loadUserInfo(); await loadConversations();
@@ -936,23 +946,98 @@
             if (closeMobile && window.innerWidth < 1024) toggleSidebar();
         }
 
+        /* ── Image Paste ── */
+        let pastedImageData = null;
+        function handleImagePaste(e) {
+            const items = e.clipboardData?.items;
+            if (!items) return;
+            for (const item of items) {
+                if (item.type.startsWith('image/')) {
+                    e.preventDefault();
+                    const blob = item.getAsFile();
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                        const dataUrl = ev.target.result;
+                        const commaIdx = dataUrl.indexOf(',');
+                        const base64 = dataUrl.substring(commaIdx + 1);
+                        const mediaType = dataUrl.substring(5, commaIdx).split(';')[0];
+                        pastedImageData = { base64, mediaType };
+                        document.getElementById('image-preview-thumb').src = dataUrl;
+                        document.getElementById('image-preview-container').classList.remove('hidden');
+                    };
+                    reader.readAsDataURL(blob);
+                    return;
+                }
+            }
+        }
+        function clearPastedImage() {
+            pastedImageData = null;
+            document.getElementById('image-preview-container').classList.add('hidden');
+            document.getElementById('image-preview-thumb').src = '';
+        }
+
         /* ── Send Message ── */
         async function sendMessage() {
             const input = document.getElementById("message-input"), message = input.value.trim();
-            if (!message || !currentConversationId) return;
+            if (!message && !pastedImageData) return;
+            if (!currentConversationId) return;
             const sendBtn = document.getElementById("send-btn");
             const quote = selectedQuoteText;
             const payload = quote ? `[อ้างอิงข้อความ]: "${quote}"\n\n${message}` : message;
-            removeWelcomeState(); addMessageToChat(message, "user"); input.value = ""; input.style.height = "auto";
-            clearQuote(); showTypingIndicator();
+            const currentImageData = pastedImageData;
+            const imageThumbSrc = currentImageData ? document.getElementById('image-preview-thumb').src : null;
+            removeWelcomeState(); addMessageToChat(message, "user", null, null, null, null, null, null, imageThumbSrc); input.value = ""; input.style.height = "auto";
+            clearPastedImage(); clearQuote(); showTypingIndicator();
             sendBtn.disabled = true; sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin text-sm"></i>';
+            const requestBody = { message: payload };
+            if (currentImageData) {
+                requestBody.image_base64 = currentImageData.base64;
+                requestBody.image_media_type = currentImageData.mediaType;
+            }
             try {
-                const r = await fetch("/conversations/" + currentConversationId + "/messages", { method: "POST", headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken() }, body: JSON.stringify({ message: payload }) }), d = await r.json();
-                hideTypingIndicator();
-                if (!d.success) { showToast(d.message || "ส่งข้อความไม่สำเร็จ"); return; }
-                addMessageToChat(d.ai_response.message, "assistant", d.ai_response.suggestions, d.ai_response.message_id, null, null, (d.ai_response.data && d.ai_response.data.chart) || null);
-                if (d.conversation) setActiveConversationTitle(d.conversation.title);
-                await loadConversations(currentConversationId, true);
+                const r = await fetch(`/conversations/${currentConversationId}/stream`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
+                    body: JSON.stringify(requestBody)
+                });
+                if (!r.ok) {
+                    const err = await r.json().catch(() => ({}));
+                    hideTypingIndicator(); showToast(err.message || 'ส่งข้อความไม่สำเร็จ'); return;
+                }
+                const reader = r.body.getReader(), decoder = new TextDecoder();
+                let buf = '', streamingBubble = null, accumulated = '';
+                while (true) {
+                    const {done, value} = await reader.read();
+                    if (done) break;
+                    buf += decoder.decode(value, {stream: true});
+                    const lines = buf.split('\n'); buf = lines.pop();
+                    for (const line of lines) {
+                        if (!line.startsWith('data: ')) continue;
+                        let ev; try { ev = JSON.parse(line.slice(6)); } catch { continue; }
+                        if (ev.type === 'status') {
+                            updateTypingStatus(ev.text);
+                        } else if (ev.type === 'token') {
+                            if (!streamingBubble) { hideTypingIndicator(); streamingBubble = createStreamingBubble(); }
+                            accumulated += ev.text;
+                            const c = streamingBubble.querySelector('#_sbc');
+                            if (c) { c.innerHTML = renderMarkdown(accumulated); document.getElementById('chat-messages').scrollTop = 99999; }
+                        } else if (ev.type === 'done') {
+                            hideTypingIndicator();
+                            const finalMsg = ev.message || accumulated;
+                            if (!streamingBubble) {
+                                addMessageToChat(finalMsg, 'assistant', ev.suggestions, ev.message_id, null, null, ev.chart || null, ev.table || null);
+                            } else {
+                                finalizeStreamingBubble(streamingBubble, ev.message_id, finalMsg, ev.suggestions, ev.chart, ev.table || null);
+                            }
+                            if (ev.conversation_title) setActiveConversationTitle(ev.conversation_title);
+                            await loadConversations(currentConversationId, true);
+                        } else if (ev.type === 'error') {
+                            hideTypingIndicator();
+                            if (streamingBubble) streamingBubble.remove();
+                            showToast(ev.message || 'เกิดข้อผิดพลาด');
+                        }
+                    }
+                }
             } catch (err) {
                 hideTypingIndicator();
                 let msg = "เกิดข้อผิดพลาดในการสื่อสาร กรุณาลองใหม่";
@@ -971,7 +1056,7 @@
         function displayMessages(messages) {
             const c = document.getElementById("chat-messages"); c.innerHTML = "";
             if (!messages.length) { renderWelcomeState(); return; }
-            messages.forEach(m => addMessageToChat(m.message, m.sender, null, m.sender === 'assistant' ? m.id : null, m.feedback_type, m.created_at, (m.metadata && m.metadata.chart) || null));
+            messages.forEach(m => addMessageToChat(m.message, m.sender, null, m.sender === 'assistant' ? m.id : null, m.feedback_type, m.created_at, (m.metadata && m.metadata.chart) || null, (m.metadata && m.metadata.table) || null));
         }
         function renderWelcomeState() {
             document.getElementById("chat-messages").innerHTML =
@@ -1004,12 +1089,148 @@
                 .replace(/<\/div>\n/g,'</div>').replace(/\n<div/g,'<div').replace(/\n/g,'<br>');
         }
         let _chartSeq = 0;
+        /* ── Rich Interactive Table ── */
+        const _tableData = {};
+        let _tableSeq = 0;
+
+        function buildRichTableHtml(spec, tableId) {
+            if (!spec || !spec.columns || !spec.rows) return '';
+            const filterId = 'tf-' + tableId;
+            const titleHtml = spec.title ? `<div style="font-size:12px;font-weight:600;color:var(--t1);padding:6px 10px 0;">${escapeHtml(spec.title)}</div>` : '';
+            return `<div id="${tableId}" class="mt-2 rounded-xl overflow-hidden" style="border:1px solid var(--cv-hbd);">
+${titleHtml}
+<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--glass-bg);border-bottom:1px solid var(--cv-hbd);">
+  <i class="fas fa-search" style="color:var(--t3);font-size:10px;"></i>
+  <input id="${filterId}" oninput="filterRichTable('${tableId}')" type="text" placeholder="ค้นหา..." style="flex:1;padding:3px 6px;border-radius:5px;border:1px solid var(--cv-hbd);background:var(--in-bg);color:var(--in-c);font-size:11px;outline:none;">
+  <button onclick="exportTableCsv('${tableId}')" style="padding:3px 9px;border-radius:5px;border:1px solid var(--cv-hbd);background:var(--acc-soft);color:var(--acc);font-size:10px;cursor:pointer;white-space:nowrap;flex-shrink:0;"><i class="fas fa-download" style="margin-right:3px;"></i>CSV</button>
+</div>
+<div style="overflow-x:auto;max-height:280px;overflow-y:auto;">
+  <table id="t-${tableId}" style="width:100%;border-collapse:collapse;font-size:11px;font-family:'Noto Sans Thai',sans-serif;">
+    <thead id="th-${tableId}"></thead>
+    <tbody id="tb-${tableId}"></tbody>
+  </table>
+</div>
+<div id="tp-${tableId}" style="padding:3px 10px;font-size:10px;color:var(--t3);background:var(--glass-bg);border-top:1px solid var(--cv-hbd);text-align:right;"></div>
+</div>`;
+        }
+
+        function initRichTable(tableId, spec) {
+            _tableData[tableId] = { spec, sortCol: -1, sortAsc: true, filter: '' };
+            _renderRichTableBody(tableId);
+        }
+
+        function _renderRichTableBody(tableId) {
+            const d = _tableData[tableId];
+            if (!d) return;
+            const { spec, sortCol, sortAsc, filter } = d;
+            const { columns, rows } = spec;
+
+            const thead = document.getElementById('th-' + tableId);
+            if (thead) {
+                thead.innerHTML = '<tr>' + columns.map((col, i) => {
+                    const arrow = sortCol === i ? (sortAsc ? ' ▲' : ' ▼') : '';
+                    return `<th onclick="sortRichTable('${tableId}',${i})" style="padding:5px 10px;text-align:left;font-weight:600;border-bottom:1px solid var(--cv-hbd);color:var(--t3);white-space:nowrap;background:var(--glass-bg);position:sticky;top:0;cursor:pointer;user-select:none;">${escapeHtml(col)}${arrow}</th>`;
+                }).join('') + '</tr>';
+            }
+
+            let filtered = rows;
+            if (filter) {
+                const lf = filter.toLowerCase();
+                filtered = rows.filter(row => row.some(v => String(v ?? '').toLowerCase().includes(lf)));
+            }
+            if (sortCol >= 0) {
+                filtered = [...filtered].sort((a, b) => {
+                    const va = a[sortCol], vb = b[sortCol];
+                    const na = parseFloat(String(va ?? '').replace(/,/g, '')), nb = parseFloat(String(vb ?? '').replace(/,/g, ''));
+                    if (!isNaN(na) && !isNaN(nb)) return sortAsc ? na - nb : nb - na;
+                    return sortAsc ? String(va ?? '').localeCompare(String(vb ?? '')) : String(vb ?? '').localeCompare(String(va ?? ''));
+                });
+            }
+
+            const tbody = document.getElementById('tb-' + tableId);
+            if (tbody) {
+                tbody.innerHTML = filtered.map((row, ri) => {
+                    const rowBg = ri % 2 === 0 ? '' : 'background:rgba(148,163,184,0.05);';
+                    return '<tr>' + columns.map((_, ci) => {
+                        const raw = row[ci] ?? '';
+                        const isNum = typeof raw === 'number';
+                        const disp = isNum
+                            ? (Number.isInteger(raw) ? raw.toLocaleString() : parseFloat(raw.toFixed(2)).toLocaleString())
+                            : (raw === '' ? '-' : escapeHtml(String(raw)));
+                        return `<td style="padding:4px 10px;color:var(--t1);${isNum ? 'text-align:right;' : ''}${rowBg}">${disp}</td>`;
+                    }).join('') + '</tr>';
+                }).join('');
+            }
+
+            const tp = document.getElementById('tp-' + tableId);
+            if (tp) tp.textContent = filter ? `แสดง ${filtered.length} / ${rows.length} แถว` : `${rows.length} แถว`;
+        }
+
+        function sortRichTable(tableId, col) {
+            const d = _tableData[tableId];
+            if (!d) return;
+            d.sortAsc = d.sortCol === col ? !d.sortAsc : true;
+            d.sortCol = col;
+            _renderRichTableBody(tableId);
+        }
+
+        function filterRichTable(tableId) {
+            const d = _tableData[tableId];
+            if (!d) return;
+            const inp = document.getElementById('tf-' + tableId);
+            d.filter = inp ? inp.value : '';
+            _renderRichTableBody(tableId);
+        }
+
+        function exportTableCsv(tableId) {
+            const d = _tableData[tableId];
+            if (!d) return;
+            const { spec } = d;
+            const lines = [spec.columns.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')];
+            spec.rows.forEach(row => lines.push(row.map(v => `"${String(v ?? '').replace(/"/g,'""')}"`).join(',')));
+            const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = (spec.title || 'data') + '.csv';
+            a.click(); URL.revokeObjectURL(a.href);
+        }
+
+        function buildChartTableHtml(spec, chartId) {
+            if (!spec || !spec.labels || !spec.datasets || !spec.labels.length) return '';
+            const tblId = 'tbl-' + chartId;
+            const ds = spec.datasets;
+            const isPie = spec.type === 'pie' || spec.type === 'doughnut';
+            let headerCells = `<th style="padding:5px 10px;text-align:left;font-weight:600;border-bottom:1px solid var(--cv-hbd);color:var(--t3);white-space:nowrap;background:var(--glass-bg);position:sticky;top:0;">${isPie ? 'กลุ่ม' : (spec.labels.length > 0 ? '' : '-')}</th>`;
+            ds.forEach(d => {
+                headerCells += `<th style="padding:5px 10px;text-align:right;font-weight:600;border-bottom:1px solid var(--cv-hbd);color:var(--t3);white-space:nowrap;background:var(--glass-bg);position:sticky;top:0;">${escapeHtml(d.label)}</th>`;
+            });
+            let rows = '';
+            spec.labels.forEach((lbl, i) => {
+                const bg = i % 2 === 0 ? '' : 'background:rgba(148,163,184,0.05);';
+                let cells = `<td style="padding:4px 10px;color:var(--t1);white-space:nowrap;${bg}">${escapeHtml(String(lbl))}</td>`;
+                ds.forEach(d => {
+                    const v = d.data[i];
+                    const disp = v === undefined || v === null ? '-' : (Number.isInteger(v) ? v : parseFloat(v.toFixed(2)));
+                    cells += `<td style="padding:4px 10px;text-align:right;color:var(--t1);${bg}">${disp}</td>`;
+                });
+                rows += `<tr>${cells}</tr>`;
+            });
+            return `<div style="margin-top:8px;border-top:1px solid var(--cv-hbd);padding-top:6px;">
+<button onclick="(function(b){const el=document.getElementById('${tblId}');const h=el.style.display==='none';el.style.display=h?'block':'none';b.innerHTML=h?'<i class=\\'fas fa-table\\' style=\\'margin-right:5px;\\'></i>ซ่อนตาราง':'<i class=\\'fas fa-table\\' style=\\'margin-right:5px;\\'></i>แสดงตาราง'})(this)" style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid var(--cv-hbd);background:var(--acc-soft);color:var(--acc);cursor:pointer;display:flex;align-items:center;gap:4px;"><i class="fas fa-table" style="margin-right:5px;"></i>แสดงตาราง</button>
+<div id="${tblId}" style="display:none;overflow-x:auto;max-height:240px;overflow-y:auto;margin-top:6px;border-radius:8px;border:1px solid var(--cv-hbd);">
+<table style="width:100%;border-collapse:collapse;font-size:11px;font-family:'Noto Sans Thai',sans-serif;"><thead><tr>${headerCells}</tr></thead><tbody>${rows}</tbody></table>
+</div></div>`;
+        }
         function renderChart(canvas, spec) {
             if (!canvas || !spec) return;
             if (typeof Chart === "undefined") {
                 const box = canvas.parentElement;
                 if (box) box.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:12px;color:var(--t3);text-align:center;padding:1em;">ไม่สามารถโหลดไลบรารีกราฟได้<br>กรุณารีเฟรชหน้าอีกครั้ง</div>';
                 return;
+            }
+            if (typeof ChartDataLabels !== "undefined" && !Chart._datalabelsRegistered) {
+                Chart.register(ChartDataLabels);
+                Chart._datalabelsRegistered = true;
             }
             const palette = ['#38bdf8','#818cf8','#34d399','#fbbf24','#f472b6','#f87171','#a78bfa','#2dd4bf','#fb923c','#60a5fa','#4ade80','#facc15'];
             const isPie = spec.type === 'pie' || spec.type === 'doughnut';
@@ -1060,7 +1281,7 @@
                     data: { labels: spec.labels || [], datasets },
                     options: {
                         responsive: true, maintainAspectRatio: false,
-                        layout: { padding: { top: 4, bottom: 4 } },
+                        layout: { padding: { top: 20, bottom: 20, left: 4, right: 4 } },
                         animation: { duration: 600, easing: 'easeOutQuart' },
                         font: { family: fontFamily },
                         plugins: {
@@ -1074,7 +1295,20 @@
                                 backgroundColor: 'rgba(15,23,42,0.92)', titleColor: '#fff', bodyColor: '#e2e8f0',
                                 borderColor: 'rgba(148,163,184,0.3)', borderWidth: 1, padding: 10, cornerRadius: 8,
                                 titleFont: { family: fontFamily }, bodyFont: { family: fontFamily }, displayColors: true, usePointStyle: true
-                            }
+                            },
+                            datalabels: typeof ChartDataLabels !== "undefined" && !isPie ? {
+                                display: true,
+                                anchor: function(ctx) { return (ctx.dataset.data[ctx.dataIndex] || 0) >= 0 ? 'end' : 'end'; },
+                                align: function(ctx) { return (ctx.dataset.data[ctx.dataIndex] || 0) >= 0 ? 'top' : 'bottom'; },
+                                color: titleColor,
+                                font: { size: 9, family: fontFamily, weight: '600' },
+                                formatter: function(value) {
+                                    if (value === 0 || value === null || value === undefined) return null;
+                                    return Number.isInteger(value) ? value : parseFloat(value.toFixed(1));
+                                },
+                                clamp: true,
+                                offset: 1
+                            } : false
                         },
                         scales: isPie ? {} : {
                             y: { beginAtZero: true, title: { display: !!spec.y_label, text: spec.y_label, color: axisColor, font: { family: fontFamily } }, ticks: { color: axisColor, font: { family: fontFamily } }, grid: { color: 'rgba(148,163,184,0.12)', drawBorder: false }, border: { display: false } },
@@ -1084,7 +1318,7 @@
                 });
             } catch (e) { console.error('chart render failed', e); }
         }
-        function addMessageToChat(message, sender, suggestions, messageId, feedbackType, rawTimestamp, chartSpec) {
+        function addMessageToChat(message, sender, suggestions, messageId, feedbackType, rawTimestamp, chartSpec, tableSpec, imageDataUrl) {
             const c = document.getElementById("chat-messages"), w = document.createElement("div");
             w.className = "message-enter flex items-start gap-2 " + (sender === "user" ? "justify-end" : "justify-start");
             const tsDate = rawTimestamp ? new Date(rawTimestamp) : new Date();
@@ -1092,7 +1326,9 @@
                 ? new Date().toLocaleString('th-TH',{hour:'2-digit',minute:'2-digit',day:'numeric',month:'short'})
                 : tsDate.toLocaleString('th-TH',{hour:'2-digit',minute:'2-digit',day:'numeric',month:'short'});
             if (sender === "user") {
-                w.innerHTML = `<div class="flex flex-col items-end gap-0.5"><div class="max-w-full rounded-2xl rounded-br-sm px-4 py-3 text-sm leading-7 break-words overflow-wrap-anywhere msg-user" title="${nowStr}">${escapeHtml(message).replace(/\n/g,"<br>")}</div><span class="text-[10px] pr-1" style="color:var(--t3);">${nowStr}</span></div><div class="flex-shrink-0 w-8 h-8 rounded-full text-white font-bold text-sm flex items-center justify-center" style="background:linear-gradient(135deg,var(--acc-from),var(--acc-to));box-shadow:0 0 10px var(--acc-glow);">${userInitial}</div>`;
+                const imgHtml = imageDataUrl ? `<img src="${imageDataUrl}" class="block mb-1 max-h-40 w-auto rounded-lg object-contain" style="border:1px solid rgba(255,255,255,0.15);max-width:260px;" />` : '';
+                const textHtml = message ? escapeHtml(message).replace(/\n/g,"<br>") : '';
+                w.innerHTML = `<div class="flex flex-col items-end gap-0.5"><div class="max-w-full rounded-2xl rounded-br-sm px-4 py-3 text-sm leading-7 break-words overflow-wrap-anywhere msg-user" title="${nowStr}">${imgHtml}${textHtml}</div><span class="text-[10px] pr-1" style="color:var(--t3);">${nowStr}</span></div><div class="flex-shrink-0 w-8 h-8 rounded-full text-white font-bold text-sm flex items-center justify-center" style="background:linear-gradient(135deg,var(--acc-from),var(--acc-to));box-shadow:0 0 10px var(--acc-glow);">${userInitial}</div>`;
             } else {
                 const chipsHtml = (suggestions && suggestions.length)
                     ? `<div class="mt-2 flex flex-wrap gap-2">${suggestions.map(s => `<button onclick="sendQuickMessage(${escapeHtml(JSON.stringify(s))})" class="text-xs px-3 py-1.5 rounded-full transition-colors duration-200 cursor-pointer" style="border:1px solid var(--cv-hbd);background:var(--acc-soft);color:var(--acc);" onmouseover="this.style.background='var(--cv-hbg)'" onmouseout="this.style.background='var(--acc-soft)'">${escapeHtml(s)}</button>`).join('')}</div>`
@@ -1108,10 +1344,15 @@
                     ${feedbackHtml}</div>`;
                 const chartId = chartSpec ? `chart-${++_chartSeq}` : null;
                 const chartHtml = chartSpec
-                    ? `<div class="mt-1 rounded-xl px-3 py-3" style="background:var(--glass-bg);border:1px solid var(--glass-bd);"><div style="position:relative;height:320px;width:100%;"><canvas id="${chartId}"></canvas></div></div>`
+                    ? `<div class="mt-1 rounded-xl px-3 py-3" style="background:var(--glass-bg);border:1px solid var(--glass-bd);"><div style="position:relative;height:320px;width:100%;"><canvas id="${chartId}"></canvas></div>${buildChartTableHtml(chartSpec, chartId)}</div>`
                     : '';
-                w.innerHTML = `<div class="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden" style="border:1.5px solid var(--cv-hbd);"><img src="/static/chat-bot.png" alt="AI" class="w-full h-full object-cover"></div><div class="max-w-[75%] flex flex-col gap-1"><div class="msg-ai rounded-2xl rounded-bl-sm px-4 py-3 text-sm leading-7 break-words overflow-wrap-anywhere" title="${nowStr}">${renderMarkdown(message)}</div>${chartHtml}${actionsHtml}<span class="text-[10px] pl-1" style="color:var(--t3);">${nowStr}</span>${chipsHtml}</div>`;
-                if (chartSpec && chartId) { c.appendChild(w); c.scrollTop = c.scrollHeight; renderChart(document.getElementById(chartId), chartSpec); return; }
+                const tableId = tableSpec ? `rtbl-${++_tableSeq}` : null;
+                const tableHtml = tableSpec ? buildRichTableHtml(tableSpec, tableId) : '';
+                w.innerHTML = `<div class="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden" style="border:1.5px solid var(--cv-hbd);"><img src="/static/chat-bot.png" alt="AI" class="w-full h-full object-cover"></div><div class="max-w-[75%] flex flex-col gap-1"><div class="msg-ai rounded-2xl rounded-bl-sm px-4 py-3 text-sm leading-7 break-words overflow-wrap-anywhere" title="${nowStr}">${renderMarkdown(message)}</div>${chartHtml}${tableHtml}${actionsHtml}<span class="text-[10px] pl-1" style="color:var(--t3);">${nowStr}</span>${chipsHtml}</div>`;
+                c.appendChild(w); c.scrollTop = c.scrollHeight;
+                if (chartSpec && chartId) renderChart(document.getElementById(chartId), chartSpec);
+                if (tableSpec && tableId) initRichTable(tableId, tableSpec);
+                return;
             }
             c.appendChild(w); c.scrollTop = c.scrollHeight;
         }
@@ -1206,11 +1447,53 @@
         /* ── Typing Indicator ── */
         function showTypingIndicator() {
             const c = document.getElementById("chat-messages"), w = document.createElement("div");
-            w.id = "typing-indicator"; w.className = "flex justify-start";
-            w.innerHTML = '<div class="flex items-center gap-1.5 rounded-2xl rounded-bl-sm px-4 py-3 msg-ai"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div>';
+            w.id = "typing-indicator"; w.className = "flex items-start gap-2 justify-start";
+            w.innerHTML = `<div class="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden" style="border:1.5px solid var(--cv-hbd);"><img src="/static/chat-bot.png" alt="AI" class="w-full h-full object-cover"></div><div class="flex flex-col gap-1"><div class="flex items-center gap-1.5 rounded-2xl rounded-bl-sm px-4 py-3 msg-ai"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div><span id="typing-status-text" class="text-[10px] pl-1 transition-opacity duration-300" style="color:var(--acc);opacity:0;min-height:14px;"></span></div>`;
             c.appendChild(w); c.scrollTop = c.scrollHeight;
         }
         function hideTypingIndicator() { document.getElementById("typing-indicator")?.remove(); }
+        function updateTypingStatus(text) {
+            const el = document.getElementById('typing-status-text');
+            if (el) { el.textContent = text; el.style.opacity = '1'; }
+        }
+
+        /* ── Streaming Bubble ── */
+        function createStreamingBubble() {
+            const c = document.getElementById("chat-messages"), w = document.createElement("div");
+            w.className = "message-enter flex items-start gap-2 justify-start";
+            const nowStr = new Date().toLocaleString('th-TH',{hour:'2-digit',minute:'2-digit',day:'numeric',month:'short'});
+            w.innerHTML = `<div class="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden" style="border:1.5px solid var(--cv-hbd);"><img src="/static/chat-bot.png" alt="AI" class="w-full h-full object-cover"></div><div class="max-w-[75%] flex flex-col gap-1" id="_sbw"><div class="msg-ai rounded-2xl rounded-bl-sm px-4 py-3 text-sm leading-7 break-words overflow-wrap-anywhere" id="_sbc"></div><span class="text-[10px] pl-1" style="color:var(--t3);">${nowStr}</span></div>`;
+            c.appendChild(w); c.scrollTop = c.scrollHeight;
+            return w;
+        }
+        function finalizeStreamingBubble(bubbleEl, messageId, message, suggestions, chartSpec, tableSpec) {
+            const wrapper = bubbleEl.querySelector('#_sbw');
+            const contentEl = bubbleEl.querySelector('#_sbc');
+            if (!wrapper || !contentEl) return;
+            contentEl.innerHTML = renderMarkdown(message);
+            const encodedMsg = encodeURIComponent(message);
+            const feedbackHtml = messageId ? `<span class="w-px h-3 mx-0.5 self-center" style="background:var(--cv-hbd);"></span><button id="like-${messageId}" title="ดีมาก" onclick="submitFeedback(${messageId},'like')" class="rounded-md p-1.5 text-slate-500 hover:text-cyan-400 hover:bg-cyan-400/10 transition-colors"><i class="far fa-thumbs-up text-xs"></i></button><button id="dislike-${messageId}" title="ปรับปรุงได้" onclick="submitFeedback(${messageId},'dislike')" class="rounded-md p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-400/10 transition-colors"><i class="far fa-thumbs-down text-xs"></i></button>` : '';
+            const actionsHtml = `<div class="flex items-center gap-0.5 px-1 mt-0.5"><button title="คัดลอก" data-encoded="${encodedMsg}" onclick="copyMessage(this)" class="rounded-md p-1.5 text-slate-500 hover:text-cyan-400 hover:bg-cyan-400/10 transition-colors"><i class="far fa-copy text-xs"></i></button>${feedbackHtml}</div>`;
+            const chipsHtml = (suggestions && suggestions.length)
+                ? `<div class="mt-2 flex flex-wrap gap-2">${suggestions.map(s => `<button onclick="sendQuickMessage(${escapeHtml(JSON.stringify(s))})" class="text-xs px-3 py-1.5 rounded-full transition-colors duration-200 cursor-pointer" style="border:1px solid var(--cv-hbd);background:var(--acc-soft);color:var(--acc);" onmouseover="this.style.background='var(--cv-hbg)'" onmouseout="this.style.background='var(--acc-soft)'">${escapeHtml(s)}</button>`).join('')}</div>`
+                : '';
+            let chartHtml = '', chartId = null;
+            if (chartSpec) { chartId = `chart-${++_chartSeq}`; chartHtml = `<div class="mt-1 rounded-xl px-3 py-3" style="background:var(--glass-bg);border:1px solid var(--glass-bd);"><div style="position:relative;height:320px;width:100%;"><canvas id="${chartId}"></canvas></div>${buildChartTableHtml(chartSpec, chartId)}</div>`; }
+            let tableHtml = '', tableId = null;
+            if (tableSpec) { tableId = `rtbl-${++_tableSeq}`; tableHtml = buildRichTableHtml(tableSpec, tableId); }
+            const tsEl = wrapper.querySelector('span[style*="--t3"]');
+            const tsHtml = tsEl ? tsEl.outerHTML : '';
+            if (tsEl) tsEl.remove();
+            if (chartHtml) contentEl.insertAdjacentHTML('afterend', chartHtml);
+            if (tableHtml) {
+                const insertAfter = chartHtml ? document.getElementById(chartId).closest('div.mt-1') : contentEl;
+                insertAfter.insertAdjacentHTML('afterend', tableHtml);
+            }
+            wrapper.insertAdjacentHTML('beforeend', actionsHtml + tsHtml + chipsHtml);
+            if (chartId) { const cv = document.getElementById(chartId); if (cv) renderChart(cv, chartSpec); }
+            if (tableId) initRichTable(tableId, tableSpec);
+            document.getElementById('chat-messages').scrollTop = 99999;
+        }
         function autoResize(el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }
         function handleKeyPress(e) { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
 

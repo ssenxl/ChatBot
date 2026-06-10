@@ -919,7 +919,8 @@ class Database:
             per_user = [dict(r) for r in cursor.fetchall()]
 
             cursor.execute('''
-                SELECT u.username, m.message, f.created_at
+                SELECT u.username, u.id AS user_id, m.message, m.id AS message_id,
+                       c.id AS conversation_id, f.created_at
                 FROM message_feedback f
                 JOIN messages m ON f.message_id = m.id
                 JOIN conversations c ON m.conversation_id = c.id
@@ -932,7 +933,10 @@ class Database:
             for r in cursor.fetchall():
                 recent_dislikes.append({
                     'username': r['username'],
+                    'user_id': r['user_id'],
                     'message': r['message'][:200],
+                    'message_id': r['message_id'],
+                    'conversation_id': r['conversation_id'],
                     'created_at': str(r['created_at']),
                 })
 

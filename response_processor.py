@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 import logging
-from openai import OpenAI
+from openai import OpenAI, AsyncOpenAI
 from data_cache import get_data_cache
 
 logging.basicConfig(level=logging.INFO)
@@ -186,6 +186,15 @@ def _group_matches(group_col: str, keywords: list) -> bool:
     return False
 
 
+_TOOL_STATUS_LABELS = {
+    'get_item_plan': 'กำลังดึงข้อมูล Item Plan...',
+    'get_machine_capacity': 'กำลังดึงข้อมูล Capacity...',
+    'get_booking': 'กำลังดึงข้อมูล Booking...',
+    'get_knit_plan': 'กำลังดึงข้อมูลแผนทอ...',
+    'render_chart': 'กำลังสร้างกราฟ...',
+    'render_table': 'กำลังสร้างตาราง...',
+}
+
 SYSTEM_PROMPT_TEMPLATE = """You are an AI assistant for the I-SAVE system at a textile factory.
 คุณเป็นผู้ช่วย AI ของระบบ I-SAVE สำหรับโรงงานทอผ้า ชื่อว่า "น้อง I-SAVE Chatbot"
 
@@ -216,7 +225,7 @@ LANGUAGE RULE (highest priority — overrides ALL template responses below):
    - วันนี้คือ {today} (สัปดาห์ปัจจุบัน = YW {current_yw}). ใช้ค่านี้อ้างอิงเมื่อ user พูดถึงเวลาแบบสัมพัทธ์
    - เมื่อ user พูดถึงสัปดาห์/เดือนแบบคำพูด (สัปดาห์นี้/หน้า/ที่แล้ว, อีก N สัปดาห์, เดือนนี้/หน้า/ที่แล้ว, this/next/last week, this/next/last month) ให้ส่งวลีนั้นเป็น argument `week` ของ tool ตรงๆ — ระบบจะแปลงเป็น YW ให้เอง ห้ามเดา YW เอง
 5. Earliest plannable week = YW {min_yw} (current +2 weeks) — exclude YW below this
-6. Ava = available machines (Total − Used_N − Used_F). KG_Ava = available production capacity in kg (from KG_Ava_Display measure). When Ava > 0, always include KG_Ava in the response (format as tons: KG_Ava/1000 with 2 decimal places, e.g. "**X.XX ตัน**"). If KG_Ava is blank/empty for a row, omit it.
+6. Ava = available machines (Total − Used_N − Used_F). KG_Ava = available production capacity in kg (from KG_Ava_Display measure). When Ava > 0, always include KG_Ava in the response (format as kg with comma separator, e.g. "**X,XXX kg**"). If KG_Ava is blank/empty for a row, omit it.
 7. Be concise. Use bold (**text**) for key numbers. Use exactly ONE newline (\\n) between each bullet and between paragraphs. NEVER put multiple bullets on the same line. No blank lines (double newlines \\n\\n) anywhere in the response.
    - If tool result contains a line starting with [หมายเหตุ:...], you MUST include that warning in your response.
    - If tool result contains TOTAL_KP_WEIGHT=..., use that exact value for the total — never compute the sum yourself. Do NOT copy or show the [TOTAL_KP_WEIGHT=...] line in your response; it is for your internal use only.
@@ -243,27 +252,60 @@ LANGUAGE RULE (highest priority — overrides ALL template responses below):
 10. Week terminology: Thai responses → always use "สัปดาห์" (e.g. "สัปดาห์ที่ 22") — never "week 22" or "วีค 22". English responses → use "week" (e.g. "Week 22").
     Gauge terminology: always write "Gauge" or abbreviate as "G" (e.g. "24G", "28G") — never use "เกจ" in any language.
 11. When multiple machine groups have available capacity, give a summary first:
-    - Thai: "มีเครื่องว่างรวม **XX เครื่อง** ใน YY กลุ่ม (KG_Ava รวม **Z.ZZ ตัน**)" แล้วถามว่า "ต้องการดูรายละเอียดแต่ละกลุ่มเพิ่มเติมไหมคะ"
-    - English: "Total **XX machines** available across YY groups (KG_Ava: **Z.ZZ tons**). Would you like details per group?"
+    - Thai: "มีเครื่องว่างรวม **XX เครื่อง** ใน YY กลุ่ม (KG_Ava รวม **X,XXX kg**)" แล้วถามว่า "ต้องการดูรายละเอียดแต่ละกลุ่มเพิ่มเติมไหมคะ"
+    - English: "Total **XX machines** available across YY groups (KG_Ava: **X,XXX kg**). Would you like details per group?"
     - Include KG_Ava only when KG_Ava column has values; omit the "(KG_Ava ...)" part if blank.
 12. If no Item or group is specified, give an overview:
-    - Thai: "พบ Item ในแผนทั้งหมด [จำนวน] รายการ อยู่ใน [จำนวน] กลุ่มเครื่อง เช่น [รายชื่อกลุ่มหลัก]\nKP_Weight รวม [ยอดรวม] ตัน\nต้องการดูรายละเอียดเพิ่มเติมไหมคะ เช่น Item, กลุ่มเครื่อง, Gauge หรือช่วงสัปดาห์"
-    - English: "Found [count] items in the plan across [count] machine groups (e.g. [main groups]).\nTotal KP_Weight: [total] tons.\nWould you like more details by item, group, Gauge, or week range?"
-13. If item code is partial and matches more than 1 result, show a numbered list (1, 2, 3, 4) and ask which one the user wants before showing details.
+    - Thai: "พบ Item ในแผนทั้งหมด [จำนวน] รายการ อยู่ใน [จำนวน] กลุ่มเครื่อง เช่น [รายชื่อกลุ่มหลัก]\nKP_Weight รวม [ยอดรวม] kg\nต้องการดูรายละเอียดเพิ่มเติมไหมคะ เช่น Item, กลุ่มเครื่อง, Gauge หรือช่วงสัปดาห์"
+    - English: "Found [count] items in the plan across [count] machine groups (e.g. [main groups]).\nTotal KP_Weight: [total] kg.\nWould you like more details by item, group, Gauge, or week range?"
+13. Users often type only a partial item code — either a prefix (e.g. "F100114") or a substring from the middle/end of the code (e.g. "PI80" for "FD4BASPI80B0", "JZ63" for a code containing "JZ63"). Always pass whatever the user typed as item_code to get_item_plan; the tool handles prefix and substring matching automatically. If multiple items match, show a numbered list (1, 2, 3, 4) and ask which one the user wants before showing details.
 14. When asked about a specific item, call get_item_plan first, then format the response using ACTUAL values from the tool result.
     CRITICAL: NEVER output literal bracket placeholders. Replace every placeholder with real data. If tool returns no data, say item was not found.
     Format template (replace ALL bracketed parts with real values from tool result):
-    - Thai: "Item {{actual_item_code}} สามารถทอได้ที่กลุ่มเครื่อง {{actual_group_name}} โดยมีรายละเอียดแผนทอ ดังนี้\n1.สัปดาห์ที่ {{actual_YW}} จำนวน {{actual_KP_Weight}} ตัน\n...\nหากต้องการสอบถามเรื่องไหนเพิ่มเติม สามารถพิมพ์สอบถามได้เลยค่ะ"
-    - English: "Item {{actual_item_code}} can be knitted at machine group {{actual_group_name}}. Knitting plan details:\n1. Week {{actual_YW}}: {{actual_KP_Weight}} tons\n...\nFeel free to ask if you need more information."
-    - Always convert KP_Weight from kg to tons (divide by 1000) and display with "ตัน" (Thai) or "tons" (English). E.g. 859739 kg → 859.74 ตัน
+    - Thai: "Item {{actual_item_code}} สามารถทอได้ที่กลุ่มเครื่อง {{actual_group_name}} โดยมีรายละเอียดแผนทอ ดังนี้\n1.สัปดาห์ที่ {{actual_YW}} จำนวน {{actual_KP_Weight}} kg\n...\nหากต้องการสอบถามเรื่องไหนเพิ่มเติม สามารถพิมพ์สอบถามได้เลยค่ะ"
+    - English: "Item {{actual_item_code}} can be knitted at machine group {{actual_group_name}}. Knitting plan details:\n1. Week {{actual_YW}}: {{actual_KP_Weight}} kg\n...\nFeel free to ask if you need more information."
+    - Display KP_Weight in kg with comma separator (e.g. 859,739 kg). Do NOT convert to tons.
     - If item spans multiple groups, list each group separately
 15. Charts/graphs (กราฟ, แผนภูมิ, chart, plot, วาดกราฟ): ONLY when the user explicitly asks for one.
     - Step 1: call the data tool(s) first (get_item_plan ฯลฯ) to get REAL values. NEVER invent numbers.
-    - Step 2: call render_chart with those real values. Convert KP_Weight kg→tons (÷1000) before putting into data.
+    - Step 2: call render_chart with those real values. Use KP_Weight in kg directly (no conversion).
     - chart_type: 'line' = trend over weeks (แนวโน้มรายสัปดาห์), 'bar' = compare weeks/groups, 'pie'/'doughnut' = proportions/สัดส่วน. If user names a type, use it.
     - labels = x-axis (เช่น สัปดาห์ YW), each dataset.data must align 1:1 with labels.
     - After render_chart, write only a SHORT caption (1-2 lines). Do NOT re-list every number — the chart already shows them.
-    - If there is no data to plot (tool returned not found), do NOT call render_chart; reply that there is no data to chart."""
+    - If there is no data to plot (tool returned not found), do NOT call render_chart; reply that there is no data to chart.
+17. When your tool results contain 3 or more data rows to present, follow this exact 3-step order:
+    Step 1 — write a summary block BEFORE calling render_table:
+      📌 สรุป[กลุ่ม/ตัวกรองที่ใช้] [สัปดาห์ถ้ามี]
+      KP Weight รวม: [ค่าจาก TOTAL_KP_WEIGHT] kg
+      จำนวน Item: [จำนวน] รายการ
+      Item ที่มีน้ำหนักมากที่สุด: (Top 3 เรียงมาก→น้อย, format: "ItemCode — X,XXX.XX kg" แต่ละรายการขึ้นบรรทัดใหม่)
+      (ถ้าไม่มี group/week filter ให้ปรับหัวข้อตามข้อมูลจริง เช่น "📌 สรุป Item ทั้งหมดสัปดาห์ที่ XX")
+    Step 2 — call render_table with ALL rows (ตารางเต็ม)
+    Step 3 — write 1–2 short follow-up suggestions (เช่น ดูกรองเพิ่ม, ดูสัปดาห์อื่น)
+    - MANDATORY for EVERY response that has 3+ rows — even if a previous turn already showed a table for the same data source. NEVER substitute a numbered list, bullet list, or inline text for render_table.
+    - columns: array of header label strings, e.g. ["Item", "กลุ่ม", "KP Weight (kg)", "สัปดาห์"]
+    - rows: array of arrays — one sub-array per data row, values in the same order as columns
+    - LIMIT: maximum 50 rows per table call. If data has more than 50 rows, show only the first 50 and mention the total count in your caption.
+    - Number columns (KP Weight, Total, Used, Ava, etc.): use raw numeric values (int/float) — the table auto-formats with commas
+    - Code/ID columns (Item codes, YW week codes like 202626, group names): MUST be passed as strings (e.g. "202626" not 202626) — never pass week codes as numbers
+    - Call the relevant data tool(s) first to get REAL values, then call render_table with those values
+    - Only use render_chart (not render_table) when the user explicitly asks for a graph/chart
+18. I-SAVE system how-to questions — answer from the knowledge below, do NOT call any tool:
+    Q: เปลี่ยนรหัสผ่านยังไง / วิธีเปลี่ยนรหัสผ่าน / change password
+    A (Thai): กดที่ชื่อผู้ใช้มุมบนขวา → เลือก "เปลี่ยนรหัสผ่าน" → กรอกรหัสผ่านเดิม และรหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร) → กด "ยืนยัน"
+    A (English): Click your username at the top-right → select "เปลี่ยนรหัสผ่าน" (Change Password) → enter your current password and new password (min 6 characters) → click "ยืนยัน" (Confirm).
+
+    Q: ลืมรหัสผ่าน / เข้าระบบไม่ได้ / forgot password / reset password
+    A (Thai): ที่หน้า Login กดลิงก์ "ลืมรหัสผ่าน" → กรอกชื่อผู้ใช้และอีเมลที่ลงทะเบียนไว้ให้ตรงกัน → ตั้งรหัสผ่านใหม่ได้เลย
+    A (English): On the Login page, click "ลืมรหัสผ่าน" (Forgot Password) → enter your username and registered email → set a new password.
+
+    Q: ติดต่อแอดมินยังไง / แจ้งปัญหา / contact admin / report issue
+    A (Thai): กดปุ่ม "ติดต่อ Admin" ที่แถบซ้าย → พิมพ์อธิบายปัญหา → กด "ส่งข้อความ" แอดมินจะตอบกลับในระบบ ดูประวัติได้ที่แท็บ "ประวัติ"
+    A (English): Click "ติดต่อ Admin" in the left sidebar → describe your issue → click "ส่งข้อความ" (Send). Admin will reply in the system; view history under the "ประวัติ" tab.
+
+    Q: ออกจากระบบยังไง / logout / sign out
+    A (Thai): กดปุ่ม "ออกจากระบบ" สีแดงมุมบนขวา
+    A (English): Click the red "ออกจากระบบ" (Logout) button at the top-right."""
 
 TOOLS = [
     {
@@ -383,12 +425,47 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "render_table",
+            "description": (
+                "แสดงข้อมูลหลาย row เป็นตาราง interactive ที่ sort/filter/export CSV ได้ "
+                "เรียกใช้เมื่อมีข้อมูล 3+ แถว (เช่น item หลายรายการ, หลายกลุ่มเครื่อง, หลายสัปดาห์). "
+                "ต้องเรียก tool ดึงข้อมูล (get_item_plan ฯลฯ) ก่อน แล้วนำค่าจริงมาใส่. "
+                "ห้ามเรียกเมื่อ user ขอกราฟ — ให้ใช้ render_chart แทน"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "description": "หัวข้อตาราง เช่น 'Item Plan กลุ่ม SKP สัปดาห์ที่ 25'"
+                    },
+                    "columns": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "ชื่อ header แต่ละคอลัมน์ เช่น ['Item', 'กลุ่ม', 'KP Weight (kg)', 'สัปดาห์']"
+                    },
+                    "rows": {
+                        "type": "array",
+                        "description": "ข้อมูลแต่ละแถว เรียงตรงกับ columns",
+                        "items": {
+                            "type": "array",
+                            "items": {"type": ["string", "number", "null"]}
+                        }
+                    }
+                },
+                "required": ["columns", "rows"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "render_chart",
             "description": (
                 "วาดกราฟ/แผนภูมิให้ผู้ใช้ เรียกใช้เมื่อผู้ใช้ขอกราฟ/แผนภูมิ/chart/plot/วาดกราฟ เท่านั้น. "
                 "ต้องเรียก tool ดึงข้อมูล (get_item_plan ฯลฯ) ให้ได้ค่าจริงก่อน แล้วนำตัวเลขจริงมาใส่. "
                 "เลือก chart_type: 'line'=แนวโน้มตามสัปดาห์, 'bar'=เปรียบเทียบ (สัปดาห์/กลุ่ม), "
-                "'pie'/'doughnut'=สัดส่วน. labels และ data ต้องยาวเท่ากัน. แปลง KP_Weight เป็นตัน (kg/1000) ก่อนใส่"
+                "'pie'/'doughnut'=สัดส่วน. labels และ data ต้องยาวเท่ากัน. ใช้ KP_Weight ในหน่วย kg ตรงๆ ไม่ต้องแปลง"
             ),
             "parameters": {
                 "type": "object",
@@ -400,7 +477,7 @@ TOOLS = [
                     },
                     "title": {
                         "type": "string",
-                        "description": "หัวข้อกราฟ เช่น 'แผนทอ F100114/10A0 รายสัปดาห์ (ตัน)'"
+                        "description": "หัวข้อกราฟ เช่น 'แผนทอ F100114/10A0 รายสัปดาห์ (kg)'"
                     },
                     "labels": {
                         "type": "array",
@@ -413,7 +490,7 @@ TOOLS = [
                         "items": {
                             "type": "object",
                             "properties": {
-                                "label": {"type": "string", "description": "ชื่อชุดข้อมูล เช่น 'KP Weight (ตัน)'"},
+                                "label": {"type": "string", "description": "ชื่อชุดข้อมูล เช่น 'KP Weight (kg)'"},
                                 "data": {
                                     "type": "array",
                                     "items": {"type": "number"},
@@ -425,7 +502,7 @@ TOOLS = [
                     },
                     "y_label": {
                         "type": "string",
-                        "description": "ชื่อแกน Y เช่น 'ตัน' (ไม่บังคับ)"
+                        "description": "ชื่อแกน Y เช่น 'kg' (ไม่บังคับ)"
                     }
                 },
                 "required": ["chart_type", "labels", "datasets"]
@@ -438,6 +515,7 @@ TOOLS = [
 class ResponseProcessor:
     def __init__(self):
         self._openai = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        self._openai_async = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         self._model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
     def _build_history_messages(self, conversation_history: list, limit: int = 12) -> list:
@@ -481,6 +559,7 @@ class ResponseProcessor:
         result = []
         exact_match = []
         prefix_match = []
+        substr_match = []
         ic = item_code.strip().upper() if item_code else None
         for line in lines[1:]:
             cols = line.split(',')
@@ -495,16 +574,17 @@ class ResponseProcessor:
             if yw_filter and yw_col not in yw_filter:
                 continue
             if ic:
-                # exact ก่อน ถ้าไม่เจอค่อย fallback เป็น prefix (เช่น "F100114" → "F100114/10A0")
                 if item_col == ic:
                     exact_match.append(line)
                 elif item_col.startswith(ic):
                     prefix_match.append(line)
+                elif ic in item_col:
+                    substr_match.append(line)
                 continue
             result.append(line)
 
         if ic:
-            result = exact_match or prefix_match
+            result = exact_match or prefix_match or substr_match
 
         if result:
             min_yw = _min_plannable_yw()
@@ -522,7 +602,7 @@ class ResponseProcessor:
                         total_kg += float(cols[2].strip())
                     except ValueError:
                         pass
-            footer = f"[TOTAL_KP_WEIGHT={total_kg:.2f} kg = {total_kg/1000:.4f} ตัน — ใช้ค่านี้เท่านั้น ห้ามคำนวณเอง]\n"
+            footer = f"[TOTAL_KP_WEIGHT={total_kg:.2f} kg — ใช้ค่านี้เท่านั้น ห้ามคำนวณเอง]\n"
             return header + '\n' + '\n'.join(result) + '\n' + footer + note
         if item_code:
             return f"ไม่พบ item {item_code} ใน Item Plan"
@@ -576,21 +656,25 @@ class ResponseProcessor:
             if gauge and gauge_col != gauge:
                 continue
 
-            # เพิ่ม KG_Ava ต่อท้าย line เมื่อเครื่องว่าง (Ava > 0)
-            try:
-                ava_val = float(ava_col) if ava_col else 0.0
-            except ValueError:
-                ava_val = 0.0
-            kg_ava_val = kg_ava_lookup.get((yw_col, group_col))
-            if kg_ava_val is not None and ava_val > 0:
-                result.append(f"{line},{kg_ava_val:.2f}")
+            # KG_Ava เป็นค่ารวมระดับกลุ่ม ไม่ break down ตาม gauge
+            # ถ้า filter ด้วย gauge ให้ข้าม KG_Ava เพื่อไม่ให้เข้าใจผิด
+            if gauge:
+                result.append(line)
             else:
-                result.append(f"{line},")
+                try:
+                    ava_val = float(ava_col) if ava_col else 0.0
+                except ValueError:
+                    ava_val = 0.0
+                kg_ava_val = kg_ava_lookup.get((yw_col, group_col))
+                if kg_ava_val is not None and ava_val > 0:
+                    result.append(f"{line},{kg_ava_val:.2f}")
+                else:
+                    result.append(f"{line},")
 
         if result:
             min_yw = _min_plannable_yw()
             note = f"[หมายเหตุ: week เร็วที่สุดที่วางแผนได้ = YW {min_yw}]\n"
-            header = "YW,Group,Guage,Total,Used_N,Used_F,Ava,KG_Ava"
+            header = "YW,Group,Guage,Total,Used_N,Used_F,Ava" if gauge else "YW,Group,Guage,Total,Used_N,Used_F,Ava,KG_Ava"
             return header + '\n' + '\n'.join(result) + '\n' + note
         return f"ไม่พบข้อมูล Machine Capacity (group={group}, week={week}, gauge={gauge})"
 
@@ -666,6 +750,32 @@ class ResponseProcessor:
                 item_code=args.get("item_code"),
             )
         return f"ไม่รู้จัก tool: {name}"
+
+    def _build_table_spec(self, raw_arguments: str):
+        """แปลง arguments จาก render_table เป็น table spec ที่ frontend ใช้แสดง.
+        คืน (spec | None, ข้อความผลลัพธ์สำหรับป้อนกลับให้โมเดล)."""
+        try:
+            args = json.loads(raw_arguments)
+        except Exception:
+            return None, "สร้างตารางไม่สำเร็จ: ข้อมูลไม่ถูกต้อง"
+
+        columns = [str(c) for c in (args.get("columns") or [])]
+        raw_rows = args.get("rows") or []
+        rows = []
+        for row in raw_rows:
+            if isinstance(row, list):
+                rows.append([v if isinstance(v, (int, float)) else (str(v) if v is not None else '') for v in row])
+
+        if not columns or not rows:
+            return None, "สร้างตารางไม่สำเร็จ: ต้องมี columns และ rows ที่มีข้อมูล"
+
+        spec = {
+            "title": str(args.get("title") or ""),
+            "columns": columns,
+            "rows": rows,
+        }
+        logger.info(f"render_table: {len(columns)} cols | {len(rows)} rows")
+        return spec, "สร้างตารางเรียบร้อยแล้ว แสดงให้ผู้ใช้ทางหน้าจอแล้ว — ให้เขียนคำอธิบายสั้นๆ ประกอบตาราง ห้ามลิสต์ตัวเลขทั้งหมดซ้ำ"
 
     def _build_chart_spec(self, raw_arguments: str):
         """แปลง arguments จาก render_chart เป็น chart spec ที่ frontend ใช้วาด (Chart.js).
@@ -885,7 +995,7 @@ class ResponseProcessor:
             f"มีเครื่องทั้งหมด **{int(total_machines)} เครื่อง** แบ่งเป็น **{n_main} กลุ่มเครื่องหลัก** และ **{n_sub} กลุ่มย่อย** ค่ะ",
         ]
         if total_kg > 0:
-            out_lines.append(f"KP Weight รวมสัปดาห์นี้อยู่ที่ประมาณ **{total_kg/1000:.2f} ตัน**")
+            out_lines.append(f"KP Weight รวมสัปดาห์นี้อยู่ที่ประมาณ **{total_kg:,.0f} kg**")
         out_lines.append(
             f"กลุ่มที่มีเครื่องมากที่สุดคือ **{max_machines_group}** ({int(group_total.get(max_machines_group, 0))} เครื่อง)"
         )
@@ -896,7 +1006,7 @@ class ResponseProcessor:
             )
         ava_line = f"เครื่องว่างรวม **{int(total_ava)} เครื่อง** จาก {int(total_machines)} เครื่องทั้งหมด"
         if total_kg_ava > 0 and total_ava > 0:
-            ava_line += f" (KG_Ava รวม **{total_kg_ava/1000:.2f} ตัน**)"
+            ava_line += f" (KG_Ava รวม **{total_kg_ava:,.0f} kg**)"
         out_lines.append(ava_line)
         out_lines.append("ถ้าต้องการดูรายละเอียดเพิ่มเติม สามารถเลือกกลุ่มเครื่อง หรือระบุสัปดาห์ที่ต้องการได้เลยค่ะ")
 
@@ -1026,12 +1136,12 @@ class ResponseProcessor:
             f"- จำนวนกลุ่มเครื่องที่มีข้อมูล Capacity : **{n_groups} กลุ่ม**",
         ]
         if total_kp_all > 0:
-            out.append(f"- Capacity รวมทั้งหมด (KP Weight ทุกสัปดาห์) : **{total_kp_all/1000:.2f} ตัน**")
-            out.append(f"- ใช้งานไปแล้ว (สัปดาห์ที่ {week_num}) : **{snapshot_kp/1000:.2f} ตัน**")
-            out.append(f"- Capacity คงเหลือในแผน : **{remaining_kp/1000:.2f} ตัน**")
+            out.append(f"- Capacity รวมทั้งหมด (KP Weight ทุกสัปดาห์) : **{total_kp_all:,.0f} kg**")
+            out.append(f"- ใช้งานไปแล้ว (สัปดาห์ที่ {week_num}) : **{snapshot_kp:,.0f} kg**")
+            out.append(f"- Capacity คงเหลือในแผน : **{remaining_kp:,.0f} kg**")
         mc_ava_line = f"- เครื่องทั้งหมด : **{int(total_machines)} เครื่อง** | ใช้งาน **{int(total_used)}** | ว่าง **{int(total_ava)}**"
         if total_kg_ava > 0 and total_ava > 0:
-            mc_ava_line += f" | KG_Ava **{total_kg_ava/1000:.2f} ตัน**"
+            mc_ava_line += f" | KG_Ava **{total_kg_ava:,.0f} kg**"
         out += [
             mc_ava_line,
             f"- % การใช้ Capacity เฉลี่ย : **{round(util_pct, 1)}%**",
@@ -1111,7 +1221,7 @@ class ResponseProcessor:
             "",
             "**ภาพรวม Item**",
             f"- จำนวน Item ที่มีแผนทอ : **{len(distinct_items)} Item**",
-            f"- น้ำหนักรวมทั้งหมด : **{total_kp/1000:.2f} ตัน**",
+            f"- น้ำหนักรวมทั้งหมด : **{total_kp:,.0f} kg**",
             f"- จำนวนกลุ่มเครื่องที่เกี่ยวข้อง : **{len(distinct_groups)} กลุ่ม**",
             f"- จำนวนสัปดาห์ในแผน : **{len(distinct_weeks)} สัปดาห์**",
             "",
@@ -1229,7 +1339,7 @@ class ResponseProcessor:
             "",
             "**ภาพรวมแผนทอ**",
             f"- จำนวน Item ในแผนทั้งหมด : **{len(distinct_items)} Item**",
-            f"- น้ำหนักแผนทอรวม : **{total_kp/1000:.2f} ตัน**",
+            f"- น้ำหนักแผนทอรวม : **{total_kp:,.0f} kg**",
             f"- จำนวนกลุ่มเครื่องที่เกี่ยวข้อง : **{len(distinct_groups)} กลุ่ม**",
             "",
             "**สรุปตามกลุ่มเครื่องหลัก**",
@@ -1239,13 +1349,13 @@ class ResponseProcessor:
             n_items = len(group_items[g])
             kp = int(group_kp[g])
             label = g if g else '(ไม่ระบุกลุ่ม)'
-            out.append(f"- **{label}** : {n_items} Item / {kp/1000:.2f} ตัน")
+            out.append(f"- **{label}** : {n_items} Item / {kp:,.0f} kg")
 
         out += [
             "",
             "จากภาพรวมตอนนี้",
-            f"กลุ่มที่มีแผนทอมากที่สุดคือ **{top_group}** ({len(group_items.get(top_group, set()))} Item / {group_kp.get(top_group, 0)/1000:.2f} ตัน)",
-            f"สัปดาห์ที่มีแผนทอหนักที่สุดคือ สัปดาห์ที่ **{busiest_week_num}** ({week_kp.get(busiest_yw, 0)/1000:.2f} ตัน)",
+            f"กลุ่มที่มีแผนทอมากที่สุดคือ **{top_group}** ({len(group_items.get(top_group, set()))} Item / {group_kp.get(top_group, 0):,.0f} kg)",
+            f"สัปดาห์ที่มีแผนทอหนักที่สุดคือ สัปดาห์ที่ **{busiest_week_num}** ({week_kp.get(busiest_yw, 0):,.0f} kg)",
             "ถ้าต้องการดูรายละเอียดเพิ่มเติม สามารถระบุ Item, กลุ่มเครื่อง หรือสัปดาห์ที่ต้องการได้เลยค่ะ",
         ]
         return '\n'.join(out)
@@ -1293,6 +1403,8 @@ class ResponseProcessor:
         user_message: str,
         username: str = 'คุณ',  # noqa: ARG002 — kept for API compatibility
         conversation_history: Optional[List[Dict]] = None,
+        image_base64: Optional[str] = None,
+        image_media_type: str = 'image/png',
     ) -> ProcessedResponse:
         if user_message.strip() == 'ข้อมูลเครื่องจักร':
             return ProcessedResponse(
@@ -1340,15 +1452,27 @@ class ResponseProcessor:
         lang = _detect_reply_language(user_message, conversation_history)
         lang_instruction = "IMPORTANT: Reply in Thai language." if lang == 'thai' else "IMPORTANT: Reply in English."
 
+        if image_base64:
+            user_msg_content = [
+                {"type": "image_url", "image_url": {"url": f"data:{image_media_type};base64,{image_base64}"}},
+                {"type": "text", "text": user_message or "กรุณาวิเคราะห์รูปภาพนี้"},
+            ]
+            image_system = [{"role": "system", "content": "User has shared a screenshot or image. Analyze it and answer based on what you see. If it shows I-SAVE related data (tables, schedules, bookings), respond accordingly."}]
+        else:
+            user_msg_content = user_message
+            image_system = []
+
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "system", "content": lang_instruction},
+            *image_system,
             *history_msgs,
-            {"role": "user", "content": user_message},
+            {"role": "user", "content": user_msg_content},
         ]
 
         tool_calls_log: List[Dict] = []
         chart_spec: Optional[Dict] = None
+        table_spec: Optional[Dict] = None
         total_prompt_tokens = 0
         total_completion_tokens = 0
         loop = asyncio.get_running_loop()
@@ -1365,7 +1489,7 @@ class ResponseProcessor:
                             messages=messages,
                             tools=TOOLS,
                             tool_choice="auto",
-                            max_completion_tokens=1500,
+                            max_completion_tokens=2500,
                         ),
                     )
                     break
@@ -1413,6 +1537,10 @@ class ResponseProcessor:
                         spec, result = self._build_chart_spec(tool_call.function.arguments)
                         if spec:
                             chart_spec = spec
+                    elif tool_call.function.name == "render_table":
+                        spec, result = self._build_table_spec(tool_call.function.arguments)
+                        if spec:
+                            table_spec = spec
                     else:
                         result = self._execute_tool_call(tool_call)
                     tool_calls_log.append({
@@ -1427,10 +1555,19 @@ class ResponseProcessor:
                     })
             else:
                 fallback = "Sorry, I'm unable to respond." if lang == 'english' else "ขออภัยค่ะ ไม่สามารถตอบได้"
+                final_message = _clean_response(msg.content or fallback)
+                alert = self._build_capacity_alert(tool_calls_log, lang)
+                if alert:
+                    final_message = final_message + alert
+                _data = {}
+                if chart_spec:
+                    _data['chart'] = chart_spec
+                if table_spec:
+                    _data['table'] = table_spec
                 return ProcessedResponse(
-                    message=_clean_response(msg.content or fallback),
-                    response_type='chart' if chart_spec else 'text',
-                    data={'chart': chart_spec} if chart_spec else None,
+                    message=final_message,
+                    response_type='chart' if chart_spec else ('table' if table_spec else 'text'),
+                    data=_data or None,
                     processing_path='agent',
                     mcp_calls=tool_calls_log,
                     metadata={
@@ -1453,6 +1590,245 @@ class ResponseProcessor:
             mcp_calls=tool_calls_log,
             metadata={'intent': 'agent', 'confidence': 0.0, 'matched_keywords': []},
         )
+
+    async def process_message_stream(
+        self,
+        user_message: str,
+        username: str = 'คุณ',
+        conversation_history: Optional[List[Dict]] = None,
+        image_base64: Optional[str] = None,
+        image_media_type: str = 'image/png',
+    ):
+        """Async generator yielding SSE event dicts for streaming response."""
+
+        # Shortcuts — yield single done event immediately (no streaming needed)
+        _shortcuts = {
+            'ข้อมูลเครื่องจักร': (self._build_machine_capacity_overview, self._get_machine_capacity_suggestions, 'machine_info_menu'),
+            'ข้อมูล Capacity':   (self._build_capacity_overview,         self._get_capacity_suggestions,         'capacity_menu'),
+            'ข้อมูลแผนทอ':      (self._build_knit_plan_overview,         self._get_knit_plan_suggestions,        'knitting_plan'),
+            'ข้อมูล Item':       (self._build_item_overview,              self._get_item_suggestions,             'item_data'),
+        }
+        shortcut = _shortcuts.get(user_message.strip())
+        if shortcut:
+            build_fn, sugg_fn, intent = shortcut
+            yield {
+                'type': 'done',
+                'message': build_fn(),
+                'suggestions': sugg_fn(),
+                'chart': None,
+                'processing_path': 'shortcut',
+                'metadata': {'intent': intent, 'confidence': 1.0, 'matched_keywords': []},
+                'mcp_calls': [],
+            }
+            return
+
+        history_msgs = self._build_history_messages(conversation_history or [])
+        _now = datetime.now()
+        system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
+            min_yw=_min_plannable_yw(),
+            today=_now.strftime('%Y-%m-%d'),
+            current_yw=_yw_from_date(_now),
+        )
+        lang = _detect_reply_language(user_message, conversation_history)
+        lang_instruction = "IMPORTANT: Reply in Thai language." if lang == 'thai' else "IMPORTANT: Reply in English."
+
+        if image_base64:
+            user_msg_content = [
+                {"type": "image_url", "image_url": {"url": f"data:{image_media_type};base64,{image_base64}"}},
+                {"type": "text", "text": user_message or "กรุณาวิเคราะห์รูปภาพนี้"},
+            ]
+            image_system = [{"role": "system", "content": "User has shared a screenshot or image. Analyze it and answer based on what you see. If it shows I-SAVE related data (tables, schedules, bookings), respond accordingly."}]
+        else:
+            user_msg_content = user_message
+            image_system = []
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "system", "content": lang_instruction},
+            *image_system,
+            *history_msgs,
+            {"role": "user", "content": user_msg_content},
+        ]
+
+        tool_calls_log: List[Dict] = []
+        chart_spec: Optional[Dict] = None
+        table_spec: Optional[Dict] = None
+        total_prompt_tokens = 0
+        total_completion_tokens = 0
+
+        for _ in range(MAX_TOOL_ITERATIONS):
+            stream = None
+            last_error = None
+            for attempt in range(OPENAI_MAX_RETRIES + 1):
+                try:
+                    stream = await self._openai_async.chat.completions.create(
+                        model=self._model,
+                        messages=messages,
+                        tools=TOOLS,
+                        tool_choice="auto",
+                        max_completion_tokens=2500,
+                        stream=True,
+                    )
+                    break
+                except Exception as e:
+                    last_error = e
+                    logger.error(f"OpenAI stream error (attempt {attempt + 1}): {e}")
+                    if attempt < OPENAI_MAX_RETRIES:
+                        await asyncio.sleep(OPENAI_RETRY_BACKOFF * (2 ** attempt))
+
+            if stream is None:
+                err_msg = "Sorry, the AI system is temporarily unavailable." if lang == 'english' else "ขออภัยค่ะ ระบบ AI ขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้งนะคะ"
+                yield {'type': 'error', 'message': err_msg}
+                return
+
+            content_parts: List[str] = []
+            tool_call_accum: Dict[int, Dict] = {}
+            finish_reason = None
+
+            async for chunk in stream:
+                if not chunk.choices:
+                    if hasattr(chunk, 'usage') and chunk.usage:
+                        total_prompt_tokens += chunk.usage.prompt_tokens or 0
+                        total_completion_tokens += chunk.usage.completion_tokens or 0
+                    continue
+                choice = chunk.choices[0]
+                finish_reason = choice.finish_reason or finish_reason
+                delta = choice.delta
+
+                if delta.content:
+                    content_parts.append(delta.content)
+                    yield {'type': 'token', 'text': delta.content}
+
+                if delta.tool_calls:
+                    for tc in delta.tool_calls:
+                        idx = tc.index
+                        if idx not in tool_call_accum:
+                            tool_call_accum[idx] = {'id': '', 'name': '', 'arguments': ''}
+                        if tc.id:
+                            tool_call_accum[idx]['id'] = tc.id
+                        if tc.function:
+                            if tc.function.name:
+                                tool_call_accum[idx]['name'] += tc.function.name
+                            if tc.function.arguments:
+                                tool_call_accum[idx]['arguments'] += tc.function.arguments
+
+                if hasattr(chunk, 'usage') and chunk.usage:
+                    total_prompt_tokens += chunk.usage.prompt_tokens or 0
+                    total_completion_tokens += chunk.usage.completion_tokens or 0
+
+            if tool_call_accum:  # handle both 'tool_calls' and 'length' (truncated JSON)
+                messages.append({
+                    "role": "assistant",
+                    "content": ''.join(content_parts),
+                    "tool_calls": [
+                        {"id": tc['id'], "type": "function",
+                         "function": {"name": tc['name'], "arguments": tc['arguments']}}
+                        for tc in tool_call_accum.values()
+                    ],
+                })
+                for idx in sorted(tool_call_accum.keys()):
+                    tc = tool_call_accum[idx]
+                    tool_name = tc['name']
+                    yield {'type': 'status', 'text': _TOOL_STATUS_LABELS.get(tool_name, 'กำลังประมวลผล...')}
+
+                    if tool_name == 'render_chart':
+                        spec, result = self._build_chart_spec(tc['arguments'])
+                        if spec:
+                            chart_spec = spec
+                    elif tool_name == 'render_table':
+                        spec, result = self._build_table_spec(tc['arguments'])
+                        if spec:
+                            table_spec = spec
+                    else:
+                        _fake = type('TC', (), {
+                            'function': type('F', (), {'name': tool_name, 'arguments': tc['arguments']})()
+                        })()
+                        result = self._execute_tool_call(_fake)
+                        tool_calls_log.append({'tool': tool_name, 'args': tc['arguments'], 'result_rows': len(result.splitlines())})
+
+                    messages.append({"role": "tool", "tool_call_id": tc['id'], "content": result})
+                continue
+
+            # finish_reason == 'stop' — all tokens already streamed
+            full_message = _clean_response(''.join(content_parts))
+            alert = self._build_capacity_alert(tool_calls_log, lang)
+            if alert:
+                full_message = full_message + alert
+                yield {'type': 'token', 'text': alert}
+            yield {
+                'type': 'done',
+                'message': full_message,
+                'chart': chart_spec,
+                'table': table_spec,
+                'processing_path': 'agent',
+                'metadata': {
+                    'intent': 'agent',
+                    'confidence': 1.0,
+                    'matched_keywords': [c['tool'] for c in tool_calls_log],
+                    'model': self._model,
+                    'prompt_tokens': total_prompt_tokens,
+                    'completion_tokens': total_completion_tokens,
+                    'total_tokens': total_prompt_tokens + total_completion_tokens,
+                },
+                'mcp_calls': tool_calls_log,
+            }
+            return
+
+        timeout_msg = "Sorry, the system took too long. Please try again." if lang == 'english' else "ขออภัยค่ะ ระบบประมวลผลนานเกินไป กรุณาถามใหม่อีกครั้ง"
+        yield {
+            'type': 'done', 'message': timeout_msg, 'chart': None,
+            'processing_path': 'agent', 'mcp_calls': [],
+            'metadata': {'intent': 'timeout', 'confidence': 0.0, 'matched_keywords': []},
+        }
+
+    def _build_capacity_alert(self, tool_calls_log: list, lang: str = 'thai') -> str:
+        """Return warning text if queried group(s) > 85% utilization."""
+        tools_used = {c['tool'] for c in (tool_calls_log or [])}
+        if not (tools_used & {'get_machine_capacity', 'get_booking'}):
+            return ''
+
+        # Collect group filters used in the query — only alert for those groups
+        queried_groups: set = set()
+        for call in tool_calls_log:
+            if call['tool'] in ('get_machine_capacity', 'get_booking'):
+                try:
+                    args = json.loads(call['args']) if isinstance(call['args'], str) else {}
+                    g = (args.get('group') or '').strip().lower()
+                    if g:
+                        queried_groups.add(g)
+                except Exception:
+                    pass
+
+        parsed = self._parse_mc_snapshot()
+        if not parsed:
+            return ''
+        _, _, week_num, group_total, group_used, _ = parsed
+
+        critical = {}
+        for g in group_total:
+            if group_total.get(g, 0) <= 0:
+                continue
+            # If query had a group filter, only check that group
+            if queried_groups and not _group_matches(g.lower(), list(queried_groups)):
+                continue
+            pct = group_used[g] / group_total[g] * 100
+            if pct > 85.0:
+                critical[g] = pct
+
+        if not critical:
+            return ''
+        ranked = sorted(critical.items(), key=lambda x: x[1], reverse=True)
+        if lang == 'english':
+            lines = [f"\n⚠️ High utilization alert — week {week_num}:"]
+            for g, pct in ranked:
+                lines.append(f"• **{g}** — {round(pct, 1)}% utilized")
+            lines.append("Consider planning ahead or checking available slots.")
+        else:
+            lines = [f"\n⚠️ แจ้งเตือน Capacity ตึง สัปดาห์ที่ {week_num}:"]
+            for g, pct in ranked:
+                lines.append(f"• **{g}** — ใช้งาน **{round(pct, 1)}%**")
+            lines.append("แนะนำให้วางแผนล่วงหน้าหรือตรวจสอบเครื่องว่างค่ะ")
+        return '\n'.join(lines)
 
     def _get_suggestions(self, tool_calls_log: list, lang: str = 'thai') -> list:
         tools_used = {c['tool'] for c in tool_calls_log}

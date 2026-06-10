@@ -6,7 +6,7 @@ import time
 
 from datetime import datetime as _dt, timezone as _tz, timedelta as _td
 
-from flask import Flask, flash, jsonify, redirect, render_template, request, session, url_for, Response
+from flask import Flask, flash, jsonify, redirect, render_template, request, session, url_for, Response, stream_with_context
 from flask.json.provider import DefaultJSONProvider
 from flask_wtf.csrf import CSRFProtect
 from openpyxl import load_workbook
@@ -593,9 +593,11 @@ def send_message(conversation_id):
             'processing_path': processed_response.processing_path,
             'mcp_calls_count': len(processed_response.mcp_calls) if processed_response.mcp_calls else 0
         }
-        # เก็บ chart spec ไว้ใน metadata เพื่อให้กราฟแสดงอีกครั้งเมื่อเปิดบทสนทนาเดิม
+        # เก็บ chart/table spec ไว้ใน metadata เพื่อให้แสดงอีกครั้งเมื่อเปิดบทสนทนาเดิม
         if processed_response.data and processed_response.data.get('chart'):
             response_metadata['chart'] = processed_response.data['chart']
+        if processed_response.data and processed_response.data.get('table'):
+            response_metadata['table'] = processed_response.data['table']
 
         # บันทึก AI response ก่อน (สำคัญที่สุด)
         ai_message_id = db.add_message(
@@ -698,6 +700,154 @@ def send_message(conversation_id):
         'conversation': updated_conversation,
         'ai_response': ai_response
     })
+
+
+@app.route('/conversations/<int:conversation_id>/stream', methods=['POST'])
+@login_required
+def stream_message(conversation_id):
+    import queue
+    import threading
+    import json as _json
+
+    user_id = session['user_id']
+    username = session.get('username', 'คุณ')
+    conversation = db.get_conversation(conversation_id, user_id)
+    if not conversation:
+        return jsonify({'success': False, 'message': 'ไม่พบหัวข้อสนทนา'}), 404
+
+    data = request.get_json(silent=True) or {}
+    message = (data.get('message') or '').strip()
+    image_base64 = (data.get('image_base64') or '').strip()
+    image_media_type = (data.get('image_media_type') or 'image/png').strip()
+
+    _ALLOWED_IMAGE_TYPES = {'image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'}
+    if image_media_type not in _ALLOWED_IMAGE_TYPES:
+        image_media_type = 'image/png'
+    if image_base64 and len(image_base64) > 5 * 1024 * 1024:
+        return jsonify({'success': False, 'message': 'ขนาดรูปภาพใหญ่เกิน 5 MB กรุณาลดขนาดรูปก่อนส่ง'}), 400
+
+    if not message and not image_base64:
+        return jsonify({'success': False, 'message': 'กรุณากรอกข้อความหรือแนบรูปภาพ'}), 400
+
+    if _is_rate_limited(str(user_id), 'chat'):
+        return jsonify({'success': False, 'message': 'คุณส่งข้อความถี่เกินไป กรุณารอสักครู่แล้วลองใหม่อีกครั้งนะคะ'}), 429
+
+    conv_history = db.get_conversation_messages(conversation_id, user_id)
+    db.add_message(conversation_id, 'user', message or '[ส่งรูปภาพ]', 'text')
+
+    title_text = message or '[รูปภาพ]'
+    if conversation['title'] == DEFAULT_CONVERSATION_TITLE:
+        db.update_conversation_title(conversation_id, user_id, generate_conversation_title(title_text))
+
+    start_time = time.time()
+    response_processor = get_response_processor()
+    suggestion_engine_inst = get_suggestion_engine()
+
+    q: queue.Queue = queue.Queue()
+
+    def _run_async():
+        async def _gen():
+            try:
+                async for event in response_processor.process_message_stream(
+                message, username, conv_history,
+                image_base64=image_base64 or None,
+                image_media_type=image_media_type,
+            ):
+                    q.put(event)
+            except Exception:
+                q.put({'type': 'error', 'message': 'เกิดข้อผิดพลาด กรุณาลองใหม่'})
+                import traceback; traceback.print_exc()
+            finally:
+                q.put(None)
+        asyncio.run(_gen())
+
+    threading.Thread(target=_run_async, daemon=True).start()
+
+    def generate():
+        accumulated: list = []
+
+        while True:
+            event = q.get()
+            if event is None:
+                break
+
+            if event['type'] == 'token':
+                accumulated.append(event['text'])
+
+            elif event['type'] == 'done':
+                full_message = event.get('message') or ''.join(accumulated)
+                chart = event.get('chart')
+                table = event.get('table')
+                processing_path = event.get('processing_path', 'agent')
+                meta = event.get('metadata') or {}
+                mcp_calls = event.get('mcp_calls') or []
+
+                response_metadata = {
+                    'intent': meta.get('intent'),
+                    'confidence': meta.get('confidence'),
+                    'processing_path': processing_path,
+                    'mcp_calls_count': len(mcp_calls),
+                }
+                if chart:
+                    response_metadata['chart'] = chart
+                if table:
+                    response_metadata['table'] = table
+
+                try:
+                    ai_message_id = db.add_message(
+                        conversation_id, 'assistant', full_message,
+                        'chart' if chart else ('table' if table else 'text'), response_metadata
+                    )
+                except Exception:
+                    ai_message_id = None
+
+                suggestions = []
+                try:
+                    if processing_path == 'shortcut' and event.get('suggestions'):
+                        suggestions = event['suggestions']
+                    else:
+                        suggestions = suggestion_engine_inst.generate_suggestions(
+                            current_intent=meta.get('intent', 'unknown'),
+                            conversation_history=db.get_conversation_messages(conversation_id, user_id),
+                            user_context={'role': session.get('user_role', 'user')}
+                        )
+                    if ai_message_id:
+                        db.save_suggestions(conversation_id, ai_message_id, suggestions)
+                except Exception:
+                    pass
+
+                try:
+                    if meta.get('total_tokens') and ai_message_id:
+                        db.log_token_usage(
+                            user_id=user_id, conversation_id=conversation_id,
+                            message_id=ai_message_id, model=meta.get('model', 'unknown'),
+                            prompt_tokens=meta.get('prompt_tokens', 0),
+                            completion_tokens=meta.get('completion_tokens', 0),
+                            total_tokens=meta.get('total_tokens', 0),
+                            tool_calls_count=len(mcp_calls),
+                            response_time_ms=int((time.time() - start_time) * 1000),
+                        )
+                except Exception:
+                    pass
+
+                updated_conv = db.get_conversation(conversation_id, user_id)
+                event = {
+                    'type': 'done',
+                    'message': full_message,
+                    'message_id': ai_message_id,
+                    'suggestions': suggestions,
+                    'chart': chart,
+                    'table': table,
+                    'conversation_title': updated_conv['title'] if updated_conv else None,
+                }
+
+            yield f"data: {_json.dumps(event, ensure_ascii=False)}\n\n"
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype='text/event-stream',
+        headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'},
+    )
 
 
 @app.route('/conversations/<int:conversation_id>', methods=['PUT'])
