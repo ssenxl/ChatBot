@@ -604,6 +604,9 @@
                             </button>
                             <div id="user-menu" style="display:none;" class="dropdown-dark absolute right-0 top-full mt-2 w-60 rounded-xl overflow-hidden z-[999999]">
                                 <div class="p-2">
+                                    <button onclick="openAccountModal(); toggleUserMenu();" class="dropdown-item flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm">
+                                        <i class="fas fa-circle-user w-4" style="color:var(--acc);"></i><span>จัดการบัญชี</span>
+                                    </button>
                                     <button onclick="openChangePasswordModal(); toggleUserMenu();" class="dropdown-item flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm">
                                         <i class="fas fa-key w-4" style="color:var(--acc);opacity:0.7;"></i><span>เปลี่ยนรหัสผ่าน</span>
                                     </button>
@@ -716,6 +719,44 @@
         </div>
     </div>
 
+    <!-- Account Management Modal -->
+    <div id="account-modal" style="display:none;" class="fixed inset-0 z-[9999999] flex items-center justify-center bg-black/60 p-4">
+        <div class="modal-card w-full max-w-sm rounded-2xl p-6">
+            <div class="flex items-center justify-between mb-5">
+                <div>
+                    <h3 class="text-base font-bold modal-title">จัดการบัญชี</h3>
+                    <p class="mt-0.5 text-sm modal-sub">แก้ไขรูปโปรไฟล์ของคุณ</p>
+                </div>
+                <button onclick="closeAccountModal()" class="rounded-full p-2 transition modal-cancel"><i class="fas fa-xmark"></i></button>
+            </div>
+            <!-- Avatar preview -->
+            <div class="flex flex-col items-center gap-4">
+                <div class="relative group cursor-pointer" onclick="document.getElementById('avatar-file-input').click()">
+                    <div id="account-avatar-preview" class="flex h-24 w-24 items-center justify-center rounded-full overflow-hidden" style="border:2.5px solid var(--avatar-bd);background:var(--glass-bg);">
+                        <img id="account-avatar-img" src="" alt="" class="w-full h-full object-cover hidden">
+                        <span id="account-avatar-initial" class="text-3xl font-bold" style="color:var(--acc);">A</span>
+                    </div>
+                    <div class="absolute inset-0 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition" style="background:rgba(0,0,0,0.45);">
+                        <i class="fas fa-camera text-white text-lg"></i>
+                    </div>
+                </div>
+                <input id="avatar-file-input" type="file" accept="image/jpeg,image/png,image/webp" class="hidden" onchange="previewAvatarFile(event)">
+                <p class="text-xs text-center" style="color:var(--t3);">คลิกที่รูปเพื่อเลือกรูปภาพ<br>รองรับ JPG, PNG, WEBP ขนาดไม่เกิน 5 MB</p>
+                <div id="account-avatar-new-wrap" class="hidden flex-col items-center gap-2 w-full">
+                    <div class="flex items-center gap-2 w-full px-3 py-2 rounded-lg" style="background:rgba(30,140,255,0.08);border:1px solid rgba(30,140,255,0.2);">
+                        <img id="account-avatar-new-thumb" src="" class="h-10 w-10 rounded-full object-cover flex-shrink-0">
+                        <span class="text-xs flex-1 truncate" id="account-avatar-new-name" style="color:var(--t2);"></span>
+                        <button onclick="cancelAvatarPreview()" class="text-xs" style="color:#f87171;"><i class="fas fa-times"></i></button>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end gap-2">
+                <button onclick="closeAccountModal()" class="modal-cancel">ยกเลิก</button>
+                <button id="account-save-btn" onclick="saveAvatar()" disabled class="btn-primary rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed">บันทึก</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Change Password Modal -->
     <div id="change-password-modal" style="display:none;" class="fixed inset-0 z-[9999999] flex items-center justify-center bg-black/60 p-4">
         <div class="modal-card w-full max-w-md rounded-2xl p-6">
@@ -824,7 +865,7 @@
 
     <script>
         let conversations = [], filteredConversations = [], currentConversationId = null;
-        let userInitial = 'A';
+        let userInitial = 'A', userAvatarUrl = '';
 
         /* ── Theme ── */
         function toggleTheme() {
@@ -897,6 +938,10 @@
             if (d.success) {
                 userInitial = d.user.username[0].toUpperCase();
                 document.getElementById("user-name").textContent = d.user.username;
+                if (d.user.avatar_url) {
+                    userAvatarUrl = d.user.avatar_url;
+                    _updateHeaderAvatar(d.user.avatar_url);
+                }
                 if (d.user.role === "admin") {
                     const b = document.getElementById("admin-menu-btn"); b.classList.remove("hidden"); b.classList.add("flex");
                     const p = document.getElementById("admin-panel-btn"); p.classList.remove("hidden"); p.classList.add("flex");
@@ -1328,7 +1373,10 @@ ${titleHtml}
             if (sender === "user") {
                 const imgHtml = imageDataUrl ? `<img src="${imageDataUrl}" class="block mb-1 max-h-40 w-auto rounded-lg object-contain" style="border:1px solid rgba(255,255,255,0.15);max-width:260px;" />` : '';
                 const textHtml = message ? escapeHtml(message).replace(/\n/g,"<br>") : '';
-                w.innerHTML = `<div class="flex flex-col items-end gap-0.5"><div class="max-w-full rounded-2xl rounded-br-sm px-4 py-3 text-sm leading-7 break-words overflow-wrap-anywhere msg-user" title="${nowStr}">${imgHtml}${textHtml}</div><span class="text-[10px] pr-1" style="color:var(--t3);">${nowStr}</span></div><div class="flex-shrink-0 w-8 h-8 rounded-full text-white font-bold text-sm flex items-center justify-center" style="background:linear-gradient(135deg,var(--acc-from),var(--acc-to));box-shadow:0 0 10px var(--acc-glow);">${userInitial}</div>`;
+                const userBubbleHtml = userAvatarUrl
+                    ? `<div class="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden" style="border:1.5px solid var(--avatar-bd);box-shadow:0 0 10px var(--acc-glow);"><img src="${userAvatarUrl}" class="w-full h-full object-cover"></div>`
+                    : `<div class="flex-shrink-0 w-8 h-8 rounded-full text-white font-bold text-sm flex items-center justify-center" style="background:linear-gradient(135deg,var(--acc-from),var(--acc-to));box-shadow:0 0 10px var(--acc-glow);">${userInitial}</div>`;
+                w.innerHTML = `<div class="flex flex-col items-end gap-0.5"><div class="max-w-full rounded-2xl rounded-br-sm px-4 py-3 text-sm leading-7 break-words overflow-wrap-anywhere msg-user" title="${nowStr}">${imgHtml}${textHtml}</div><span class="text-[10px] pr-1" style="color:var(--t3);">${nowStr}</span></div>${userBubbleHtml}`;
             } else {
                 const chipsHtml = (suggestions && suggestions.length)
                     ? `<div class="mt-2 flex flex-wrap gap-2">${suggestions.map(s => `<button onclick="sendQuickMessage(${escapeHtml(JSON.stringify(s))})" class="text-xs px-3 py-1.5 rounded-full transition-colors duration-200 cursor-pointer" style="border:1px solid var(--cv-hbd);background:var(--acc-soft);color:var(--acc);" onmouseover="this.style.background='var(--cv-hbg)'" onmouseout="this.style.background='var(--acc-soft)'">${escapeHtml(s)}</button>`).join('')}</div>`
@@ -1541,6 +1589,84 @@ ${titleHtml}
         function toggleUserMenu() {
             const menu = document.getElementById("user-menu");
             menu.style.display = menu.style.display === "none" ? "block" : "none";
+        }
+
+        /* ── Account Management ── */
+        let _avatarFile = null;
+
+        function openAccountModal() {
+            _avatarFile = null;
+            document.getElementById('account-save-btn').disabled = true;
+            document.getElementById('account-avatar-new-wrap').classList.add('hidden');
+            document.getElementById('account-avatar-new-wrap').classList.remove('flex');
+            document.getElementById('avatar-file-input').value = '';
+            _syncAccountAvatar();
+            document.getElementById('account-modal').style.display = 'flex';
+        }
+
+        function closeAccountModal() {
+            document.getElementById('account-modal').style.display = 'none';
+            _avatarFile = null;
+        }
+
+        function _syncAccountAvatar() {
+            const avatarEl = document.getElementById('user-avatar');
+            const img = avatarEl.querySelector('img');
+            const previewImg = document.getElementById('account-avatar-img');
+            const previewInitial = document.getElementById('account-avatar-initial');
+            if (img && img.src && !img.classList.contains('hidden') && !img.src.endsWith('/static/user.png')) {
+                previewImg.src = img.src;
+                previewImg.classList.remove('hidden');
+                previewInitial.classList.add('hidden');
+            } else {
+                previewImg.classList.add('hidden');
+                previewInitial.classList.remove('hidden');
+                previewInitial.textContent = (document.getElementById('user-name').textContent || 'A')[0].toUpperCase();
+            }
+        }
+
+        function previewAvatarFile(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            if (file.size > 5 * 1024 * 1024) { showToast('ไฟล์ใหญ่เกิน 5 MB'); return; }
+            _avatarFile = file;
+            const url = URL.createObjectURL(file);
+            document.getElementById('account-avatar-new-thumb').src = url;
+            document.getElementById('account-avatar-new-name').textContent = file.name;
+            document.getElementById('account-avatar-new-wrap').classList.remove('hidden');
+            document.getElementById('account-avatar-new-wrap').classList.add('flex');
+            document.getElementById('account-save-btn').disabled = false;
+        }
+
+        function cancelAvatarPreview() {
+            _avatarFile = null;
+            document.getElementById('avatar-file-input').value = '';
+            document.getElementById('account-avatar-new-wrap').classList.add('hidden');
+            document.getElementById('account-avatar-new-wrap').classList.remove('flex');
+            document.getElementById('account-save-btn').disabled = true;
+        }
+
+        async function saveAvatar() {
+            if (!_avatarFile) return;
+            const btn = document.getElementById('account-save-btn');
+            btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+            const form = new FormData();
+            form.append('avatar', _avatarFile);
+            try {
+                const r = await fetch('/profile/upload-avatar', { method: 'POST', headers: { 'X-CSRFToken': csrfToken() }, body: form });
+                const d = await r.json();
+                if (!d.success) { showToast(d.message || 'อัปโหลดไม่สำเร็จ'); return; }
+                _updateHeaderAvatar(d.avatar_url);
+                showToast('บันทึกรูปโปรไฟล์สำเร็จ');
+                closeAccountModal();
+            } catch { showToast('เกิดข้อผิดพลาด กรุณาลองใหม่'); }
+            finally { btn.disabled = false; btn.textContent = 'บันทึก'; }
+        }
+
+        function _updateHeaderAvatar(url) {
+            userAvatarUrl = url;
+            const avatarEl = document.getElementById('user-avatar');
+            avatarEl.innerHTML = `<img src="${url}?t=${Date.now()}" alt="avatar" class="w-full h-full object-cover">`;
         }
 
         /* ── Change Password ── */

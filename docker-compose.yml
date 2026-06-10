@@ -29,6 +29,7 @@ services:
       DATABASE_URL: postgresql://webchat:${POSTGRES_PASSWORD}@postgres:5432/webchat
     volumes:
       - /opt/webchat/logs:/app/logs
+      - /data/webchat/avatars:/app/static/avatars
     ports:
       - "80:5000"
     depends_on:

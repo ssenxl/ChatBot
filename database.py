@@ -276,6 +276,12 @@ class Database:
                 ON conversations (teams_conv_id) WHERE teams_conv_id IS NOT NULL
             """)
 
+            # --- Avatar column ---
+            cursor.execute("""
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS avatar_url TEXT
+            """)
+
             cursor.execute("SELECT COUNT(*) AS cnt FROM users")
             if cursor.fetchone()['cnt'] == 0:
                 cursor.execute(
@@ -402,6 +408,13 @@ class Database:
             conn.commit()
             return True
 
+    def update_avatar_url(self, user_id: int, avatar_url: str) -> bool:
+        with self._conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE users SET avatar_url = %s WHERE id = %s", (avatar_url, user_id))
+            conn.commit()
+            return cursor.rowcount > 0
+
     def has_morning_greeting_today(self, user_id: int) -> bool:
         from datetime import date as _date
         today = _date.today()
@@ -471,11 +484,18 @@ class Database:
         with self._conn() as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "SELECT id, username, email, role FROM users WHERE username = %s AND is_active = TRUE",
+                "SELECT id, username, email, role, avatar_url FROM users WHERE username = %s AND is_active = TRUE",
                 (username,)
             )
             user = cursor.fetchone()
         return dict(user) if user else None
+
+    def get_avatar_url(self, user_id: int) -> str | None:
+        with self._conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT avatar_url FROM users WHERE id = %s", (user_id,))
+            row = cursor.fetchone()
+        return row['avatar_url'] if row else None
 
     def get_user_by_identifier(self, identifier):
         with self._conn() as conn:

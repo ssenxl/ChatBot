@@ -479,13 +479,15 @@ def _try_send_morning_greeting(user_id: int):
 @app.route('/user-info')
 @login_required
 def user_info():
+    avatar_url = db.get_avatar_url(session['user_id'])
     return jsonify({
         'success': True,
         'user': {
             'id': session['user_id'],
             'username': session['username'],
             'email': session['user_email'],
-            'role': session['user_role']
+            'role': session['user_role'],
+            'avatar_url': avatar_url or ''
         }
     })
 
@@ -904,6 +906,50 @@ def change_password():
 
     db.log_activity(session['user_id'], 'change_password', {})
     return jsonify({'success': True, 'message': 'เปลี่ยนรหัสผ่านสำเร็จ'})
+
+
+_AVATAR_DIR = Path('static/avatars')
+_AVATAR_DIR.mkdir(parents=True, exist_ok=True)
+_ALLOWED_IMG_TYPES = {'image/jpeg', 'image/jpg', 'image/png', 'image/webp'}
+
+
+@app.route('/profile/upload-avatar', methods=['POST'])
+@login_required
+def upload_avatar():
+    from PIL import Image
+    import io
+
+    file = request.files.get('avatar')
+    if not file or not file.filename:
+        return jsonify({'success': False, 'message': 'ไม่พบไฟล์ที่อัปโหลด'}), 400
+
+    content_type = file.content_type or ''
+    if content_type not in _ALLOWED_IMG_TYPES:
+        return jsonify({'success': False, 'message': 'รองรับเฉพาะ JPG, PNG, WEBP'}), 400
+
+    raw = file.read()
+    if len(raw) > 5 * 1024 * 1024:
+        return jsonify({'success': False, 'message': 'ขนาดไฟล์เกิน 5 MB'}), 400
+
+    try:
+        img = Image.open(io.BytesIO(raw)).convert('RGB')
+        side = min(img.size)
+        left = (img.width - side) // 2
+        top = (img.height - side) // 2
+        img = img.crop((left, top, left + side, top + side))
+        img = img.resize((200, 200), Image.LANCZOS)
+
+        user_id = session['user_id']
+        filename = f"{user_id}.jpg"
+        save_path = _AVATAR_DIR / filename
+        img.save(save_path, 'JPEG', quality=85, optimize=True)
+
+        avatar_url = f'/static/avatars/{filename}'
+        db.update_avatar_url(user_id, avatar_url)
+        db.log_activity(user_id, 'upload_avatar', {})
+        return jsonify({'success': True, 'avatar_url': avatar_url})
+    except Exception:
+        return jsonify({'success': False, 'message': 'ไม่สามารถประมวลผลรูปภาพได้'}), 500
 
 
 @app.route('/admin')
