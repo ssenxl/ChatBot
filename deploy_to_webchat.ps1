@@ -36,7 +36,7 @@ $files = @(
     "intent_detector.py", "data_cache.py", "powerbi_connector.py",
     "suggestion_engine.py", "mcp_client.py", "mcp_config.json",
     "main.py", "cache.py", "load_balancer.py", "security.py", "utils.py",
-    "morning_greeting.py", "check_no_group.py", "gunicorn.conf.py",
+    "morning_greeting.py", "proactive_monitor.py", "check_no_group.py", "gunicorn.conf.py",
     "rate_limit.py", "teams_bot.py"
 )
 foreach ($file in $files) {

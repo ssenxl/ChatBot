@@ -18,6 +18,7 @@ from response_processor import get_response_processor
 from suggestion_engine import get_suggestion_engine
 from data_cache import get_data_cache
 from morning_greeting import MorningGreetingScheduler
+from proactive_monitor import ProactiveMonitor
 
 _BKK = _tz(_td(hours=7))
 
@@ -52,6 +53,7 @@ intent_detector = get_intent_detector()
 response_processor = get_response_processor()
 suggestion_engine = get_suggestion_engine()
 morning_scheduler = MorningGreetingScheduler(db)
+proactive_monitor = ProactiveMonitor(db)
 
 # Teams Bot Framework
 from teams_bot import TeamsBot, create_teams_adapter  # noqa: E402
@@ -151,6 +153,11 @@ with app.app_context():
         print("MorningGreetingScheduler started — daily greeting at 08:00")
     except Exception as e:
         print(f"MorningGreetingScheduler start failed: {e}")
+    try:
+        proactive_monitor.start()
+        print("ProactiveMonitor started — checking capacity alerts every hour")
+    except Exception as e:
+        print(f"ProactiveMonitor start failed: {e}")
     # ตรวจสอบ default password ที่ยังไม่ถูกเปลี่ยน
     import warnings as _w
     from werkzeug.security import check_password_hash as _cph
@@ -1101,6 +1108,22 @@ def admin_send_morning_greeting():
         msg = f"ส่งสำเร็จ {result['sent']} คน ({names})"
         if result['errors']:
             msg += f", ผิดพลาด {result['errors']} คน"
+    return jsonify({'success': True, 'message': msg, **result})
+
+
+@app.route('/admin/proactive-monitor/check', methods=['POST'])
+@admin_required
+def admin_proactive_monitor_check():
+    """Force-check alerts ทันที และส่งแจ้งเตือนถ้ามี (สำหรับทดสอบ)"""
+    result = proactive_monitor.check_now()
+    if result.get('error'):
+        return jsonify({'success': False, 'message': result['error']})
+    if result['new_alerts'] == 0:
+        msg = f'ไม่มี alert ใหม่ (พบทั้งหมด {result["total_alerts"]} รายการ แต่ส่งไปแล้ววันนี้หมดแล้ว)'
+    else:
+        msg = f'ส่ง {result["new_alerts"]} alert(s) ให้ {result["users_notified"]} user'
+        if result['errors']:
+            msg += f', ผิดพลาด {result["errors"]}'
     return jsonify({'success': True, 'message': msg, **result})
 
 

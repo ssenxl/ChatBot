@@ -234,6 +234,16 @@ class Database:
                 )
             ''')
 
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS proactive_alerts (
+                    id SERIAL PRIMARY KEY,
+                    alert_key TEXT NOT NULL,
+                    alert_date DATE NOT NULL,
+                    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE (alert_key, alert_date)
+                )
+            ''')
+
             # --- Column migrations (safe for existing databases) ---
             # เพิ่ม is_active ให้ tables เก่าที่สร้างก่อนจะมี column นี้
             cursor.execute("""
@@ -435,6 +445,29 @@ class Database:
                 "INSERT INTO morning_greetings (user_id, greeting_date, conversation_id) "
                 "VALUES (%s, %s, %s) ON CONFLICT (user_id, greeting_date) DO NOTHING",
                 (user_id, today, conversation_id)
+            )
+            conn.commit()
+
+    def has_alert_sent_today(self, alert_key: str) -> bool:
+        from datetime import date as _date
+        today = _date.today()
+        with self._conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT 1 FROM proactive_alerts WHERE alert_key = %s AND alert_date = %s",
+                (alert_key, today)
+            )
+            return cursor.fetchone() is not None
+
+    def record_alert(self, alert_key: str):
+        from datetime import date as _date
+        today = _date.today()
+        with self._conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO proactive_alerts (alert_key, alert_date) VALUES (%s, %s) "
+                "ON CONFLICT (alert_key, alert_date) DO NOTHING",
+                (alert_key, today)
             )
             conn.commit()
 
