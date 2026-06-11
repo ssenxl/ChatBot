@@ -3,6 +3,9 @@
 *.env
 .claude/settings.local.json
 
+# User data
+User_login/
+
 # Local test scripts (may contain credentials)
 perf_test.py
 

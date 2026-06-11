@@ -22,7 +22,7 @@
     "host": "docker-mcp",
     "ssh_port": 22,
     "username": "scm",
-    "password": "Webchat.2026",
+    "password": "",
     "remote_port": 8000,
     "local_port": 8001
   },
