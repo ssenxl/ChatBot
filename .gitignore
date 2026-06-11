@@ -15,6 +15,9 @@ __pycache__/
 *.pyc
 *.pyo
 
+# Generated Excel exports (จาก export_excel tool)
+excel_exports/
+
 # Database
 *.db
 *.sqlite

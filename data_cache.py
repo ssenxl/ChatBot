@@ -36,6 +36,7 @@ DATA_KEYS = [
     'query_booking',
     'query_item',
     'query_sales',
+    'query_item_capability',
 ]
 
 
@@ -116,7 +117,8 @@ def _aggregate_kg_ava(rows: list) -> str:
 
 
 def _aggregate_sales(booking_rows: list) -> dict:
-    """Returns {sales_name_lower: {name, item_count, kg}} from BookingMaster KNIT_SALE_NAME column"""
+    """Returns {sales_name_lower: {name, item_count, kg, kg_yw}} from BookingMaster KNIT_SALE_NAME column
+    kg_yw = breakdown ยอด kg ต่อสัปดาห์ ให้ tool กรองช่วงเวลาได้ (เช่น 'เดือนนี้')"""
     min_yw, max_yw = _week_range()
     sales_map: dict = {}
     for r in booking_rows:
@@ -132,12 +134,15 @@ def _aggregate_sales(booking_rows: list) -> dict:
 
         key = sales_name.lower()
         if key not in sales_map:
-            sales_map[key] = {'name': sales_name, 'items': set(), 'kg': 0.0}
+            sales_map[key] = {'name': sales_name, 'items': set(), 'kg': 0.0, 'kg_yw': defaultdict(float)}
         if item:
             sales_map[key]['items'].add(item)
         sales_map[key]['kg'] += kp
+        if yw:
+            sales_map[key]['kg_yw'][yw] += kp
 
-    result = {k: {'name': v['name'], 'item_count': len(v['items']), 'kg': round(v['kg'], 1)}
+    result = {k: {'name': v['name'], 'item_count': len(v['items']), 'kg': round(v['kg'], 1),
+                  'kg_yw': {yw: round(x, 1) for yw, x in v['kg_yw'].items()}}
               for k, v in sales_map.items()}
 
     # System-wide total (unique items across all sales)
@@ -149,6 +154,27 @@ def _aggregate_sales(booking_rows: list) -> dict:
     result['__system__'] = {'name': 'ระบบทั้งหมด', 'item_count': len(all_items), 'kg': round(total_kg, 1)}
 
     return result
+
+
+def _aggregate_item_capability(item_rows: list) -> str:
+    """CSV: Item,Group,SubGroup,Cap — กลุ่มเครื่องที่แต่ละ item ทอได้ จาก Table_Item (dedup)
+    ต่างจาก item plan (BookingMaster) ที่บอกแค่กลุ่มที่ 'มีแผนอยู่'"""
+    seen = set()
+    lines = ['Item,Group,SubGroup,Cap']
+    for r in item_rows:
+        item = str(r.get('Item', '') or '').strip()
+        group = str(r.get('Group', '') or '').strip()
+        if not item or not group:
+            continue
+        sub = str(r.get('SubGroup', '') or '').strip()
+        cap_raw = r.get('Cap')
+        cap = str(cap_raw).strip() if cap_raw is not None else ''
+        key = (item.upper(), group.lower(), sub.lower())
+        if key in seen:
+            continue
+        seen.add(key)
+        lines.append(f"{item},{group},{sub},{cap}")
+    return '\n'.join(lines) if len(lines) > 1 else ''
 
 
 def _aggregate_booking(rows: list) -> str:
@@ -178,6 +204,7 @@ class DataCache:
         self._last_refresh: Optional[datetime] = None
         self._next_refresh: Optional[datetime] = None
         self._row_counts: Dict[str, int] = {}
+        self._item_columns: list = []  # ชื่อคอลัมน์ Table_Item (ไว้ดู schema ผ่าน /admin/cache/status)
 
     def start(self):
         self._thread = threading.Thread(target=self._run, daemon=True, name='DataCacheThread')
@@ -274,6 +301,9 @@ class DataCache:
         # --- Sales summary per KNIT_SALE_NAME (สำหรับ morning greeting) ---
         sales_summary = _aggregate_sales(booking_rows)
 
+        # --- Item capability จาก Table_Item (item ทอได้ที่กลุ่มไหนบ้าง) ---
+        item_capability_summary = _aggregate_item_capability(item_rows)
+
         # --- ดึง KG_Ava_Display measure ผ่าน DAX query ---
         kg_ava_summary = ''
         try:
@@ -314,12 +344,18 @@ class DataCache:
                 self._cache['query_sales'] = {'success': True, 'data': sales_summary}
                 self._ready['query_sales'] = True
 
+            if item_capability_summary:
+                self._cache['query_item_capability'] = {'success': True, 'data': item_capability_summary}
+                self._ready['query_item_capability'] = True
+
             self._last_refresh = datetime.now(_BKK)
             self._row_counts = {
                 'booking_master': len(booking_rows),
                 'table_mc': len(mc_rows),
                 'table_item': len(item_rows),
             }
+            if item_rows:
+                self._item_columns = list(item_rows[0].keys())
 
         return not fetch_failed
 
@@ -338,6 +374,7 @@ class DataCache:
                 'last_refresh': self._last_refresh.strftime('%Y-%m-%d %H:%M:%S') if self._last_refresh else None,
                 'next_refresh': self._next_refresh.strftime('%Y-%m-%d %H:%M:%S') if self._next_refresh else None,
                 'row_counts': dict(self._row_counts),
+                'table_item_columns': list(self._item_columns),
             }
 
     def get_sales_data(self, username: str) -> tuple[dict | None, bool]:

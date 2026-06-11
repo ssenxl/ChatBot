@@ -6,7 +6,7 @@ import time
 
 from datetime import datetime as _dt, timezone as _tz, timedelta as _td
 
-from flask import Flask, flash, jsonify, redirect, render_template, request, session, url_for, Response, stream_with_context
+from flask import Flask, flash, jsonify, redirect, render_template, request, send_from_directory, session, url_for, Response, stream_with_context
 from flask.json.provider import DefaultJSONProvider
 from flask_wtf.csrf import CSRFProtect
 from openpyxl import load_workbook
@@ -1160,6 +1160,19 @@ def get_quick_actions():
     """ดึง quick actions สำหรับแสดงเป็นปุ่ม"""
     actions = suggestion_engine.get_quick_actions()
     return jsonify({'success': True, 'actions': actions})
+
+
+_EXCEL_EXPORT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'excel_exports')
+
+
+@app.route('/download/excel/<path:filename>')
+@login_required
+def download_excel(filename):
+    """ดาวน์โหลดไฟล์ Excel ที่ tool export_excel สร้างไว้
+    send_from_directory ป้องกัน path traversal ให้แล้ว"""
+    if not filename.endswith('.xlsx'):
+        return jsonify({'success': False, 'error': 'Invalid file'}), 400
+    return send_from_directory(_EXCEL_EXPORT_DIR, filename, as_attachment=True)
 
 
 @app.route('/conversations/<int:conversation_id>/analytics')

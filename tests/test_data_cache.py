@@ -65,3 +65,21 @@ def test_success_resets_retry_counter():
     quick, r = _decide(True, 2)
     assert quick is False
     assert r == 0
+
+
+def test_aggregate_sales_includes_per_week_breakdown():
+    rows = [
+        {'YW': '202610', 'ITEM_CODE': 'X', 'KP_Weight': 100, 'KNIT_SALE_NAME': 'somchai'},
+        {'YW': '202611', 'ITEM_CODE': 'Y', 'KP_Weight': 50, 'KNIT_SALE_NAME': 'somchai'},
+    ]
+    result = dc._aggregate_sales(rows)
+    s = result['somchai']
+    assert s['kg'] == 150.0
+    assert s['kg_yw'] == {'202610': 100.0, '202611': 50.0}
+
+
+def test_refresh_all_stores_table_item_columns(monkeypatch):
+    _patch_ok(monkeypatch)
+    cache = dc.DataCache()
+    cache._refresh_all()
+    assert 'YW' in cache.get_status()['table_item_columns']

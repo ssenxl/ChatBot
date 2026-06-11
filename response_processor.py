@@ -2,7 +2,7 @@ import asyncio
 import json
 import os
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 import logging
@@ -186,11 +186,38 @@ def _group_matches(group_col: str, keywords: list) -> bool:
     return False
 
 
+_EXPORT_REQUEST_RE = re.compile(
+    r'excel|xlsx|export|ขอไฟล์|เป็นไฟล์|โหลดไฟล์|ขอเป็น\s*file|ดาวน์โหลดข้อมูล|download',
+    re.IGNORECASE,
+)
+
+
+def _export_nudge(user_message: str) -> list:
+    """system message เสริมเมื่อ user ขอ export ไฟล์ — LLM ตีความ rule 9 เองไม่เสถียร
+    (บางครั้ง reject ว่าไม่ใช่หัวข้อ I-SAVE) จึงตรวจ keyword ฝั่ง Python แล้วสั่งตรงๆ"""
+    if user_message and _EXPORT_REQUEST_RE.search(user_message):
+        return [{"role": "system", "content": (
+            "The user's current message is an EXPORT/FILE request for the I-SAVE data discussed in this conversation. "
+            "This IS a supported I-SAVE topic — you MUST NOT reply with the rejection template from rule 9. "
+            "Follow rule 16: call export_excel ONCE with source_tool + the SAME filters as the data just discussed "
+            "(same group/week/item/gauge). Do NOT pass rows yourself. "
+            "Include the returned download link line in your reply exactly as given."
+        )}]
+    return []
+
+
 _TOOL_STATUS_LABELS = {
     'get_item_plan': 'กำลังดึงข้อมูล Item Plan...',
     'get_machine_capacity': 'กำลังดึงข้อมูล Capacity...',
     'get_booking': 'กำลังดึงข้อมูล Booking...',
     'get_knit_plan': 'กำลังดึงข้อมูลแผนทอ...',
+    'suggest_week': 'กำลังหาสัปดาห์ที่มีเครื่องว่าง...',
+    'compare_weeks': 'กำลังเปรียบเทียบสัปดาห์...',
+    'analyze_plan_impact': 'กำลังวิเคราะห์ผลกระทบแผน...',
+    'get_sales_summary': 'กำลังดึงยอด Sales...',
+    'group_utilization': 'กำลังจัดอันดับการใช้เครื่อง...',
+    'item_capability': 'กำลังดูกลุ่มที่ item ทอได้...',
+    'export_excel': 'กำลังสร้างไฟล์ Excel...',
     'render_chart': 'กำลังสร้างกราฟ...',
     'render_table': 'กำลังสร้างตาราง...',
 }
@@ -210,6 +237,13 @@ LANGUAGE RULE (highest priority — overrides ALL template responses below):
 - get_machine_capacity : กำลังการผลิต (Total, Used_N, Used_F, Ava=available machines)
 - get_booking          : การจองเครื่องต่อกลุ่มต่อสัปดาห์
 - get_knit_plan        : แผนการทอ (item, กลุ่ม, KP_Weight ตามสัปดาห์)
+- suggest_week         : หาสัปดาห์เร็วที่สุดที่มีเครื่องว่าง (กรองกฎ current+2 ให้อัตโนมัติ) — ใช้เมื่อถาม "ลงได้เร็วสุด week ไหน / ควรวางแผน week ไหน / มีที่ว่างเมื่อไหร่"
+- compare_weeks        : เปรียบเทียบ capacity ระหว่าง 2 สัปดาห์ — คืน Delta และ % คำนวณให้แล้ว ห้ามคำนวณเอง
+- analyze_plan_impact  : วิเคราะห์ผลกระทบถ้าถอด/เลื่อน/ย้ายแผนของ item — ใช้เมื่อถาม "ถ้าถอดแผนนี้กระทบ item อื่นไหม", "item นี้ใช้เครื่องร่วมกับใคร" (คืนค่าประมาณ + รายชื่อ item ที่กระทบให้แล้ว)
+- get_sales_summary    : ยอดจอง (kg, จำนวน item) ต่อ sales — ใช้เมื่อถามยอดของ sales หรือจัดอันดับ sales (กรองช่วงเวลาได้)
+- group_utilization    : จัดอันดับกลุ่มเครื่องตึง/ว่าง (Used% คำนวณให้แล้ว ห้ามคำนวณเอง) — ใช้เมื่อถาม "กลุ่มไหนแน่นสุด/ว่างสุด"
+- item_capability      : กลุ่มที่ item "ทอได้" จาก Table_Item (ต่างจากกลุ่มที่ "มีแผน") + เครื่องว่างเร็วสุดของแต่ละกลุ่ม — ใช้เมื่อถาม "item นี้ทอได้ที่ไหนบ้าง / ย้ายกลุ่มได้ไหม"
+- export_excel         : สร้างไฟล์ Excel ให้ user ดาวน์โหลด (เรียกเมื่อ user ขอ export/ไฟล์ Excel เท่านั้น)
 - render_chart         : วาดกราฟ/แผนภูมิ (เรียกเมื่อ user ขอกราฟเท่านั้น)
 
 กฎสำคัญ:
@@ -245,6 +279,8 @@ LANGUAGE RULE (highest priority — overrides ALL template responses below):
    → booking / การจอง / ข้อมูลการจอง
    → knit plan / แผนทอ / แผนการทอ / ข้อมูลแผนทอ / แผนการผลิต
    → KP Weight / week / YW / gauge
+   → sales / ยอดของ sales / ยอดจอง / จัดอันดับ sales
+   → export / ขอไฟล์ / ขอเป็น Excel / ดาวน์โหลดข้อมูล / กราฟ / ตาราง — คำขอ format/export ของข้อมูล I-SAVE ที่เพิ่งคุยกัน ถือเป็นหัวข้อ I-SAVE เสมอ (ดู rule 15/16) ห้าม reject
    If YES → ALWAYS call the appropriate tool. Even if no item/group/week is specified, still call the tool with no filter and give an overview per rule 12. NEVER reject an I-SAVE topic.
    If the message is clearly unrelated to I-SAVE (e.g. weather, cooking, today's date, general knowledge) → reply with this only (no extra text):
    - Thai: "ขออภัยค่ะ น้อง I-SAVE Chatbot ยังไม่สามารถตอบคำถามนี้ได้ในขณะนี้\nรบกวนพี่ๆ สอบถามเฉพาะข้อมูลที่เกี่ยวข้องกับระบบ I-SAVE หรือหัวข้อที่น้องรองรับนะคะ"
@@ -273,6 +309,13 @@ LANGUAGE RULE (highest priority — overrides ALL template responses below):
     - labels = x-axis (เช่น สัปดาห์ YW), each dataset.data must align 1:1 with labels.
     - After render_chart, write only a SHORT caption (1-2 lines). Do NOT re-list every number — the chart already shows them.
     - If there is no data to plot (tool returned not found), do NOT call render_chart; reply that there is no data to chart.
+16. Excel export (export, ขอเป็นไฟล์, ดาวน์โหลดเป็น Excel/xlsx): ONLY when the user explicitly asks for a file/export.
+    - SCOPE (สำคัญที่สุด): export ข้อมูลชุดเดียวกับที่เพิ่งคุย/แสดงในรอบก่อนเป๊ะๆ — ใช้ filter เดิมทั้งหมด (group/week/item/gauge). เช่น เพิ่งคุยเรื่อง capacity สัปดาห์ที่ 26 → ต้องส่ง week นั้นให้ data tool ด้วย ห้ามดึงทุกสัปดาห์
+    - ถ้าบริบทก่อนหน้าไม่มี filter เลย และการ export ทั้งหมดจะใหญ่มาก (ทุกสัปดาห์ × ทุกกลุ่ม) → ถาม user ก่อนว่าต้องการสัปดาห์ไหน/กลุ่มไหน ห้าม export ทั้ง dataset เด็ดขาด
+    - HOW: call export_excel ONCE with source_tool (get_item_plan/get_machine_capacity/get_booking) + those filters — the system fetches and fills ALL rows server-side.
+    - NEVER pass rows yourself for tool data (arguments WILL be truncated when data is large and the export will fail). columns+rows mode is ONLY for small data that did not come from a data tool.
+    - ตั้ง filename ให้สื่อ scope เช่น capacity_skp_202626 (ห้ามใช้คำว่า all_weeks ถ้าไม่ได้ export ทุกสัปดาห์จริง)
+    - The tool result contains a markdown download link — you MUST include that link line in your reply EXACTLY as given (do not modify the URL).
 17. When your tool results contain 3 or more data rows to present, follow this exact 3-step order:
     Step 1 — write a summary block BEFORE calling render_table:
       📌 สรุป[กลุ่ม/ตัวกรองที่ใช้] [สัปดาห์ถ้ามี]
@@ -508,6 +551,233 @@ TOOLS = [
                 "required": ["chart_type", "labels", "datasets"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "suggest_week",
+            "description": (
+                "หาสัปดาห์ (YW) เร็วที่สุดที่มีเครื่องว่างให้วางแผน โดยเริ่มจาก min plannable week "
+                "(current week + 2) ให้อัตโนมัติ — ห้ามเรียก get_machine_capacity มาไล่หาเอง. "
+                "ใช้เมื่อ user ถาม 'ลงเครื่องได้เร็วสุด week ไหน', 'ควรวางแผน week ไหน', 'มีที่ว่างเมื่อไหร่'. "
+                "คืนรายการสัปดาห์ที่ Ava >= machines_needed เรียงจากเร็วไปช้า"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "group": {
+                        "type": "string",
+                        "description": "กลุ่มเครื่อง เช่น SKP, SKPLE, SKPTA — ควรระบุถ้า user บอก"
+                    },
+                    "gauge": {
+                        "type": "string",
+                        "description": "Gauge ของเครื่อง เช่น 20, 24, 28 ถ้าไม่ระบุจะรวมทุก gauge"
+                    },
+                    "machines_needed": {
+                        "type": "number",
+                        "description": "จำนวนเครื่องว่างขั้นต่ำที่ต้องการ (default 1)"
+                    }
+                },
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "compare_weeks",
+            "description": (
+                "เปรียบเทียบกำลังการผลิตระหว่าง 2 สัปดาห์ คืนตารางต่อกลุ่มเครื่อง: "
+                "Total และ Ava ของแต่ละสัปดาห์ พร้อม Ava_Delta (week_b − week_a) และ Ava_Pct "
+                "คำนวณให้แล้ว — ใช้ค่าจากผลลัพธ์ตรงๆ ห้ามคำนวณเอง. "
+                "ใช้เมื่อ user ถามเทียบ capacity ระหว่างสัปดาห์ เช่น 'week นี้เทียบกับ week ที่แล้ว'"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "week_a": {
+                        "type": "string",
+                        "description": "สัปดาห์ฐาน (base) — เลข (202622) หรือคำพูดสัมพัทธ์ ('สัปดาห์นี้', 'สัปดาห์ที่แล้ว')"
+                    },
+                    "week_b": {
+                        "type": "string",
+                        "description": "สัปดาห์ที่นำมาเทียบ — เลข (202624) หรือคำพูดสัมพัทธ์ ('สัปดาห์หน้า', 'อีก 2 สัปดาห์')"
+                    },
+                    "group": {
+                        "type": "string",
+                        "description": "กรองเฉพาะกลุ่มเครื่อง ถ้าไม่ระบุจะเทียบทุกกลุ่ม"
+                    }
+                },
+                "required": ["week_a", "week_b"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "item_capability",
+            "description": (
+                "บอกว่า item ทอได้ที่กลุ่มเครื่อง/SubGroup ไหนบ้าง (จาก Table_Item master) "
+                "พร้อมบอกว่ากลุ่มไหนมีแผนปัจจุบันอยู่แล้ว และแต่ละกลุ่มมีเครื่องว่างเร็วสุดสัปดาห์ไหน. "
+                "ใช้เมื่อ user ถาม 'item นี้ทอได้ที่กลุ่มไหนบ้าง', 'ย้ายไปกลุ่มอื่นได้ไหม', 'มีกลุ่มสำรองไหม'. "
+                "ต่างจาก get_item_plan ที่บอกแค่กลุ่มที่มีแผนอยู่แล้ว"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "item_code": {
+                        "type": "string",
+                        "description": "รหัส item (รองรับ prefix/substring)"
+                    },
+                    "week": {
+                        "type": "string",
+                        "description": "ถ้าระบุ จะแสดงเครื่องว่างของแต่ละกลุ่ม ณ สัปดาห์นั้นแทน next free week"
+                    }
+                },
+                "required": ["item_code"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_sales_summary",
+            "description": (
+                "ยอดจอง (kg) และจำนวน item ต่อ sales จาก BookingMaster. "
+                "ใช้เมื่อ user ถามยอดของ sales คนใดคนหนึ่ง หรือจัดอันดับ sales. "
+                "รองรับกรองช่วงเวลา (สัปดาห์/เดือน) ผ่าน parameter week"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "sales_name": {
+                        "type": "string",
+                        "description": "ชื่อ sales (รองรับพิมพ์บางส่วน) ไม่ระบุ = จัดอันดับทุกคน"
+                    },
+                    "week": {
+                        "type": "string",
+                        "description": "ช่วงเวลา — เลข (202626) หรือคำพูดสัมพัทธ์ ('สัปดาห์นี้', 'เดือนนี้', 'เดือนหน้า') ไม่ระบุ = ยอดรวมทั้งหมด"
+                    }
+                },
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "group_utilization",
+            "description": (
+                "จัดอันดับการใช้งานกลุ่มเครื่อง: Total, Used, Ava, Used% (คำนวณให้แล้ว — ห้ามคำนวณเอง), "
+                "KG_Ava และสัปดาห์ที่วิกฤตที่สุดของแต่ละกลุ่ม. "
+                "ใช้เมื่อ user ถาม 'กลุ่มไหนแน่น/ตึงสุด', 'กลุ่มไหนว่างสุด', 'ภาพรวมการใช้เครื่อง'"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "week": {
+                        "type": "string",
+                        "description": "ช่วงเวลา — เลข (202626) หรือคำพูด ('สัปดาห์นี้', 'เดือนหน้า') ไม่ระบุ = 4 สัปดาห์ข้างหน้า"
+                    },
+                    "weeks_ahead": {
+                        "type": "number",
+                        "description": "จำนวนสัปดาห์ข้างหน้าที่จะวิเคราะห์ (default 4, สูงสุด 12) — ใช้เมื่อไม่ระบุ week"
+                    },
+                    "sort_by": {
+                        "type": "string",
+                        "enum": ["used_pct", "available"],
+                        "description": "used_pct = กลุ่มตึงสุดก่อน (default), available = กลุ่มว่างมากสุดก่อน"
+                    }
+                },
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "analyze_plan_impact",
+            "description": (
+                "วิเคราะห์ผลกระทบถ้าถอด/เลื่อน/ย้ายแผนของ item: บอกว่ากลุ่มเครื่องที่ item ใช้แน่นแค่ไหน "
+                "ถ้าถอดออก Ava จะเพิ่มประมาณเท่าไร และมี item ใดใช้กลุ่ม+สัปดาห์เดียวกันบ้าง (ผู้ที่ได้/เสียประโยชน์). "
+                "ใช้เมื่อ user ถาม 'ถ้าถอดแผนนี้กระทบ item อื่นไหม', 'เลื่อนแผนได้ไหม', 'item นี้ใช้เครื่องร่วมกับใคร'"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "item_code": {
+                        "type": "string",
+                        "description": "รหัส item ที่จะวิเคราะห์ เช่น F100114/10A0 (รองรับ prefix/substring)"
+                    },
+                    "week": {
+                        "type": "string",
+                        "description": "เจาะจงสัปดาห์ — เลข (202626) หรือคำพูดสัมพัทธ์ ไม่ระบุ = วิเคราะห์ทุกสัปดาห์ที่มีแผน"
+                    },
+                    "group": {
+                        "type": "string",
+                        "description": "เจาะจงกลุ่มเครื่อง ถ้า item อยู่หลายกลุ่ม"
+                    }
+                },
+                "required": ["item_code"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "export_excel",
+            "description": (
+                "สร้างไฟล์ Excel (.xlsx) ให้ user ดาวน์โหลด เรียกเฉพาะเมื่อ user ขอ export/ไฟล์/Excel/ดาวน์โหลดข้อมูล. "
+                "วิธีที่ถูกต้อง: ส่ง source_tool + filter (item_code/group/week/gauge) ตาม scope ที่คุยกัน — "
+                "ระบบจะดึงข้อมูลและใส่ทุกแถวให้เอง ห้ามส่ง rows เอง (arguments จะ truncate เมื่อข้อมูลเยอะ). "
+                "ผลลัพธ์มีลิงก์ดาวน์โหลด — ต้องใส่ลิงก์นั้นในคำตอบเสมอ"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "source_tool": {
+                        "type": "string",
+                        "enum": ["get_item_plan", "get_knit_plan", "get_machine_capacity", "get_booking"],
+                        "description": "data tool ที่จะดึงข้อมูลมา export โดยตรง (แนะนำเสมอ) — ใช้คู่กับ filter ด้านล่าง ไม่ต้องส่ง columns/rows"
+                    },
+                    "item_code": {
+                        "type": "string",
+                        "description": "filter: รหัส item (สำหรับ get_item_plan/get_knit_plan)"
+                    },
+                    "group": {
+                        "type": "string",
+                        "description": "filter: กลุ่มเครื่อง เช่น SKP"
+                    },
+                    "week": {
+                        "type": "string",
+                        "description": "filter: สัปดาห์ — เลข (202626) หรือคำพูดสัมพัทธ์ ('สัปดาห์นี้') ตาม scope ที่คุยกัน"
+                    },
+                    "gauge": {
+                        "type": "string",
+                        "description": "filter: gauge (สำหรับ get_machine_capacity)"
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "หัวข้อรายงานในไฟล์ เช่น 'แผนทอ SKP สัปดาห์ 202626'"
+                    },
+                    "filename": {
+                        "type": "string",
+                        "description": "ชื่อไฟล์สื่อ scope (a-z, 0-9, -, _ ไม่ต้องใส่ .xlsx) เช่น item_plan_202626"
+                    },
+                    "columns": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "โหมด manual เท่านั้น (ข้อมูลไม่ได้มาจาก data tool): หัวตาราง"
+                    },
+                    "rows": {
+                        "type": "array",
+                        "description": "โหมด manual เท่านั้น: ข้อมูลแต่ละแถว — ห้ามใช้ถ้ามี source_tool",
+                        "items": {"type": "array"}
+                    }
+                },
+                "required": []
+            }
+        }
     }
 ]
 
@@ -718,6 +988,623 @@ class ResponseProcessor:
     def _tool_get_knit_plan(self, week: str = None, group: str = None, item_code: str = None) -> str:
         return self._tool_get_item_plan(item_code=item_code, group=group, week=week)
 
+    @staticmethod
+    def _parse_week_arg(week: str):
+        """แปลง argument week (เลข 6 หลัก หรือคำพูดสัมพัทธ์) เป็น YW เดียว — None ถ้าแปลงไม่ได้"""
+        if not week:
+            return None
+        yws = _week_keyword_to_yw(week)
+        if not yws and re.match(r'^\d{6}$', week.strip()):
+            yws = [week.strip()]
+        return yws[0] if yws else None
+
+    @staticmethod
+    def _kg_ava_lookup(data: dict) -> dict:
+        """สร้าง lookup (yw, group_lower) -> kg_ava จาก cache payload"""
+        lookup: dict = {}
+        kg_csv = data.get('kg_ava', '') if isinstance(data, dict) else ''
+        for line in kg_csv.splitlines()[1:] if kg_csv else []:
+            parts = line.split(',')
+            if len(parts) >= 3:
+                try:
+                    lookup[(parts[0].strip(), parts[1].strip().lower())] = float(parts[2].strip())
+                except ValueError:
+                    pass
+        return lookup
+
+    def _tool_suggest_week(self, group: str = None, gauge: str = None, machines_needed=None, limit: int = 5) -> str:
+        cached, ready = get_data_cache().get('query_cap_ava')
+        if not ready or not cached:
+            return "ข้อมูลกำลังการผลิตยังไม่พร้อม กรุณาลองใหม่อีกครั้ง"
+        data = cached.get('data', {})
+        csv_text = data.get('mc', '') if isinstance(data, dict) else ''
+        if not csv_text:
+            return "ไม่มีข้อมูล Machine Capacity"
+
+        try:
+            need = float(machines_needed) if machines_needed is not None else 1.0
+        except (TypeError, ValueError):
+            need = 1.0
+        if need < 1:
+            need = 1.0
+
+        kg_lookup = self._kg_ava_lookup(data)
+        min_yw = _min_plannable_yw()
+        gauge_s = str(gauge).strip() if gauge else None
+
+        # รวม Ava ต่อ YW (เฉพาะ YW >= min plannable) + จดกลุ่มที่มีเครื่องว่าง
+        per_yw: dict = {}
+        for line in csv_text.splitlines()[1:]:
+            cols = line.split(',')
+            if len(cols) < 7:
+                continue
+            yw = cols[0].strip()
+            if yw < min_yw:
+                continue
+            group_col = cols[1].strip()
+            if group and not _group_matches(group_col.lower(), [group.lower()]):
+                continue
+            if gauge_s and cols[2].strip() != gauge_s:
+                continue
+            try:
+                ava = float(cols[6].strip() or 0)
+            except ValueError:
+                ava = 0.0
+            rec = per_yw.setdefault(yw, {'ava': 0.0, 'groups': set()})
+            rec['ava'] += ava
+            if ava > 0:
+                rec['groups'].add(group_col)
+
+        candidates = sorted(yw for yw, rec in per_yw.items() if rec['ava'] >= need)
+        if not candidates:
+            return (
+                f"ไม่พบสัปดาห์ที่มีเครื่องว่าง >= {need:g} เครื่อง "
+                f"(group={group or 'ทุกกลุ่ม'}, gauge={gauge_s or 'ทุก gauge'}) "
+                f"ตั้งแต่ YW {min_yw} เป็นต้นไปในช่วงข้อมูลที่มี"
+            )
+
+        # KG_Ava เป็นค่าระดับกลุ่ม — รวมได้เฉพาะตอนไม่ได้ filter gauge (convention เดียวกับ get_machine_capacity)
+        lines_out = ["YW,Ava,KG_Ava,Groups"]
+        for yw in candidates[:limit]:
+            rec = per_yw[yw]
+            kg = ''
+            if not gauge_s:
+                kg_sum = sum(
+                    kg_lookup.get((yw, g.lower()), 0.0) for g in rec['groups']
+                )
+                if kg_sum > 0:
+                    kg = f"{kg_sum:.2f}"
+            groups_str = '; '.join(sorted(rec['groups']))
+            lines_out.append(f"{yw},{rec['ava']:g},{kg},{groups_str}")
+
+        note = (
+            f"[คำแนะนำ: สัปดาห์เร็วที่สุดที่ลงได้คือ YW {candidates[0]} "
+            f"(ต้องการ {need:g} เครื่อง). กฎ min plannable week = current+2 → YW {min_yw} ระบบกรองให้แล้ว]"
+        )
+        return '\n'.join(lines_out) + '\n' + note
+
+    def _tool_compare_weeks(self, week_a: str = None, week_b: str = None, group: str = None) -> str:
+        cached, ready = get_data_cache().get('query_cap_ava')
+        if not ready or not cached:
+            return "ข้อมูลกำลังการผลิตยังไม่พร้อม กรุณาลองใหม่อีกครั้ง"
+        data = cached.get('data', {})
+        csv_text = data.get('mc', '') if isinstance(data, dict) else ''
+        if not csv_text:
+            return "ไม่มีข้อมูล Machine Capacity"
+
+        yw_a = self._parse_week_arg(week_a)
+        yw_b = self._parse_week_arg(week_b)
+        if not yw_a or not yw_b:
+            return f"ไม่เข้าใจสัปดาห์ที่ระบุ (week_a={week_a}, week_b={week_b}) — ส่งเป็นเลข YYYYWW เช่น 202624 หรือคำพูดเช่น 'สัปดาห์นี้'"
+        if yw_a == yw_b:
+            return f"week_a และ week_b เป็นสัปดาห์เดียวกัน (YW {yw_a}) — ไม่มีอะไรให้เปรียบเทียบ"
+
+        # รวม Total/Ava ต่อ (group) ของแต่ละ week
+        per_group: dict = {}
+        for line in csv_text.splitlines()[1:]:
+            cols = line.split(',')
+            if len(cols) < 7:
+                continue
+            yw = cols[0].strip()
+            if yw not in (yw_a, yw_b):
+                continue
+            group_col = cols[1].strip()
+            if group and not _group_matches(group_col.lower(), [group.lower()]):
+                continue
+            try:
+                total = float(cols[3].strip() or 0)
+                ava = float(cols[6].strip() or 0)
+            except ValueError:
+                continue
+            slot = 'a' if yw == yw_a else 'b'
+            rec = per_group.setdefault(group_col, {'a': [0.0, 0.0], 'b': [0.0, 0.0]})
+            rec[slot][0] += total
+            rec[slot][1] += ava
+
+        if not per_group:
+            return f"ไม่พบข้อมูลของ YW {yw_a} หรือ YW {yw_b} (group={group or 'ทุกกลุ่ม'})"
+
+        header = f"Group,Total_{yw_a},Ava_{yw_a},Total_{yw_b},Ava_{yw_b},Ava_Delta,Ava_Pct"
+        lines_out = [header]
+        sum_a = [0.0, 0.0]
+        sum_b = [0.0, 0.0]
+
+        def _fmt_row(name, a, b):
+            delta = b[1] - a[1]
+            pct = f"{(delta / a[1] * 100):.1f}%" if a[1] else ''
+            return f"{name},{a[0]:g},{a[1]:g},{b[0]:g},{b[1]:g},{delta:+g},{pct}"
+
+        for gname in sorted(per_group):
+            rec = per_group[gname]
+            lines_out.append(_fmt_row(gname, rec['a'], rec['b']))
+            sum_a[0] += rec['a'][0]
+            sum_a[1] += rec['a'][1]
+            sum_b[0] += rec['b'][0]
+            sum_b[1] += rec['b'][1]
+        if len(per_group) > 1:
+            lines_out.append(_fmt_row('(รวม)', sum_a, sum_b))
+
+        note = f"[Ava_Delta = YW {yw_b} − YW {yw_a}; ใช้ค่า Delta/Pct จากตารางนี้เท่านั้น ห้ามคำนวณเอง]"
+        return '\n'.join(lines_out) + '\n' + note
+
+    def _tool_item_capability(self, item_code: str = None, week: str = None) -> str:
+        """item ทอได้ที่กลุ่มไหนบ้าง (จาก Table_Item) + สถานะว่างของแต่ละกลุ่ม"""
+        if not item_code:
+            return "ต้องระบุ item_code"
+        cached, ready = get_data_cache().get('query_item_capability')
+        if not ready or not cached:
+            return "ข้อมูล Table_Item ยังไม่พร้อม กรุณาลองใหม่หลัง cache refresh รอบถัดไป"
+        csv_text = cached.get('data', '')
+
+        ic = item_code.strip().upper()
+        exact, prefix, substr = [], [], []
+        for line in csv_text.splitlines()[1:]:
+            cols = line.split(',')
+            if len(cols) < 4:
+                continue
+            item = cols[0].strip()
+            row = (item, cols[1].strip(), cols[2].strip(), cols[3].strip())
+            iu = item.upper()
+            if iu == ic:
+                exact.append(row)
+            elif iu.startswith(ic):
+                prefix.append(row)
+            elif ic in iu:
+                substr.append(row)
+        matched = exact or prefix or substr
+        if not matched:
+            return f"ไม่พบ item {item_code} ใน Table_Item"
+        actual = matched[0][0]
+        cap_rows = [r for r in matched if r[0] == actual]
+
+        yw_target = self._parse_week_arg(week) if week else None
+        if week and not yw_target:
+            return f"ไม่เข้าใจสัปดาห์ '{week}'"
+
+        # Ava ต่อ (group, yw) จาก Table_MC
+        cap_cached, cap_ready = get_data_cache().get('query_cap_ava')
+        mc_data = cap_cached.get('data', {}) if (cap_ready and cap_cached) else {}
+        mc_csv = mc_data.get('mc', '') if isinstance(mc_data, dict) else ''
+        avas: dict = {}
+        for line in mc_csv.splitlines()[1:] if mc_csv else []:
+            cols = line.split(',')
+            if len(cols) < 7:
+                continue
+            try:
+                ava = float(cols[6].strip() or 0)
+            except ValueError:
+                continue
+            key = (cols[1].strip().lower(), cols[0].strip())
+            avas[key] = avas.get(key, 0.0) + ava
+
+        min_yw = _min_plannable_yw()
+
+        def _ava_for(group: str, yw: str) -> float:
+            gl = group.lower()
+            return sum(a for (g2, y2), a in avas.items() if y2 == yw and _group_matches(g2, [gl]))
+
+        def _next_free(group: str):
+            gl = group.lower()
+            per_yw: dict = {}
+            for (g2, y2), a in avas.items():
+                if y2 >= min_yw and _group_matches(g2, [gl]):
+                    per_yw[y2] = per_yw.get(y2, 0.0) + a
+            for y2 in sorted(per_yw):
+                if per_yw[y2] > 0:
+                    return y2, per_yw[y2]
+            return None, 0.0
+
+        # กลุ่มที่ item มีแผนปัจจุบัน (จาก BookingMaster) — ไว้เทียบ "ทอได้" vs "มีแผนจริง"
+        planned_groups = set()
+        item_cached, item_ready = get_data_cache().get('query_item')
+        if item_ready and item_cached:
+            for line in (item_cached.get('data', '') or '').splitlines()[1:]:
+                cols = line.split(',')
+                if len(cols) >= 2 and cols[0].strip().upper() == actual.upper():
+                    planned_groups.add(cols[1].strip().lower())
+
+        def _is_planned(grp: str) -> str:
+            gl = grp.lower()
+            return 'yes' if any(
+                _group_matches(pg, [gl]) or _group_matches(gl, [pg]) for pg in planned_groups
+            ) else ''
+
+        if yw_target:
+            lines_out = [f"Group,SubGroup,Cap,Planned,Ava_{yw_target}"]
+            for (_item, grp, sub, cap) in cap_rows[:20]:
+                lines_out.append(f"{grp},{sub},{cap},{_is_planned(grp)},{_ava_for(grp, yw_target):g}")
+        else:
+            lines_out = ["Group,SubGroup,Cap,Planned,Next_Free_YW,Next_Free_Ava"]
+            for (_item, grp, sub, cap) in cap_rows[:20]:
+                nf_yw, nf_ava = _next_free(grp)
+                lines_out.append(f"{grp},{sub},{cap},{_is_planned(grp)},{nf_yw or 'ไม่มีว่าง'},{nf_ava:g}")
+
+        note = (
+            f"[item {actual} ทอได้ {len(cap_rows)} กลุ่ม (จาก Table_Item); "
+            f"Planned=yes คือกลุ่มที่มีแผนปัจจุบันใน BookingMaster; "
+            f"Next_Free_YW นับจาก YW {min_yw} (กฎ current+2); Cap = ค่าจาก Table_Item]"
+        )
+        return '\n'.join(lines_out) + '\n' + note
+
+    def _tool_get_sales_summary(self, sales_name: str = None, week: str = None) -> str:
+        cached, ready = get_data_cache().get('query_sales')
+        if not ready or not cached:
+            return "ข้อมูล Sales ยังไม่พร้อม กรุณาลองใหม่อีกครั้ง"
+        sales_map = cached.get('data', {}) or {}
+        entries = {k: v for k, v in sales_map.items() if k != '__system__'}
+        if not entries:
+            return "ไม่มีข้อมูล Sales ในระบบ"
+
+        yw_filter = None
+        if week:
+            yws = _week_keyword_to_yw(week)
+            if not yws and re.match(r'^\d{6}$', week.strip()):
+                yws = [week.strip()]
+            if not yws:
+                return f"ไม่เข้าใจช่วงเวลา '{week}' — ส่งเป็นเลข YYYYWW หรือคำพูดเช่น 'เดือนนี้', 'สัปดาห์หน้า'"
+            yw_filter = sorted(set(yws))
+
+        # cache รุ่นเก่าอาจยังไม่มี kg_yw (ช่วงเปลี่ยนผ่านก่อน refresh รอบถัดไป)
+        has_yw_data = any('kg_yw' in v for v in entries.values())
+
+        def scoped_kg(v: dict) -> float:
+            if yw_filter and 'kg_yw' in v:
+                return sum((v.get('kg_yw') or {}).get(yw, 0.0) for yw in yw_filter)
+            return float(v.get('kg', 0.0))
+
+        if yw_filter:
+            period = f"YW {yw_filter[0]}–{yw_filter[-1]}" if len(yw_filter) > 1 else f"YW {yw_filter[0]}"
+        else:
+            period = "ทุกสัปดาห์ในระบบ"
+        warn = "" if (not yw_filter or has_yw_data) else "\n[หมายเหตุ: ข้อมูลรายสัปดาห์ยังไม่พร้อม แสดงยอดรวมทั้งหมดแทน]"
+
+        if sales_name:
+            q = sales_name.strip().lower()
+            matches = [k for k in entries if k == q] or sorted(k for k in entries if q in k or k in q)
+            if not matches:
+                names = ', '.join(sorted(v['name'] for v in entries.values())[:15])
+                return f"ไม่พบ sales '{sales_name}' — sales ที่มีในระบบ เช่น: {names}"
+            lines = ["Sales,Items_All,KG"]
+            for k in matches[:5]:
+                v = entries[k]
+                lines.append(f"{v['name']},{v['item_count']},{scoped_kg(v):.1f}")
+            note = f"[ช่วงข้อมูล: {period}; Items_All = จำนวน item รวมทุกสัปดาห์]{warn}"
+            return '\n'.join(lines) + '\n' + note
+
+        ranked = sorted(entries.values(), key=lambda v: -scoped_kg(v))
+        lines = ["Sales,Items_All,KG"]
+        for v in ranked[:20]:
+            lines.append(f"{v['name']},{v['item_count']},{scoped_kg(v):.1f}")
+        total_kg = sum(scoped_kg(v) for v in entries.values())
+        lines.append(f"(รวม {len(entries)} sales),,{total_kg:.1f}")
+        note = f"[ช่วงข้อมูล: {period}; เรียงตาม KG แสดงสูงสุด 20 ราย; Items_All = จำนวน item รวมทุกสัปดาห์]{warn}"
+        return '\n'.join(lines) + '\n' + note
+
+    def _tool_group_utilization(self, week: str = None, weeks_ahead=None, sort_by: str = None) -> str:
+        cached, ready = get_data_cache().get('query_cap_ava')
+        if not ready or not cached:
+            return "ข้อมูลกำลังการผลิตยังไม่พร้อม กรุณาลองใหม่อีกครั้ง"
+        data = cached.get('data', {})
+        csv_text = data.get('mc', '') if isinstance(data, dict) else ''
+        if not csv_text:
+            return "ไม่มีข้อมูล Machine Capacity"
+
+        if week:
+            yws = _week_keyword_to_yw(week)
+            if not yws and re.match(r'^\d{6}$', week.strip()):
+                yws = [week.strip()]
+            if not yws:
+                return f"ไม่เข้าใจช่วงเวลา '{week}'"
+            yw_list = sorted(set(yws))
+        else:
+            try:
+                n = int(weeks_ahead) if weeks_ahead is not None else 4
+            except (TypeError, ValueError):
+                n = 4
+            n = max(1, min(n, 12))
+            now = datetime.now()
+            yw_list = [_yw_from_date(now + timedelta(weeks=k)) for k in range(n)]
+        yw_set = set(yw_list)
+
+        kg_lookup = self._kg_ava_lookup(data)
+
+        # รวมต่อ (group, yw) ก่อน เพื่อหา worst week แล้วค่อยรวมเป็นต่อ group
+        per_gyw: dict = {}
+        for line in csv_text.splitlines()[1:]:
+            cols = line.split(',')
+            if len(cols) < 7:
+                continue
+            yw = cols[0].strip()
+            if yw not in yw_set:
+                continue
+            gname = cols[1].strip()
+            try:
+                total = float(cols[3].strip() or 0)
+                used = float(cols[4].strip() or 0) + float(cols[5].strip() or 0)
+                ava = float(cols[6].strip() or 0)
+            except ValueError:
+                continue
+            c = per_gyw.setdefault((gname, yw), [0.0, 0.0, 0.0])
+            c[0] += total
+            c[1] += used
+            c[2] += ava
+
+        if not per_gyw:
+            return f"ไม่พบข้อมูล capacity ในช่วง YW {yw_list[0]}–{yw_list[-1]}"
+
+        per_group: dict = {}
+        for (gname, yw), (total, used, ava) in per_gyw.items():
+            g = per_group.setdefault(gname, {'total': 0.0, 'used': 0.0, 'ava': 0.0, 'worst': None})
+            g['total'] += total
+            g['used'] += used
+            g['ava'] += ava
+            if g['worst'] is None or ava < g['worst'][1]:
+                g['worst'] = (yw, ava)
+
+        def _used_pct(g):
+            return (g['used'] / g['total'] * 100) if g['total'] > 0 else 0.0
+
+        reverse_key = (lambda kv: -kv[1]['ava']) if (sort_by or '').lower() in ('available', 'ava', 'ว่าง') \
+            else (lambda kv: -_used_pct(kv[1]))
+        ranked = sorted(per_group.items(), key=reverse_key)
+
+        lines = ["Group,Total,Used,Ava,Used_Pct,KG_Ava,Worst_YW,Worst_Ava"]
+        for gname, g in ranked[:30]:
+            kg = sum(kg_lookup.get((yw, gname.lower()), 0.0) for yw in yw_list)
+            kg_s = f"{kg:.2f}" if kg > 0 else ''
+            worst_yw, worst_ava = g['worst']
+            lines.append(
+                f"{gname},{g['total']:g},{g['used']:g},{g['ava']:g},"
+                f"{_used_pct(g):.1f}%,{kg_s},{worst_yw},{worst_ava:g}"
+            )
+        note = (
+            f"[ช่วงข้อมูล: YW {yw_list[0]}–{yw_list[-1]} ({len(yw_list)} สัปดาห์) "
+            f"เรียงตาม{'เครื่องว่างมาก' if (sort_by or '').lower() in ('available', 'ava', 'ว่าง') else ' Used% มาก'}; "
+            f"ใช้ Used_Pct จากตารางนี้เท่านั้น ห้ามคำนวณเอง; Used_Pct > 100% = จองเกิน capacity]"
+        )
+        return '\n'.join(lines) + '\n' + note
+
+    def _tool_analyze_plan_impact(self, item_code: str = None, week: str = None, group: str = None) -> str:
+        """วิเคราะห์ผลกระทบถ้าถอด/ย้ายแผนของ item: capacity กลุ่มเปลี่ยนเท่าไร และ item ใดใช้กลุ่ม+สัปดาห์ร่วมกัน"""
+        if not item_code:
+            return "ต้องระบุ item_code ที่จะวิเคราะห์ผลกระทบ"
+        item_cached, item_ready = get_data_cache().get('query_item')
+        if not item_ready or not item_cached:
+            return "ข้อมูล Item Plan ยังไม่พร้อม กรุณาลองใหม่อีกครั้ง"
+        item_csv = item_cached.get('data', '')
+        cap_cached, cap_ready = get_data_cache().get('query_cap_ava')
+        cap_data = cap_cached.get('data', {}) if (cap_ready and cap_cached) else {}
+        mc_csv = cap_data.get('mc', '') if isinstance(cap_data, dict) else ''
+
+        yw_filter = None
+        if week:
+            yws = _week_keyword_to_yw(week)
+            if not yws and re.match(r'^\d{6}$', week.strip()):
+                yws = [week.strip()]
+            yw_filter = set(yws) if yws else None
+
+        # หาแผนของ item (exact > prefix > substring แบบเดียวกับ get_item_plan)
+        # พร้อมเก็บทุกแถวไว้หา item ที่ใช้กลุ่ม+สัปดาห์ร่วมกัน
+        ic = item_code.strip().upper()
+        exact, prefix, substr = [], [], []
+        all_rows = []  # (item, group, kp, yw)
+        for line in item_csv.splitlines()[1:]:
+            cols = line.split(',')
+            if len(cols) < 4:
+                continue
+            item, grp, kp_s, yw = cols[0].strip(), cols[1].strip(), cols[2].strip(), cols[3].strip()
+            try:
+                kp = float(kp_s) if kp_s else 0.0
+            except ValueError:
+                kp = 0.0
+            row = (item, grp, kp, yw)
+            all_rows.append(row)
+            iu = item.upper()
+            if iu == ic:
+                exact.append(row)
+            elif iu.startswith(ic):
+                prefix.append(row)
+            elif ic in iu:
+                substr.append(row)
+
+        matched = exact or prefix or substr
+        if not matched:
+            return f"ไม่พบ item {item_code} ใน Item Plan"
+        actual_code = matched[0][0]
+        target_rows = [r for r in matched if r[0] == actual_code]
+        if group:
+            target_rows = [r for r in target_rows if _group_matches(r[1].lower(), [group.lower()])]
+        if yw_filter:
+            target_rows = [r for r in target_rows if r[3] in yw_filter]
+        if not target_rows:
+            return f"item {actual_code} ไม่มีแผนตามเงื่อนไข (week={week}, group={group})"
+
+        # capacity รวมต่อ (yw, group) จาก Table_MC
+        cap: dict = {}
+        for line in mc_csv.splitlines()[1:] if mc_csv else []:
+            cols = line.split(',')
+            if len(cols) < 7:
+                continue
+            key = (cols[0].strip(), cols[1].strip().lower())
+            c = cap.setdefault(key, [0.0, 0.0, 0.0])  # Total, Used, Ava
+            try:
+                c[0] += float(cols[3].strip() or 0)
+                c[1] += float(cols[4].strip() or 0) + float(cols[5].strip() or 0)
+                c[2] += float(cols[6].strip() or 0)
+            except ValueError:
+                pass
+
+        _MAX_PLAN_ROWS = 8
+        out = [f"=== วิเคราะห์ผลกระทบแผนของ {actual_code} ==="]
+        for (item, grp, kp, yw) in target_rows[:_MAX_PLAN_ROWS]:
+            grp_l = grp.lower()
+            others = sorted(
+                ((i, k) for (i, g2, k, y2) in all_rows if y2 == yw and g2.lower() == grp_l and i != actual_code),
+                key=lambda x: -x[1],
+            )
+            group_kp = kp + sum(k for _, k in others)
+            out.append(f"--- ถ้าถอดแผน {actual_code} YW {yw} กลุ่ม {grp} ({kp:g} kg) ---")
+            c = cap.get((yw, grp_l))
+            if c:
+                total, used, ava = c
+                status = 'เต็ม/เกิน' if ava <= 0 else 'ยังมีว่าง'
+                out.append(f"Capacity กลุ่ม {grp} YW {yw}: Total={total:g}, Used={used:g}, Ava={ava:g} ({status})")
+                if used > 0 and group_kp > 0:
+                    est = kp / (group_kp / used)  # ประมาณจากสัดส่วน KP_Weight ของกลุ่มในสัปดาห์นั้น
+                    out.append(f"ประมาณเครื่องที่แผนนี้ใช้ ~{est:.1f} เครื่อง → ถ้าถอดออก Ava เพิ่มเป็น ~{ava + est:.1f}")
+            else:
+                out.append(f"(ไม่พบข้อมูล capacity ของกลุ่ม {grp} YW {yw})")
+            if others:
+                out.append(
+                    f"item ที่ใช้กลุ่ม {grp} YW {yw} ร่วมกัน: {len(others)} รายการ "
+                    f"รวม {sum(k for _, k in others):.2f} kg — ได้เครื่องว่างเพิ่มถ้าถอด / ถูกเบียดถ้าเพิ่มแผน"
+                )
+                out.append("  Top: " + ', '.join(f"{i} ({k:g} kg)" for i, k in others[:5]))
+            else:
+                out.append(f"ไม่มี item อื่นในกลุ่ม {grp} YW {yw} — ถอดแผนนี้ไม่กระทบ item อื่น")
+            out.append("")
+        if len(target_rows) > _MAX_PLAN_ROWS:
+            out.append(f"[หมายเหตุ: item นี้มีแผน {len(target_rows)} รายการ แสดง {_MAX_PLAN_ROWS} รายการแรก — ระบุ week/group เพื่อเจาะจง]")
+        out.append(
+            f"[หมายเหตุ: 'เครื่องที่แผนนี้ใช้' เป็นค่าประมาณจากสัดส่วน KP_Weight; "
+            f"ถ้าจะย้ายแผนไป week อื่น week เร็วที่สุดที่วางแผนได้ = YW {_min_plannable_yw()}]"
+        )
+        return '\n'.join(out)
+
+    _EXCEL_EXPORT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'excel_exports')
+    _EXCEL_MAX_ROWS = 5000
+
+    # คอลัมน์ที่ต้องคงเป็น string ตอนแปลง CSV → Excel (รหัส/สัปดาห์ ไม่ใช่ตัวเลขเชิงปริมาณ)
+    _EXPORT_TEXT_COLS = {'yw', 'item', 'group', 'guage', 'mc_group', 'groups'}
+
+    @classmethod
+    def _csv_to_table(cls, text: str):
+        """แปลงผลลัพธ์ CSV จาก data tool เป็น (columns, rows) สำหรับ export
+        ข้ามบรรทัด note/footer ที่ขึ้นต้นด้วย '[' — คืน ([], []) ถ้าไม่ใช่ตาราง"""
+        lines = [l for l in (text or '').splitlines() if l.strip() and not l.strip().startswith('[')]
+        if len(lines) < 2 or ',' not in lines[0]:
+            return [], []
+        columns = [c.strip() for c in lines[0].split(',')]
+        text_idx = {i for i, c in enumerate(columns) if c.lower() in cls._EXPORT_TEXT_COLS}
+        rows = []
+        for line in lines[1:]:
+            cells = [c.strip() for c in line.split(',')]
+            cells = cells[:len(columns)] + [''] * (len(columns) - len(cells))
+            row = []
+            for i, v in enumerate(cells):
+                if i not in text_idx and v:
+                    try:
+                        v = float(v)
+                    except ValueError:
+                        pass
+                row.append(v)
+            rows.append(row)
+        return columns, rows
+
+    def _run_data_tool_for_export(self, source_tool: str, args: dict):
+        """เรียก data tool ฝั่ง server เพื่อเอา CSV มา export ตรงๆ — คืน None ถ้าไม่รู้จัก tool"""
+        if source_tool in ('get_item_plan', 'get_knit_plan'):
+            return self._tool_get_item_plan(
+                item_code=args.get('item_code'), group=args.get('group'), week=args.get('week'))
+        if source_tool == 'get_machine_capacity':
+            return self._tool_get_machine_capacity(
+                group=args.get('group'), week=args.get('week'), gauge=args.get('gauge'))
+        if source_tool == 'get_booking':
+            return self._tool_get_booking(group=args.get('group'), week=args.get('week'))
+        return None
+
+    def _tool_export_excel(self, raw_arguments: str) -> str:
+        """สร้างไฟล์ .xlsx ใน excel_exports/ แล้วคืนลิงก์ดาวน์โหลดให้โมเดลใส่ในคำตอบ"""
+        try:
+            args = json.loads(raw_arguments)
+        except Exception:
+            # arguments มัก truncate เมื่อโมเดลพยายามส่ง rows เองจำนวนมาก — ชี้ทางให้ใช้ source_tool
+            return ("สร้างไฟล์ Excel ไม่สำเร็จ: arguments ไม่สมบูรณ์ — "
+                    "ให้เรียกใหม่ด้วย source_tool + filter แทนการส่ง rows เอง")
+
+        columns = [str(c) for c in (args.get("columns") or [])]
+        rows = [r for r in (args.get("rows") or []) if isinstance(r, list)]
+
+        source_tool = args.get("source_tool")
+        if source_tool and not rows:
+            csv_text = self._run_data_tool_for_export(str(source_tool), args)
+            if csv_text is None:
+                return f"สร้างไฟล์ Excel ไม่สำเร็จ: ไม่รู้จัก source_tool '{source_tool}'"
+            columns, rows = self._csv_to_table(csv_text)
+            if not rows:
+                first_line = (csv_text or '').splitlines()[0] if csv_text else 'ไม่มีข้อมูล'
+                return f"สร้างไฟล์ Excel ไม่สำเร็จ: {first_line}"
+
+        if not columns or not rows:
+            return "สร้างไฟล์ Excel ไม่สำเร็จ: ต้องระบุ source_tool + filter หรือส่ง columns และ rows ที่มีข้อมูล"
+        truncated = len(rows) > self._EXCEL_MAX_ROWS
+        rows = rows[:self._EXCEL_MAX_ROWS]
+
+        slug = re.sub(r'[^A-Za-z0-9_-]+', '', str(args.get("filename") or '')) or 'report'
+        # timestamp เวลาไทย — container รัน UTC ถ้าใช้ datetime.now() เฉยๆ ชื่อไฟล์จะเพี้ยน 7 ชม.
+        now_bkk = datetime.now(timezone(timedelta(hours=7)))
+        fname = f"{slug}_{now_bkk.strftime('%Y%m%d_%H%M%S')}.xlsx"
+
+        try:
+            from openpyxl import Workbook
+            from openpyxl.styles import Font
+            from openpyxl.utils import get_column_letter
+
+            wb = Workbook()
+            ws = wb.active
+            ws.title = 'Report'
+            title = str(args.get("title") or '')
+            row0 = 1
+            if title:
+                ws.cell(1, 1, title).font = Font(bold=True, size=13)
+                row0 = 3
+            for ci, col in enumerate(columns, 1):
+                ws.cell(row0, ci, col).font = Font(bold=True)
+            for ri, row in enumerate(rows, row0 + 1):
+                for ci, v in enumerate(row[:len(columns)], 1):
+                    ws.cell(ri, ci, v if isinstance(v, (int, float)) else ('' if v is None else str(v)))
+            # ปรับความกว้างคอลัมน์ตามเนื้อหา (cap ที่ 40)
+            for ci, col in enumerate(columns, 1):
+                width = len(str(col))
+                for row in rows:
+                    if len(row) >= ci:
+                        width = max(width, len(str(row[ci - 1])))
+                ws.column_dimensions[get_column_letter(ci)].width = min(width + 2, 40)
+
+            os.makedirs(self._EXCEL_EXPORT_DIR, exist_ok=True)
+            wb.save(os.path.join(self._EXCEL_EXPORT_DIR, fname))
+        except Exception as e:
+            logger.error(f"export_excel failed: {e}")
+            return "สร้างไฟล์ Excel ไม่สำเร็จ: เกิดข้อผิดพลาดภายใน กรุณาลองใหม่อีกครั้ง"
+
+        logger.info(f"export_excel: {fname} | {len(columns)} cols | {len(rows)} rows")
+        trunc_note = f" (ตัดเหลือ {self._EXCEL_MAX_ROWS} แถวแรก)" if truncated else ""
+        return (
+            f"สร้างไฟล์ Excel เรียบร้อย ({len(rows)} แถว{trunc_note}) — "
+            f"ตอบ user พร้อมแนบลิงก์บรรทัดนี้เป๊ะๆ ห้ามแก้ URL:\n"
+            f"[📥 ดาวน์โหลด {fname}](/download/excel/{fname})"
+        )
+
     def _execute_tool_call(self, tool_call) -> str:
         name = tool_call.function.name
         try:
@@ -749,6 +1636,42 @@ class ResponseProcessor:
                 group=args.get("group"),
                 item_code=args.get("item_code"),
             )
+        elif name == "suggest_week":
+            return self._tool_suggest_week(
+                group=args.get("group"),
+                gauge=args.get("gauge"),
+                machines_needed=args.get("machines_needed"),
+            )
+        elif name == "compare_weeks":
+            return self._tool_compare_weeks(
+                week_a=args.get("week_a"),
+                week_b=args.get("week_b"),
+                group=args.get("group"),
+            )
+        elif name == "item_capability":
+            return self._tool_item_capability(
+                item_code=args.get("item_code"),
+                week=args.get("week"),
+            )
+        elif name == "get_sales_summary":
+            return self._tool_get_sales_summary(
+                sales_name=args.get("sales_name"),
+                week=args.get("week"),
+            )
+        elif name == "group_utilization":
+            return self._tool_group_utilization(
+                week=args.get("week"),
+                weeks_ahead=args.get("weeks_ahead"),
+                sort_by=args.get("sort_by"),
+            )
+        elif name == "analyze_plan_impact":
+            return self._tool_analyze_plan_impact(
+                item_code=args.get("item_code"),
+                week=args.get("week"),
+                group=args.get("group"),
+            )
+        elif name == "export_excel":
+            return self._tool_export_excel(tool_call.function.arguments)
         return f"ไม่รู้จัก tool: {name}"
 
     def _build_table_spec(self, raw_arguments: str):
@@ -1466,6 +2389,7 @@ class ResponseProcessor:
             {"role": "system", "content": system_prompt},
             {"role": "system", "content": lang_instruction},
             *image_system,
+            *_export_nudge(user_message),
             *history_msgs,
             {"role": "user", "content": user_msg_content},
         ]
@@ -1489,7 +2413,7 @@ class ResponseProcessor:
                             messages=messages,
                             tools=TOOLS,
                             tool_choice="auto",
-                            max_completion_tokens=2500,
+                            max_completion_tokens=4096,
                         ),
                     )
                     break
@@ -1646,6 +2570,7 @@ class ResponseProcessor:
             {"role": "system", "content": system_prompt},
             {"role": "system", "content": lang_instruction},
             *image_system,
+            *_export_nudge(user_message),
             *history_msgs,
             {"role": "user", "content": user_msg_content},
         ]
@@ -1666,7 +2591,7 @@ class ResponseProcessor:
                         messages=messages,
                         tools=TOOLS,
                         tool_choice="auto",
-                        max_completion_tokens=2500,
+                        max_completion_tokens=4096,
                         stream=True,
                     )
                     break
