@@ -37,6 +37,10 @@
             --badge-adm-c: #c084fc;
             --badge-usr: rgba(30,140,255,0.15);
             --badge-usr-c: #60a5fa;
+            --badge-knt: rgba(24,201,139,0.15);
+            --badge-knt-c: #34d399;
+            --badge-om:  rgba(245,158,11,0.15);
+            --badge-om-c: #fbbf24;
         }
         /* ═══════════ LIGHT MODE ═══════════ */
         html.light-mode {
@@ -65,6 +69,10 @@
             --badge-adm-c: #7c3aed;
             --badge-usr: rgba(13,110,253,0.1);
             --badge-usr-c: #1d4ed8;
+            --badge-knt: rgba(16,185,129,0.1);
+            --badge-knt-c: #047857;
+            --badge-om:  rgba(245,158,11,0.12);
+            --badge-om-c: #b45309;
         }
 
         html, body { min-height: 100%; }
@@ -202,6 +210,8 @@
         /* ── Badges ── */
         .badge-admin { background: var(--badge-adm); color: var(--badge-adm-c); }
         .badge-user  { background: var(--badge-usr); color: var(--badge-usr-c); }
+        .badge-knit  { background: var(--badge-knt); color: var(--badge-knt-c); }
+        .badge-om    { background: var(--badge-om);  color: var(--badge-om-c); }
         .badge-round { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; }
         .role-badge-clickable { cursor: pointer; transition: opacity .15s, box-shadow .15s; }
         .role-badge-clickable:hover { opacity: .8; box-shadow: 0 0 0 2px rgba(192,132,252,.4); }
@@ -636,6 +646,12 @@
         <div id="role-dd-admin" onclick="selectRole('admin')" class="role-dd-item">
             <i class="fas fa-shield-alt mr-2" style="width:14px"></i>admin
         </div>
+        <div id="role-dd-knit" onclick="selectRole('knit')" class="role-dd-item">
+            <i class="fas fa-tshirt mr-2" style="width:14px"></i>knit
+        </div>
+        <div id="role-dd-om" onclick="selectRole('om')" class="role-dd-item">
+            <i class="fas fa-clipboard-list mr-2" style="width:14px"></i>om
+        </div>
     </div>
 
     <!-- Toast -->
@@ -733,12 +749,12 @@
             tbody.innerHTML = sorted.map(u => {
                 const canChangeRole = isSuperAdmin && u.id !== currentUserId;
                 const roleBadge = canChangeRole
-                    ? `<span class="badge-round ${u.role === 'admin' ? 'badge-admin' : 'badge-user'} role-badge-clickable"
+                    ? `<span class="badge-round ${roleBadgeClass(u.role)} role-badge-clickable"
                             onclick="toggleRoleDropdown(event, ${u.id}, '${escHtml(u.username)}', '${u.role}')"
                             title="คลิกเพื่อเปลี่ยน Role">
                             ${u.role} <i class="fas fa-caret-down" style="font-size:9px;margin-left:2px"></i>
                        </span>`
-                    : `<span class="badge-round ${u.role === 'admin' ? 'badge-admin' : 'badge-user'}">${u.role}</span>`;
+                    : `<span class="badge-round ${roleBadgeClass(u.role)}">${u.role}</span>`;
                 return `
                 <tr id="user-row-${u.id}">
                     <td style="color:var(--t3)">${u.id}</td>
@@ -813,6 +829,10 @@
 
         // ---- Role Dropdown ----
 
+        const ALL_ROLES = ['user', 'admin', 'knit', 'om'];
+        const ROLE_BADGE_CLASS = { admin: 'badge-admin', knit: 'badge-knit', om: 'badge-om' };
+        function roleBadgeClass(role) { return ROLE_BADGE_CLASS[role] || 'badge-user'; }
+
         let roleDdUserId = null;
         let roleDdCurrentRole = null;
 
@@ -827,7 +847,7 @@
             roleDdUserId = userId;
             roleDdCurrentRole = currentRole;
 
-            ['user', 'admin'].forEach(r => {
+            ALL_ROLES.forEach(r => {
                 const el = document.getElementById(`role-dd-${r}`);
                 el.style.fontWeight = r === currentRole ? '700' : '400';
                 el.style.color = r === currentRole ? '#c084fc' : '';

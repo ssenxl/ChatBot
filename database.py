@@ -489,13 +489,13 @@ class Database:
             return updated
 
     def update_user_role(self, user_id, new_role):
-        allowed = ('user', 'admin')
+        allowed = ('user', 'admin', 'knit', 'om')
         if new_role not in allowed:
             return False
         with self._conn() as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "UPDATE users SET role = %s WHERE id = %s",
+                "UPDATE users SET role = %s, session_version = COALESCE(session_version, 1) + 1 WHERE id = %s",
                 (new_role, user_id)
             )
             updated = cursor.rowcount > 0

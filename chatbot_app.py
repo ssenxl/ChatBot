@@ -1020,8 +1020,8 @@ def admin_update_user_role(user_id):
         return jsonify({'success': False, 'message': 'ไม่สามารถเปลี่ยน role ของตัวเองได้'}), 400
     data = request.get_json(silent=True) or {}
     new_role = (data.get('role') or '').strip().lower()
-    if new_role not in ('user', 'admin'):
-        return jsonify({'success': False, 'message': 'Role ไม่ถูกต้อง (รองรับ: user, admin)'}), 400
+    if new_role not in ('user', 'admin', 'knit', 'om'):
+        return jsonify({'success': False, 'message': 'Role ไม่ถูกต้อง (รองรับ: user, admin, knit, om)'}), 400
     success = db.update_user_role(user_id, new_role)
     if not success:
         return jsonify({'success': False, 'message': 'ไม่พบผู้ใช้'}), 404
