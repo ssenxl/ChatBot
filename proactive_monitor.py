@@ -167,7 +167,7 @@ class ProactiveMonitor:
                 try:
                     conv_id = self._db.create_conversation(
                         user['id'],
-                        f"⚠️ แจ้งเตือน {today.day:02d}/{today.month:02d}"
+                        f"🌤️ สรุปประจำวัน {today.day:02d}/{today.month:02d}"
                     )
                     self._db.add_message(conv_id, 'assistant', msg, 'text')
                     sent += 1
@@ -210,7 +210,7 @@ class ProactiveMonitor:
                 try:
                     conv_id = self._db.create_conversation(
                         user['id'],
-                        f"⚠️ แจ้งเตือน {today.day:02d}/{today.month:02d}"
+                        f"🌤️ สรุปประจำวัน {today.day:02d}/{today.month:02d}"
                     )
                     self._db.add_message(conv_id, 'assistant', msg, 'text')
                     result['users_notified'] += 1

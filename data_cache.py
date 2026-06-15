@@ -96,24 +96,38 @@ _KG_AVA_DAX = """EVALUATE
 SUMMARIZECOLUMNS(
     Table_MC[YW],
     Table_MC[Master.MC],
+    Table_MC[Master.Guage],
     "KG_Ava", [KG_Ava_Display]
 )"""
 
 
-def _aggregate_kg_ava(rows: list) -> str:
-    """CSV: YW,Group,KG_Ava — จาก SUMMARIZECOLUMNS([KG_Ava_Display])"""
+def _aggregate_kg_ava(rows: list) -> tuple[str, str]:
+    """Parse per-gauge KG_Ava rows from KG_Ava_Display measure.
+    Returns (group_csv, gauge_csv):
+      group_csv: YW,Group,KG_Ava         (aggregated per group, for morning greeting)
+      gauge_csv: YW,Group,Guage,KG_Ava   (per gauge, for machine capacity tool)
+    """
     min_yw, max_yw = _week_range()
-    lines = ['YW,Group,KG_Ava']
+    group_totals: dict = defaultdict(float)
+    gauge_lines = ['YW,Group,Guage,KG_Ava']
     for r in rows:
         yw = str(r.get('YW', '') or '').strip()
         if not yw or not (min_yw <= yw <= max_yw):
             continue
         group = str(r.get('Master.MC', '') or r.get('MC', '') or '').strip()
+        guage = str(r.get('Master.Guage', '') or '').strip()
         kg_ava = r.get('KG_Ava')
         if kg_ava is None:
             continue
-        lines.append(f"{yw},{group},{round(float(kg_ava), 2)}")
-    return '\n'.join(lines)
+        kg = round(float(kg_ava), 2)
+        group_totals[(yw, group)] += kg
+        gauge_lines.append(f"{yw},{group},{guage},{kg}")
+    group_lines = ['YW,Group,KG_Ava']
+    for (yw, group), kg in sorted(group_totals.items()):
+        group_lines.append(f"{yw},{group},{round(kg, 2)}")
+    group_csv = '\n'.join(group_lines) if len(group_lines) > 1 else ''
+    gauge_csv = '\n'.join(gauge_lines) if len(gauge_lines) > 1 else ''
+    return group_csv, gauge_csv
 
 
 def _aggregate_sales(booking_rows: list) -> dict:
@@ -306,10 +320,11 @@ class DataCache:
 
         # --- ดึง KG_Ava_Display measure ผ่าน DAX query ---
         kg_ava_summary = ''
+        kg_ava_gauge_summary = ''
         try:
             result = _pbi_fetch_dax(_KG_AVA_DAX)
             kg_ava_rows = result.get('data', [])
-            kg_ava_summary = _aggregate_kg_ava(kg_ava_rows)
+            kg_ava_summary, kg_ava_gauge_summary = _aggregate_kg_ava(kg_ava_rows)
             logger.info(f"DataCache: KG_Ava_Display loaded — {len(kg_ava_rows)} rows")
         except Exception as e:
             logger.error(f"DataCache: failed to fetch KG_Ava_Display: {e}")
@@ -323,6 +338,7 @@ class DataCache:
                         'mc': mc_summary,
                         'booking': booking_summary,
                         'kg_ava': kg_ava_summary,
+                        'kg_ava_gauge': kg_ava_gauge_summary,
                     }
                 }
                 self._cache['query_machine'] = machine_payload
